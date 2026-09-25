@@ -1,0 +1,3601 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberBand IQ - ESP32 Smart Band Dashboard</title>
+  <meta name="description"
+    content="Dashboard giám sát và điều khiển vòng tay thông minh ESP32 thời gian thực qua giao thức MQTT WebSockets, tích hợp đo tài nguyên hệ thống và phát hiện té ngã.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&family=Orbitron:wght@600;800;900&display=swap"
+    rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- MQTT & Chart.js CDNs -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ==========================================================================
+       CYBERPUNK / FITNESS BAND DESIGN SYSTEM - CSS VARIABLES
+       ========================================================================== */
+    :root {
+      --bg-dark: #070a13;
+      --bg-card: rgba(14, 20, 36, 0.75);
+      --bg-card-hover: rgba(22, 32, 58, 0.85);
+      --bg-glass-nav: rgba(10, 15, 29, 0.88);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(0, 242, 254, 0.35);
+
+      /* Cyber Neon Accents */
+      --neon-cyan: #00f2fe;
+      --neon-blue: #4facfe;
+      --neon-pink: #ff2a6d;
+      --neon-red: #ff0055;
+      --neon-green: #00ff87;
+      --neon-amber: #ffb703;
+      --neon-purple: #9d4edd;
+
+      /* Typography & States */
+      --text-main: #f0f4fc;
+      --text-muted: #8e9bb5;
+      --text-dim: #5c6882;
+      --status-connected: #00ff87;
+      --status-connecting: #ffb703;
+      --status-disconnected: #ff0055;
+
+      /* Radii & Shadows */
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+      --shadow-glow-cyan: 0 0 25px rgba(0, 242, 254, 0.25);
+      --shadow-glow-pink: 0 0 25px rgba(255, 42, 109, 0.3);
+      --shadow-glow-green: 0 0 25px rgba(0, 255, 135, 0.25);
+      --shadow-glow-danger: 0 0 35px rgba(255, 0, 85, 0.5);
+
+      --font-main: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-tech: 'Orbitron', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image:
+        radial-gradient(at 10% 15%, rgba(0, 242, 254, 0.08) 0px, transparent 50%),
+        radial-gradient(at 90% 85%, rgba(255, 42, 109, 0.07) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(157, 78, 221, 0.05) 0px, transparent 70%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(10, 15, 29, 0.7);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1f2b48;
+      border-radius: var(--radius-full);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--neon-cyan);
+    }
+
+    /* ==========================================================================
+       TOP NAVIGATION BAR
+       ========================================================================== */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-glass-nav);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      box-shadow: var(--shadow-glow-pink);
+      position: relative;
+    }
+
+    .brand-icon::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      pointer-events: none;
+    }
+
+    .brand-text h1 {
+      font-family: var(--font-tech);
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      background: linear-gradient(90deg, #ffffff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+
+    .brand-text p {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Connection Status Badge */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--status-disconnected);
+      box-shadow: 0 0 10px var(--status-disconnected);
+      position: relative;
+      transition: background-color 0.3s, box-shadow 0.3s;
+    }
+
+    .status-dot.connected {
+      background-color: var(--status-connected);
+      box-shadow: 0 0 12px var(--status-connected);
+      animation: pulse-dot 2s infinite;
+    }
+
+    .status-dot.connecting {
+      background-color: var(--status-connecting);
+      box-shadow: 0 0 12px var(--status-connecting);
+      animation: blink-dot 1s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+      }
+
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(0.95);
+        opacity: 0.8;
+      }
+    }
+
+    @keyframes blink-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-family: var(--font-main);
+      font-size: 0.83rem;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-glass {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+    }
+
+    .btn-glass:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
+      color: #050b18;
+      box-shadow: var(--shadow-glow-cyan);
+      font-weight: 700;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 0 25px rgba(0, 242, 254, 0.45);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--neon-red), var(--neon-pink));
+      color: #fff;
+      box-shadow: var(--shadow-glow-pink);
+    }
+
+    .btn-danger:hover {
+      filter: brightness(1.15);
+      box-shadow: 0 0 25px rgba(255, 0, 85, 0.5);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0a0e1a;
+      font-weight: 700;
+    }
+
+    .btn-demo-active {
+      background: linear-gradient(135deg, #10b981, #059669) !important;
+      color: #fff !important;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) !important;
+    }
+
+    /* ==========================================================================
+       MAIN DASHBOARD CONTAINER & GRID
+       ========================================================================== */
+    .dashboard-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Quick Info Sub-Header Bar */
+    .system-status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 20px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      backdrop-filter: blur(12px);
+    }
+
+    .sys-info-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .sys-info-item strong {
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+
+    .sys-pill {
+      background: rgba(0, 242, 254, 0.1);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+    }
+
+    /* Section Subheadings */
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 4px;
+      padding: 0 4px;
+    }
+
+    .section-heading h3 {
+      font-family: var(--font-tech);
+      font-size: 0.96rem;
+      letter-spacing: 0.8px;
+      color: var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-heading span {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* ==========================================================================
+       METRICS CARDS (HEALTH & SENSORS)
+       ========================================================================== */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      box-shadow: var(--shadow-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      transform: translateY(-3px);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: transparent;
+      transition: background 0.3s;
+    }
+
+    /* Card Specific Glows */
+    .card-heart:hover::before {
+      background: linear-gradient(90deg, var(--neon-red), var(--neon-pink));
+      box-shadow: 0 0 15px var(--neon-pink);
+    }
+
+    .card-spo2:hover::before {
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
+
+    .card-steps:hover::before {
+      background: linear-gradient(90deg, var(--neon-green), #38ef7d);
+      box-shadow: 0 0 15px var(--neon-green);
+    }
+
+    .card-accel:hover::before {
+      background: linear-gradient(90deg, var(--neon-purple), var(--neon-cyan));
+      box-shadow: 0 0 15px var(--neon-purple);
+    }
+
+    /* System Resource Cards Glows */
+    .card-ram:hover::before {
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
+
+    .card-temp:hover::before {
+      background: linear-gradient(90deg, var(--neon-amber), var(--neon-red));
+      box-shadow: 0 0 15px var(--neon-amber);
+    }
+
+    .card-wifi:hover::before {
+      background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+      box-shadow: 0 0 15px var(--neon-green);
+    }
+
+    .card-cpu:hover::before {
+      background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink));
+      box-shadow: 0 0 15px var(--neon-purple);
+    }
+
+    /* Fall Alert Danger Mode on Accelerometer Card */
+    .card-accel.fall-danger-active {
+      border-color: var(--neon-red) !important;
+      box-shadow: var(--shadow-glow-danger) !important;
+      animation: alertPulseBorder 1s infinite alternate;
+    }
+
+    .card-accel.fall-danger-active::before {
+      background: var(--neon-red) !important;
+      box-shadow: 0 0 20px var(--neon-red) !important;
+    }
+
+    @keyframes alertPulseBorder {
+      0% {
+        box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+      }
+
+      100% {
+        box-shadow: 0 0 45px rgba(255, 0, 85, 0.85);
+      }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-normal {
+      background: rgba(0, 255, 135, 0.15);
+      color: var(--neon-green);
+      border: 1px solid rgba(0, 255, 135, 0.3);
+    }
+
+    .badge-warning {
+      background: rgba(255, 183, 3, 0.15);
+      color: var(--neon-amber);
+      border: 1px solid rgba(255, 183, 3, 0.3);
+    }
+
+    .badge-danger {
+      background: rgba(255, 0, 85, 0.2);
+      color: var(--neon-red);
+      border: 1px solid rgba(255, 0, 85, 0.4);
+      animation: pulse-danger 1s infinite alternate;
+    }
+
+    @keyframes pulse-danger {
+      from {
+        transform: scale(0.96);
+        box-shadow: 0 0 8px rgba(255, 0, 85, 0.3);
+      }
+
+      to {
+        transform: scale(1.04);
+        box-shadow: 0 0 16px rgba(255, 0, 85, 0.6);
+      }
+    }
+
+    .card-body {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .metric-value-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .metric-val {
+      font-family: var(--font-tech);
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .metric-unit {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .metric-icon-box {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    /* Icon Box Accents */
+    .icon-heart {
+      background: rgba(255, 42, 109, 0.12);
+      color: var(--neon-pink);
+      border: 1px solid rgba(255, 42, 109, 0.3);
+    }
+
+    .icon-spo2 {
+      background: rgba(0, 242, 254, 0.12);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+    }
+
+    .icon-steps {
+      background: rgba(0, 255, 135, 0.12);
+      color: var(--neon-green);
+      border: 1px solid rgba(0, 255, 135, 0.3);
+    }
+
+    .icon-accel {
+      background: rgba(157, 78, 221, 0.12);
+      color: var(--neon-purple);
+      border: 1px solid rgba(157, 78, 221, 0.3);
+    }
+
+    /* Heartbeat animation */
+    .heart-beat-active {
+      animation: heartbeat 1s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    @keyframes heartbeat {
+      0% {
+        transform: scale(1);
+      }
+
+      14% {
+        transform: scale(1.22);
+      }
+
+      28% {
+        transform: scale(1);
+      }
+
+      42% {
+        transform: scale(1.15);
+      }
+
+      70% {
+        transform: scale(1);
+      }
+    }
+
+    /* Card Details / Footers */
+    .card-footer-info {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* Progress Bars */
+    .progress-bar-container {
+      margin-top: 14px;
+    }
+
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 9px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 34%;
+      background: linear-gradient(90deg, #00ff87, #00f2fe);
+      border-radius: var(--radius-full);
+      box-shadow: 0 0 10px rgba(0, 255, 135, 0.5);
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* GY-521 Tri-axial Breakdown */
+    .accel-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-top: 14px;
+    }
+
+    .accel-axis-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.77rem;
+      font-family: var(--font-mono);
+    }
+
+    .axis-label {
+      width: 22px;
+      font-weight: 700;
+    }
+
+    .axis-label-x {
+      color: var(--neon-cyan);
+    }
+
+    .axis-label-y {
+      color: var(--neon-pink);
+    }
+
+    .axis-label-z {
+      color: var(--neon-green);
+    }
+
+    .axis-mini-bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .axis-mini-fill {
+      height: 100%;
+      width: 50%;
+      border-radius: 4px;
+      transition: width 0.2s ease;
+    }
+
+    .fill-x {
+      background: var(--neon-cyan);
+    }
+
+    .fill-y {
+      background: var(--neon-pink);
+    }
+
+    .fill-z {
+      background: var(--neon-green);
+    }
+
+    .axis-value {
+      width: 110px;
+      text-align: right;
+      color: var(--text-main);
+      font-size: 0.75rem;
+    }
+
+    /* ==========================================================================
+       SECTION: REAL-TIME CHARTS
+       ========================================================================== */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 1024px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-tag {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .chart-canvas-wrapper {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 280px;
+      margin-top: 10px;
+    }
+
+    /* ==========================================================================
+       SECTION: CONTROL CENTER & OLED SIMULATOR
+       ========================================================================== */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 980px) {
+      .controls-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Control Panel Items */
+    .control-item {
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .control-item:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .control-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .control-info h4 {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-info p {
+      font-size: 0.77rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 58px;
+      height: 30px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #21293d;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #8e9bb5;
+      border-radius: 50%;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    input:checked+.slider {
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      box-shadow: 0 0 16px rgba(0, 242, 254, 0.5);
+      border-color: var(--neon-cyan);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(28px);
+      background-color: #070a13;
+    }
+
+    /* OLED Page Switcher Buttons */
+    .page-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .btn-page {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.25s ease;
+    }
+
+    .btn-page i {
+      font-size: 1.25rem;
+      transition: transform 0.25s;
+    }
+
+    .btn-page:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border-color: rgba(0, 242, 254, 0.4);
+    }
+
+    .btn-page:hover i {
+      transform: scale(1.15);
+    }
+
+    .btn-page.active {
+      background: rgba(0, 242, 254, 0.12);
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 18px rgba(0, 242, 254, 0.25);
+    }
+
+    /* Message Input Box */
+    .msg-input-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-field {
+      flex: 1;
+      background: rgba(10, 15, 29, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      color: var(--text-main);
+      font-family: var(--font-main);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+
+    .input-field:focus {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 14px rgba(0, 242, 254, 0.3);
+    }
+
+    .char-counter {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      text-align: right;
+    }
+
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .preset-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .preset-chip:hover {
+      background: rgba(0, 242, 254, 0.1);
+      color: var(--neon-cyan);
+      border-color: rgba(0, 242, 254, 0.3);
+    }
+
+    /* Action Row (3 buttons) */
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr;
+      gap: 10px;
+    }
+
+    /* OLED Screen Virtual Mockup Display */
+    .oled-preview-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .oled-device-frame {
+      background: #04060b;
+      border: 4px solid #1a233a;
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9), 0 10px 30px rgba(0, 0, 0, 0.6);
+      position: relative;
+      margin: 10px 0;
+      transition: border-color 0.3s;
+    }
+
+    .oled-device-frame.frame-fall-alert {
+      border-color: var(--neon-red) !important;
+      box-shadow: inset 0 0 30px rgba(255, 0, 85, 0.5), 0 0 30px rgba(255, 0, 85, 0.6) !important;
+    }
+
+    .oled-device-frame::after {
+      content: 'SSD1306 OLED (128 x 64)';
+      position: absolute;
+      bottom: 4px;
+      right: 18px;
+      font-size: 0.6rem;
+      color: #313f63;
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+    }
+
+    .oled-screen {
+      background: #000000;
+      border-radius: 8px;
+      height: 180px;
+      border: 1px solid #141c2e;
+      padding: 14px;
+      color: #00f2fe;
+      font-family: var(--font-mono);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      box-shadow: inset 0 0 12px rgba(0, 242, 254, 0.15);
+      transition: all 0.3s;
+    }
+
+    .oled-screen.off {
+      background: #050608;
+      color: #1e283d;
+      box-shadow: none;
+    }
+
+    .oled-screen.off .oled-content {
+      opacity: 0.08;
+    }
+
+    .oled-screen.vibrating {
+      animation: shake 0.5s infinite;
+    }
+
+    @keyframes shake {
+
+      0%,
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      20% {
+        transform: translate(-3px, 2px) rotate(-1deg);
+      }
+
+      40% {
+        transform: translate(3px, -2px) rotate(1deg);
+      }
+
+      60% {
+        transform: translate(-2px, -2px) rotate(0deg);
+      }
+
+      80% {
+        transform: translate(2px, 1px) rotate(1deg);
+      }
+    }
+
+    .oled-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      border-bottom: 1px dashed rgba(0, 242, 254, 0.3);
+      padding-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .oled-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 8px 0;
+      font-size: 0.88rem;
+    }
+
+    .oled-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      border-top: 1px dashed rgba(0, 242, 254, 0.2);
+      padding-top: 4px;
+      opacity: 0.8;
+    }
+
+    .oled-msg-popup {
+      background: #002233;
+      border: 1px solid #00f2fe;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      font-weight: 700;
+      color: #fff;
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* Fall Alert Display on Virtual OLED */
+    .oled-fall-box {
+      border: 2px solid #ff0055;
+      background: rgba(255, 0, 85, 0.15);
+      border-radius: 6px;
+      padding: 6px;
+      text-align: center;
+      color: #ff0055;
+      animation: flashOledRed 0.8s infinite alternate;
+    }
+
+    @keyframes flashOledRed {
+      from {
+        background: rgba(255, 0, 85, 0.1);
+        color: #ff0055;
+      }
+
+      to {
+        background: rgba(255, 0, 85, 0.35);
+        color: #ffffff;
+      }
+    }
+
+    /* ==========================================================================
+       SECTION: REAL-TIME CONSOLE LOG (TERMINAL)
+       ========================================================================== */
+    .terminal-card {
+      background: #050811;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .terminal-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .terminal-filters {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-size: 0.73rem;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active,
+    .filter-btn:hover {
+      background: rgba(0, 242, 254, 0.12);
+      color: var(--neon-cyan);
+      border-color: var(--neon-cyan);
+    }
+
+    .terminal-window {
+      height: 240px;
+      background: #030408;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 0.77rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+
+    .log-time {
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .log-tag {
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .tag-in {
+      background: rgba(0, 255, 135, 0.15);
+      color: var(--neon-green);
+      border: 1px solid rgba(0, 255, 135, 0.3);
+    }
+
+    .tag-out {
+      background: rgba(0, 242, 254, 0.15);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+    }
+
+    .tag-info {
+      background: rgba(255, 183, 3, 0.15);
+      color: var(--neon-amber);
+      border: 1px solid rgba(255, 183, 3, 0.3);
+    }
+
+    .tag-err {
+      background: rgba(255, 0, 85, 0.2);
+      color: var(--neon-red);
+      border: 1px solid rgba(255, 0, 85, 0.4);
+    }
+
+    .log-topic {
+      color: #9d4edd;
+      flex-shrink: 0;
+    }
+
+    .log-msg {
+      color: var(--text-main);
+    }
+
+    /* ==========================================================================
+       MODALS (CONFIG, CONFIRMATION & EMERGENCY FALL ALERT)
+       ========================================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: #0d1322;
+      border: 1px solid var(--border-glow);
+      box-shadow: 0 0 50px rgba(0, 242, 254, 0.25), 0 25px 50px rgba(0, 0, 0, 0.7);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 540px;
+      padding: 28px;
+      position: relative;
+      transform: translateY(20px) scale(0.97);
+      transition: transform 0.25s ease;
+    }
+
+    .modal-backdrop.active .modal-box {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .modal-header h3 {
+      font-family: var(--font-tech);
+      font-size: 1.15rem;
+      color: var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-close-modal {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .btn-close-modal:hover {
+      color: var(--neon-pink);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    /* EMERGENCY FALL ALERT MODAL */
+    .modal-box-fall {
+      border: 2px solid var(--neon-red) !important;
+      box-shadow: 0 0 70px rgba(255, 0, 85, 0.7), 0 0 120px rgba(255, 0, 85, 0.4) !important;
+      animation: alertSirenBox 1.2s infinite alternate;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    @keyframes alertSirenBox {
+      0% {
+        box-shadow: 0 0 30px rgba(255, 0, 85, 0.5);
+      }
+
+      100% {
+        box-shadow: 0 0 80px rgba(255, 0, 85, 0.95);
+      }
+    }
+
+    .fall-alert-icon-box {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(255, 0, 85, 0.18);
+      border: 2px solid var(--neon-red);
+      color: var(--neon-red);
+      font-size: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px auto;
+      animation: shake 0.6s infinite;
+    }
+
+    .fall-stat-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 0, 85, 0.3);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin: 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    .fall-stat-item {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+    }
+
+    .fall-stat-item strong {
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1050;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: #0f172a;
+      border: 1px solid var(--neon-cyan);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--text-main);
+      animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+      .navbar {
+        padding: 12px 16px;
+      }
+
+      .brand-text h1 {
+        font-size: 1.05rem;
+      }
+
+      .dashboard-container {
+        padding: 14px;
+        gap: 16px;
+      }
+
+      .metric-val {
+        font-size: 2.2rem;
+      }
+
+      .action-row {
+        grid-template-columns: 1fr;
+      }
+
+      .page-buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ========================================================================
+       TOP NAVBAR
+       ======================================================================== -->
+  <header class="navbar">
+    <a href="#" class="brand" id="brandLogo">
+      <div class="brand-icon">
+        <i class="fa-solid fa-heart-pulse"></i>
+      </div>
+      <div class="brand-text">
+        <h1>CYBERBAND S3</h1>
+        <p>IoT Telemetry, Fall Detection & System Diagnostics</p>
+      </div>
+    </a>
+
+    <div class="nav-actions">
+      <!-- Connection Status Indicator -->
+      <div class="status-badge" id="connStatusBadge" title="Trạng thái MQTT Broker">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="connStatusText">Chưa kết nối</span>
+      </div>
+
+      <!-- Demo Simulator Toggle -->
+      <button class="btn btn-glass" id="btnToggleDemo" title="Bật/Tắt chế độ mô phỏng khi không có phần cứng ESP32">
+        <i class="fa-solid fa-microchip"></i>
+        <span id="demoBtnText">Chế độ Demo: TẮT</span>
+      </button>
+
+      <!-- Connect / Disconnect Action Button -->
+      <button class="btn btn-primary" id="btnConnectToggle">
+        <i class="fa-solid fa-plug"></i>
+        <span id="connectBtnText">Kết nối MQTT</span>
+      </button>
+
+      <!-- Config Modal Button -->
+      <button class="btn btn-glass" id="btnOpenConfig" title="Cấu hình MQTT Broker & Topic">
+        <i class="fa-solid fa-sliders"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN DASHBOARD CONTAINER
+       ======================================================================== -->
+  <main class="dashboard-container">
+
+    <!-- Sub-header: Quick Telemetry Meta & Session Info -->
+    <section class="system-status-bar">
+      <div class="sys-info-item">
+        <i class="fa-solid fa-tower-broadcast" style="color: var(--neon-cyan)"></i>
+        <span>Broker:</span>
+        <span class="sys-pill" id="dispBrokerHost">broker.emqx.io:8084</span>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-cube" style="color: var(--neon-purple)"></i>
+        <span>Base Topic:</span>
+        <strong id="dispBaseTopic">smartband_s3/dev01</strong>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-person-falling-burst" style="color: var(--neon-red)"></i>
+        <span>Ngưỡng té ngã:</span>
+        <strong style="color: var(--neon-pink);">&gt; 20.0 m/s&sup2;</strong>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-clock-rotate-left" style="color: var(--neon-amber)"></i>
+        <span>Cập nhật cuối:</span>
+        <strong id="dispLastPacketTime">Chưa nhận dữ liệu</strong>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-arrow-down-up-across-line" style="color: var(--neon-green)"></i>
+        <span>Gói tin:</span>
+        <strong id="dispPacketCount">0</strong>
+      </div>
+    </section>
+
+    <!-- SECTION HEADING: HEALTH & SENSORS -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-heart-pulse"></i> CHỈ SỐ SINH HIỆU & CẢM BIẾN CHUYỂN ĐỘNG</h3>
+      <span>MAX30102 / GY-521 MPU6050</span>
+    </div>
+
+    <!-- ======================================================================
+         ROW 1: REAL-TIME METRICS CARDS
+         ====================================================================== -->
+    <section class="metrics-grid">
+
+      <!-- CARD 1: HEART RATE -->
+      <div class="card card-heart" id="cardHeart">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-heartbeat" style="color: var(--neon-pink);"></i>
+            <span>Nhịp tim (Heart Rate)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeHeartStatus">Bình thường</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valHeartRate" style="color: var(--neon-pink);">--</span>
+            <span class="metric-unit">BPM</span>
+          </div>
+          <div class="metric-icon-box icon-heart heart-beat-active" id="iconHeartPulse">
+            <i class="fa-solid fa-heart"></i>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Ngưỡng an toàn: 50 - 120 BPM</span>
+          <span id="statHeartMinMax">Min: -- | Max: --</span>
+        </div>
+      </div>
+
+      <!-- CARD 2: SPO2 BLOOD OXYGEN -->
+      <div class="card card-spo2" id="cardSpo2">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-lungs" style="color: var(--neon-cyan);"></i>
+            <span>Oxy trong máu (SpO2)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeSpo2Status">Tối ưu</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valSpo2" style="color: var(--neon-cyan);">--</span>
+            <span class="metric-unit">%</span>
+          </div>
+          <div class="metric-icon-box icon-spo2">
+            <i class="fa-solid fa-droplet"></i>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Tiêu chuẩn y tế: &ge; 95%</span>
+          <span id="statSpo2Quality">Chất lượng: Khỏe mạnh</span>
+        </div>
+      </div>
+
+      <!-- CARD 3: PEDOMETER (STEPS & CALORIES) -->
+      <div class="card card-steps" id="cardSteps">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-person-walking" style="color: var(--neon-green);"></i>
+            <span>Bộ đếm bước chân</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeStepGoal">Mục tiêu: 10K</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valSteps" style="color: var(--neon-green);">0</span>
+            <span class="metric-unit">bước</span>
+          </div>
+          <div class="metric-icon-box icon-steps">
+            <i class="fa-solid fa-shoe-prints"></i>
+          </div>
+        </div>
+        <!-- Progress Bar towards 10,000 steps -->
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Tiến độ</span>
+            <span id="valStepsPercent">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barStepsFill" style="width: 0%;"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span><i class="fa-solid fa-fire" style="color: #ffaa00;"></i> <strong id="valCalories">0</strong> kcal</span>
+          <span><i class="fa-solid fa-route" style="color: #00f2fe;"></i> <strong id="valDistance">0.00</strong>
+            km</span>
+        </div>
+      </div>
+
+      <!-- CARD 4: 3-AXIS ACCELEROMETER & FALL DETECTION (GY-521 / MPU6050) -->
+      <div class="card card-accel" id="cardAccel">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-compass-drafting" style="color: var(--neon-purple);"></i>
+            <span>Gia tốc GY-521 (MPU6050)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeMotionState">Đứng yên</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valAccelMagMs2" style="color: #ffffff;">9.81</span>
+            <span class="metric-unit">m/s&sup2;</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 4px;">(<span
+                id="valAccelMagG">1.00</span> g)</span>
+          </div>
+          <div class="metric-icon-box icon-accel" id="iconAccelBox">
+            <i class="fa-solid fa-person-falling-burst"></i>
+          </div>
+        </div>
+        <!-- Breakdown X, Y, Z with mini visual bars & m/s2 values -->
+        <div class="accel-bars">
+          <div class="accel-axis-row">
+            <span class="axis-label axis-label-x">X:</span>
+            <div class="axis-mini-bar">
+              <div class="axis-mini-fill fill-x" id="barAccelX" style="width: 50%;"></div>
+            </div>
+            <span class="axis-value" id="valAccelX">0.0 m/s&sup2; (0.00g)</span>
+          </div>
+          <div class="accel-axis-row">
+            <span class="axis-label axis-label-y">Y:</span>
+            <div class="axis-mini-bar">
+              <div class="axis-mini-fill fill-y" id="barAccelY" style="width: 50%;"></div>
+            </div>
+            <span class="axis-value" id="valAccelY">0.0 m/s&sup2; (0.00g)</span>
+          </div>
+          <div class="accel-axis-row">
+            <span class="axis-label axis-label-z">Z:</span>
+            <div class="axis-mini-bar">
+              <div class="axis-mini-fill fill-z" id="barAccelZ" style="width: 50%;"></div>
+            </div>
+            <span class="axis-value" id="valAccelZ">9.8 m/s&sup2; (1.00g)</span>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Công thức: &radic;(X&sup2; + Y&sup2; + Z&sup2;)</span>
+          <span style="color: var(--neon-pink); font-weight: 700;">Té ngã: &gt; 20 m/s&sup2;</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================
+         SECTION: ESP32 SYSTEM RESOURCE MONITORING (TÀI NGUYÊN HỆ THỐNG)
+         ====================================================================== -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-server"></i> GIÁM SÁT TÀI NGUYÊN HỆ THỐNG ESP32-S3</h3>
+      <span>Dual-core Xtensa LX7 @ 240MHz | 8MB Flash | 320KB SRAM</span>
+    </div>
+
+    <section class="metrics-grid">
+      <!-- 1. RAM / HEAP USAGE CARD -->
+      <div class="card card-ram" id="cardRam">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-memory" style="color: var(--neon-cyan);"></i>
+            <span>Bộ nhớ RAM (Heap)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeHeapStatus">Tối ưu</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valHeapPct" style="color: var(--neon-cyan);">16.8</span>
+            <span class="metric-unit">%</span>
+          </div>
+          <div class="metric-icon-box"
+            style="background: rgba(0, 242, 254, 0.12); color: var(--neon-cyan); border: 1px solid rgba(0, 242, 254, 0.3);">
+            <i class="fa-solid fa-microchip"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Đã dùng: <strong id="valHeapUsedKb" style="color: var(--text-main);">55 KB</strong></span>
+            <span>Trống: <strong id="valHeapFreeKb" style="color: var(--neon-green);">272 KB</strong></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barHeapFill"
+              style="width: 17%; background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Tổng SRAM: <strong>320 KB</strong></span>
+          <span>Leak-free: <strong>Ổn định</strong></span>
+        </div>
+      </div>
+
+      <!-- 2. INTERNAL SOC TEMPERATURE -->
+      <div class="card card-temp" id="cardTemp">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-temperature-half" style="color: var(--neon-amber);"></i>
+            <span>Nhiệt độ Chip SoC</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeTempStatus">Mát mẻ</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valChipTemp" style="color: var(--neon-amber);">44.5</span>
+            <span class="metric-unit">°C</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 4px;">(<span
+                id="valChipTempF">112.1</span> °F)</span>
+          </div>
+          <div class="metric-icon-box"
+            style="background: rgba(255, 183, 3, 0.12); color: var(--neon-amber); border: 1px solid rgba(255, 183, 3, 0.3);">
+            <i class="fa-solid fa-fire-flame-curved"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Ngưỡng an toàn (&lt; 75°C)</span>
+            <span id="dispTempPct">45%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barTempFill"
+              style="width: 45%; background: linear-gradient(90deg, #10b981, #f59e0b);"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Cảm biến: <strong>Built-in SoC ESP32-S3</strong></span>
+          <span>Tản nhiệt: <strong>Tốt</strong></span>
+        </div>
+      </div>
+
+      <!-- 3. WIFI RSSI SIGNAL STRENGTH -->
+      <div class="card card-wifi" id="cardWifi">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-wifi" style="color: var(--neon-green);"></i>
+            <span>Tín hiệu WiFi (RSSI)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeWifiQuality">Rất mạnh</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valRssi" style="color: var(--neon-green);">-58</span>
+            <span class="metric-unit">dBm</span>
+          </div>
+          <div class="metric-icon-box"
+            style="background: rgba(0, 255, 135, 0.12); color: var(--neon-green); border: 1px solid rgba(0, 255, 135, 0.3);">
+            <i class="fa-solid fa-signal" id="iconWifiSignal"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Chất lượng sóng: <strong id="valRssiPct">84%</strong></span>
+            <span>SSID: <strong style="color: var(--neon-cyan);">Zinh</strong></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barRssiFill"
+              style="width: 84%; background: linear-gradient(90deg, #3b82f6, #00ff87);"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Băng tần: <strong>2.4 GHz 802.11 b/g/n</strong></span>
+          <span>Mất gói: <strong>0%</strong></span>
+        </div>
+      </div>
+
+      <!-- 4. CPU CLOCK, UPTIME & FLASH MEMORY -->
+      <div class="card card-cpu" id="cardCpu">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--neon-purple);"></i>
+            <span>CPU & Uptime & Flash</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeCpuFreq">240 MHz</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valUptimeStr" style="font-size: 2.2rem; color: #ffffff;">00:05:42</span>
+          </div>
+          <div class="metric-icon-box"
+            style="background: rgba(157, 78, 221, 0.12); color: var(--neon-purple); border: 1px solid rgba(157, 78, 221, 0.3);">
+            <i class="fa-solid fa-stopwatch"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Flash Sketch: <strong id="valFlashUsed">760 KB</strong></span>
+            <span>Dung lượng: <strong>8 MB</strong> (22.8%)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barFlashFill"
+              style="width: 23%; background: linear-gradient(90deg, #9d4edd, #ff2a6d);"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Uptime ESP32: <strong id="dispBootTime">Vừa khởi động</strong></span>
+          <span>Core: <strong>Dual Xtensa</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION HEADING: CHARTS -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-chart-line"></i> BIỂU ĐỒ DAO ĐỘNG THỜI GIAN THỰC</h3>
+      <span>Chart.js Engine | 20 Điểm Gần Nhất</span>
+    </div>
+
+    <!-- ======================================================================
+         ROW 2: CHARTS (HEART/SPO2 & ACCELEROMETER)
+         ====================================================================== -->
+    <section class="charts-grid">
+
+      <!-- CHART 1: HEART RATE & SPO2 DUAL AXIS -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-chart-line" style="color: var(--neon-cyan);"></i>
+            <span>Đồ thị Nhịp tim & Nồng độ SpO2</span>
+          </div>
+          <div class="chart-controls">
+            <span class="chart-tag"><i class="fa-solid fa-circle" style="color: var(--neon-pink); font-size: 8px;"></i>
+              HR (BPM)</span>
+            <span class="chart-tag"><i class="fa-solid fa-circle" style="color: var(--neon-cyan); font-size: 8px;"></i>
+              SpO2 (%)</span>
+          </div>
+        </div>
+        <div class="chart-canvas-wrapper">
+          <canvas id="chartHeartSpo2"></canvas>
+        </div>
+      </div>
+
+      <!-- CHART 2: 3-AXIS ACCELERATION WAVEFORM -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-wave-square" style="color: var(--neon-purple);"></i>
+            <span>Đồ thị Dao động Gia tốc 3 Trục (m/s&sup2;)</span>
+          </div>
+          <div class="chart-controls">
+            <span class="chart-tag"><i class="fa-solid fa-circle" style="color: var(--neon-cyan); font-size: 8px;"></i>
+              X</span>
+            <span class="chart-tag"><i class="fa-solid fa-circle" style="color: var(--neon-pink); font-size: 8px;"></i>
+              Y</span>
+            <span class="chart-tag"><i class="fa-solid fa-circle" style="color: var(--neon-green); font-size: 8px;"></i>
+              Z</span>
+          </div>
+        </div>
+        <div class="chart-canvas-wrapper">
+          <canvas id="chartAccelWave"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECTION HEADING: CONTROL & SIMULATION -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-sliders"></i> BẢNG ĐIỀU KHIỂN & MÔ PHỎNG PHẦN CỨNG</h3>
+      <span>Topic: screen_*, vibrate/*, reset_steps/*</span>
+    </div>
+
+    <!-- ======================================================================
+         ROW 3: CONTROL CENTER & OLED VIRTUAL PREVIEW
+         ====================================================================== -->
+    <section class="controls-grid">
+
+      <!-- LEFT: REMOTE CONTROL ACTIONS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-gamepad" style="color: var(--neon-cyan);"></i>
+            <span>Bảng điều khiển vòng tay ESP32</span>
+          </div>
+          <span class="card-badge badge-normal" id="dispOledFeedback">Sẵn sàng</span>
+        </div>
+
+        <!-- 1. OLED Screen Power Switch -->
+        <div class="control-item">
+          <div class="control-header-row">
+            <div class="control-info">
+              <h4><i class="fa-solid fa-power-off" style="color: var(--neon-cyan);"></i> Nguồn màn hình OLED</h4>
+              <p>Bật/tắt màn hình SSD1306 từ xa qua Topic: <code>screen_power/set</code></p>
+            </div>
+            <label class="switch" title="Gạt để Bật/Tắt màn hình OLED">
+              <input type="checkbox" id="toggleScreenPower" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2. OLED Page Selector Buttons -->
+        <div class="control-item">
+          <div class="control-info">
+            <h4><i class="fa-regular fa-clone" style="color: var(--neon-purple);"></i> Chuyển đổi trang hiển thị OLED
+            </h4>
+            <p>Chọn nhanh giao diện trên vòng tay (Topic: <code>screen_page/set</code>)</p>
+          </div>
+          <div class="page-buttons">
+            <button class="btn-page active" id="btnPage1" onclick="sendOledPage(1)">
+              <i class="fa-solid fa-heart-pulse"></i>
+              <span>Trang 1: Sức khỏe</span>
+            </button>
+            <button class="btn-page" id="btnPage2" onclick="sendOledPage(2)">
+              <i class="fa-solid fa-person-walking"></i>
+              <span>Trang 2: Bước chân</span>
+            </button>
+            <button class="btn-page" id="btnPage3" onclick="sendOledPage(3)">
+              <i class="fa-solid fa-compass-drafting"></i>
+              <span>Trang 3: Gia tốc (m/s&sup2;)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Message Push to OLED -->
+        <div class="control-item">
+          <div class="control-info">
+            <h4><i class="fa-regular fa-comment-dots" style="color: var(--neon-green);"></i> Gửi thông báo / Tin nhắn
+              lên OLED</h4>
+            <p>Hiển thị chuỗi văn bản lên màn hình (Topic: <code>screen_msg/set</code>)</p>
+          </div>
+          <div class="msg-input-wrap">
+            <div class="input-row">
+              <input type="text" class="input-field" id="inputOledMsg" placeholder="Nhập thông báo (tối đa 32 ký tự)..."
+                maxlength="32">
+              <button class="btn btn-primary" id="btnSendMsg" onclick="sendOledMessage()">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span>Gửi</span>
+              </button>
+            </div>
+            <div class="char-counter"><span id="msgCharCount">0</span>/32 ký tự</div>
+            <!-- Preset message chips for quick testing -->
+            <div class="preset-chips">
+              <span class="preset-chip" onclick="applyPresetMsg('CUOC GOI DEN: ME')">📞 CUỘC GỌI ĐẾN</span>
+              <span class="preset-chip" onclick="applyPresetMsg('UONG NUOC DI BAN OI')">💧 UỐNG NƯỚC</span>
+              <span class="preset-chip" onclick="applyPresetMsg('HOAN THANH MUC TIEU!')">🏆 HOÀN THÀNH</span>
+              <span class="preset-chip" onclick="applyPresetMsg('NHIP TIM CAO - NGHI NGOI')">⚠️ NHỊP TIM CAO</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Quick Actions: Find Band, Reset Steps & Test Fall Alert -->
+        <div class="action-row">
+          <button class="btn btn-warning" id="btnFindBand" onclick="sendFindBand()">
+            <i class="fa-solid fa-bell"></i>
+            <span>Tìm vòng tay</span>
+          </button>
+          <button class="btn btn-danger" id="btnResetSteps" onclick="openResetStepsConfirm()">
+            <i class="fa-solid fa-arrows-rotate"></i>
+            <span>Reset bước</span>
+          </button>
+          <button class="btn btn-danger" id="btnTestFall" onclick="triggerTestFall()"
+            title="Mô phỏng cú ngã mạnh với gia tốc > 20 m/s2">
+            <i class="fa-solid fa-person-falling-burst"></i>
+            <span>Test Té ngã (&gt;20 m/s&sup2;)</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: VIRTUAL OLED SCREEN HARDWARE SIMULATION -->
+      <div class="card oled-preview-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-tv" style="color: var(--neon-cyan);"></i>
+            <span>Mô phỏng Màn hình OLED SSD1306</span>
+          </div>
+          <span class="card-badge badge-normal" id="dispOledStateBadge">Màn hình: ON</span>
+        </div>
+
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">
+          Hiển thị đồng bộ theo dữ liệu và trạng thái trang thực tế của thiết bị ESP32:
+        </p>
+
+        <!-- Simulated OLED Physical Frame -->
+        <div class="oled-device-frame" id="oledDeviceFrame">
+          <div class="oled-screen" id="virtualOledScreen">
+            <div class="oled-header">
+              <span id="oledHeaderTitle">CYBERBAND S3</span>
+              <span id="oledHeaderPage">P1/3</span>
+            </div>
+
+            <div class="oled-content" id="oledScreenContent">
+              <!-- Content rendered dynamically by JavaScript -->
+              <div style="font-size: 1.1rem; font-weight: 700;">HR: 78 BPM</div>
+              <div style="font-size: 0.95rem; margin-top: 4px;">SpO2: 98.4 %</div>
+              <div style="font-size: 0.75rem; color: #8e9bb5; margin-top: 6px;">[HEALTH MONITOR]</div>
+            </div>
+
+            <div class="oled-footer">
+              <span id="oledFooterStatus">ESP32: OK</span>
+              <span id="oledFooterTime">10:00:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style="font-size: 0.78rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+          <span><i class="fa-solid fa-circle-info" style="color: var(--neon-cyan)"></i> Kích thước: 128x64 px
+            (I2C)</span>
+          <span id="oledSyncStatus">Đã đồng bộ với ESP32</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================
+         ROW 4: REAL-TIME CONSOLE LOG (TERMINAL)
+         ====================================================================== -->
+    <section class="card terminal-card">
+      <div class="terminal-toolbar">
+        <div class="card-title" style="margin-bottom: 0;">
+          <i class="fa-solid fa-terminal" style="color: var(--neon-green);"></i>
+          <span>Lịch sử gói tin MQTT thời gian thực</span>
+        </div>
+
+        <div class="terminal-filters">
+          <button class="filter-btn active" onclick="setLogFilter('ALL')">Tất cả</button>
+          <button class="filter-btn" onclick="setLogFilter('IN')">Nhận (IN)</button>
+          <button class="filter-btn" onclick="setLogFilter('OUT')">Gửi (OUT)</button>
+          <button class="filter-btn" onclick="setLogFilter('SYS')">Hệ thống</button>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-glass" style="padding: 4px 10px; font-size: 0.72rem;" onclick="clearConsoleLog()">
+            <i class="fa-solid fa-trash-can"></i> Xóa log
+          </button>
+          <button class="btn btn-glass" id="btnToggleAutoScroll" style="padding: 4px 10px; font-size: 0.72rem;"
+            onclick="toggleAutoScroll()">
+            <i class="fa-solid fa-arrows-down-to-line"></i> Auto-scroll: BẬT
+          </button>
+        </div>
+      </div>
+
+      <div class="terminal-window" id="terminalWindow">
+        <!-- Live log items will be inserted here -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       MODAL 1: MQTT BROKER & TOPIC CONFIGURATION
+       ======================================================================== -->
+  <div class="modal-backdrop" id="modalConfig">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-sliders"></i> Cấu hình MQTT Broker & Topic</h3>
+        <button class="btn-close-modal" onclick="closeConfigModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="form-group">
+        <label for="cfgBrokerUrl">Địa chỉ WebSocket Broker (WSS URL)</label>
+        <input type="text" class="input-field" id="cfgBrokerUrl" value="wss://broker.emqx.io:8084/mqtt"
+          placeholder="wss://broker.emqx.io:8084/mqtt">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cfgBaseTopic">Base Topic Thiết Bị</label>
+          <input type="text" class="input-field" id="cfgBaseTopic" value="smartband_s3/dev01"
+            placeholder="smartband_s3/dev01">
+        </div>
+        <div class="form-group">
+          <label for="cfgClientId">Client ID (Ngẫu nhiên hoặc tự chọn)</label>
+          <input type="text" class="input-field" id="cfgClientId" value="" placeholder="web_client_xxxx">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cfgUsername">Tên người dùng (Tùy chọn)</label>
+          <input type="text" class="input-field" id="cfgUsername" placeholder="Để trống nếu broker public">
+        </div>
+        <div class="form-group">
+          <label for="cfgPassword">Mật khẩu (Tùy chọn)</label>
+          <input type="password" class="input-field" id="cfgPassword" placeholder="Để trống nếu broker public">
+        </div>
+      </div>
+
+      <div
+        style="font-size: 0.78rem; color: var(--text-muted); background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.2); padding: 10px; border-radius: var(--radius-sm); margin-top: 10px;">
+        <i class="fa-solid fa-circle-info" style="color: var(--neon-cyan)"></i>
+        Topic lắng nghe Telemetry: <code>&lt;Base_Topic&gt;/telemetry</code><br>
+        Topic cảnh báo Té ngã: <code>&lt;Base_Topic&gt;/fall/alert</code><br>
+        Topic hủy báo động: <code>&lt;Base_Topic&gt;/fall/dismiss</code>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-glass" onclick="resetConfigToDefault()">Khôi phục mặc định</button>
+        <button class="btn btn-primary" onclick="saveAndApplyConfig()">Lưu & Kết nối lại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 2: CONFIRMATION RESET STEPS
+       ======================================================================== -->
+  <div class="modal-backdrop" id="modalResetConfirm">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 style="color: var(--neon-pink);"><i class="fa-solid fa-triangle-exclamation"></i> Xác nhận Đặt lại Bước chân
+        </h3>
+        <button class="btn-close-modal" onclick="closeResetConfirmModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-main); margin-bottom: 12px;">
+        Bạn có chắc chắn muốn đặt lại bộ đếm bước chân trên vòng tay ESP32 về <strong>0 bước</strong>?
+      </p>
+      <p style="font-size: 0.78rem; color: var(--text-muted);">
+        Lệnh này sẽ gửi mã <code>RESET</code> tới topic <code>smartband_s3/dev01/reset_steps/set</code>.
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-glass" onclick="closeResetConfirmModal()">Hủy bỏ</button>
+        <button class="btn btn-danger" onclick="confirmResetSteps()">Xác nhận Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 3: EMERGENCY FALL ALERT POPUP (BÁO ĐỘNG TÉ NGÃ KHẨN CẤP)
+       ======================================================================== -->
+  <div class="modal-backdrop" id="modalFallAlert">
+    <div class="modal-box modal-box-fall">
+      <div class="fall-alert-icon-box">
+        <i class="fa-solid fa-person-falling-burst"></i>
+      </div>
+      <h2 style="color: var(--neon-red); font-family: var(--font-tech); font-size: 1.4rem; letter-spacing: 1px;">
+        🚨 PHÁT HIỆN TÉ NGÃ KHẨN CẤP!
+      </h2>
+      <p style="color: #cbd5e1; font-size: 0.88rem; margin-top: 8px;">
+        Vòng tay thông minh ESP32 ghi nhận gia tốc va đập vượt ngưỡng an toàn:
+      </p>
+
+      <div class="fall-stat-box">
+        <div class="fall-stat-item">
+          <span>Gia tốc đo được:</span>
+          <strong id="fallPeakDisplay" style="color: var(--neon-red); font-size: 1.25rem;">24.5 m/s&sup2;</strong>
+        </div>
+        <div class="fall-stat-item">
+          <span>Ngưỡng cảnh báo:</span>
+          <strong style="color: var(--neon-pink);">&gt; 20.0 m/s&sup2;</strong>
+        </div>
+        <div class="fall-stat-item">
+          <span>Thời điểm phát hiện:</span>
+          <strong id="fallTimeDisplay">--:--:--</strong>
+        </div>
+        <div class="fall-stat-item">
+          <span>Trạng thái vòng tay:</span>
+          <strong style="color: var(--neon-amber);"><i class="fa-solid fa-bell"></i> Đang rung còi liên tục</strong>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 20px;">
+        <button class="btn btn-primary" style="flex: 1; padding: 13px; font-size: 0.95rem;"
+          onclick="dismissFallAlert()">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>TÔI ỔN / HỦY BÁO ĐỘNG</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ========================================================================
+       JAVASCRIPT LOGIC (MODULAR & COMPREHENSIVE)
+       ======================================================================== -->
+  <script>
+    /**
+     * CYBERBAND S3 DASHBOARD - CORE JAVASCRIPT CONTROLLER
+     * Features:
+     * 1. MQTT over WebSockets with auto-reconnection and state tracking.
+     * 2. ESP32 System Resource Monitoring (RAM Heap %, Temperature SoC, WiFi RSSI, CPU, Flash, Uptime).
+     * 3. Fall detection alert triggered when acceleration exceeds 20.0 m/s^2.
+     * 4. Audio alarm siren synthesizer using native Web Audio API.
+     * 5. Chart.js real-time plotting with glowing aesthetics.
+     * 6. Interactive SSD1306 OLED virtual simulator matching physical ESP32 behavior.
+     * 7. Real-time timestamped terminal log with category filtering.
+     */
+
+    // --- CONFIGURATION STATE ---
+    const APP_CONFIG = {
+      brokerUrl: localStorage.getItem('mqtt_broker_url') || 'wss://broker.emqx.io:8084/mqtt',
+      baseTopic: localStorage.getItem('mqtt_base_topic') || 'smartband_s3/dev01',
+      clientId: localStorage.getItem('mqtt_client_id') || ('web_' + Math.random().toString(16).substring(2, 10)),
+      username: localStorage.getItem('mqtt_username') || '',
+      password: localStorage.getItem('mqtt_password') || ''
+    };
+
+    // --- RUNTIME STATE ---
+    let mqttClient = null;
+    let isConnected = false;
+    let isConnecting = false;
+    let isDemoMode = false;
+    let demoInterval = null;
+    let autoScrollLogs = true;
+    let currentLogFilter = 'ALL';
+    let packetCounter = 0;
+
+    // Siren Audio Context & State
+    let sirenAudioCtx = null;
+    let sirenInterval = null;
+
+    // Latest Sensor & System Data State
+    const deviceState = {
+      hr: 78,
+      spo2: 98.4,
+      steps: 3410,
+      ax: 0.05,
+      ay: -0.12,
+      az: 0.99,
+      ax_ms2: 0.49,
+      ay_ms2: -1.18,
+      az_ms2: 9.71,
+      a_mag_ms2: 9.81,
+      fallAlert: false,
+      screen_state: "ON",
+      oled_page: 1,
+
+      // System Resource Metrics
+      free_heap: 272420,
+      total_heap: 327680,
+      heap_pct: 16.8,
+      chip_temp: 44.5,
+      rssi: -58,
+      uptime: 342,
+      cpu_freq: 240,
+      sketch_size: 760425,
+      flash_size: 8388608,
+
+      minHr: null,
+      maxHr: null,
+      customMsg: "",
+      customMsgTimeout: null
+    };
+
+    // --- CHART INSTANCES & DATA BUFFERS ---
+    const MAX_DATA_POINTS = 20;
+    let heartSpo2Chart = null;
+    let accelWaveChart = null;
+
+    // --- INITIALIZATION ENTRY POINT ---
+    window.addEventListener('DOMContentLoaded', () => {
+      initAppUI();
+      initCharts();
+      initMQTT();
+      initMessageInputCounter();
+      setupEventListeners();
+    });
+
+    // --- SETUP UI LABELS ---
+    function initAppUI() {
+      document.getElementById('dispBrokerHost').textContent = APP_CONFIG.brokerUrl.replace('wss://', '').replace('/mqtt', '');
+      document.getElementById('dispBaseTopic').textContent = APP_CONFIG.baseTopic;
+      document.getElementById('cfgBrokerUrl').value = APP_CONFIG.brokerUrl;
+      document.getElementById('cfgBaseTopic').value = APP_CONFIG.baseTopic;
+      document.getElementById('cfgClientId').value = APP_CONFIG.clientId;
+      document.getElementById('cfgUsername').value = APP_CONFIG.username;
+      document.getElementById('cfgPassword').value = APP_CONFIG.password;
+    }
+
+    // --- EVENT LISTENERS ---
+    function setupEventListeners() {
+      document.getElementById('btnConnectToggle').addEventListener('click', toggleMqttConnection);
+      document.getElementById('btnToggleDemo').addEventListener('click', toggleDemoMode);
+      document.getElementById('btnOpenConfig').addEventListener('click', openConfigModal);
+      document.getElementById('toggleScreenPower').addEventListener('change', (e) => {
+        sendOledPower(e.target.checked);
+      });
+    }
+
+    // ========================================================================
+    // CHART.JS INITIALIZATION & STYLING
+    // ========================================================================
+    function initCharts() {
+      // 1. Setup Heart Rate & SpO2 Dual-Axis Chart
+      const ctxHeartSpo2 = document.getElementById('chartHeartSpo2').getContext('2d');
+
+      const gradHr = ctxHeartSpo2.createLinearGradient(0, 0, 0, 300);
+      gradHr.addColorStop(0, 'rgba(255, 42, 109, 0.35)');
+      gradHr.addColorStop(1, 'rgba(255, 42, 109, 0.0)');
+
+      const gradSpo2 = ctxHeartSpo2.createLinearGradient(0, 0, 0, 300);
+      gradSpo2.addColorStop(0, 'rgba(0, 242, 254, 0.25)');
+      gradSpo2.addColorStop(1, 'rgba(0, 242, 254, 0.0)');
+
+      heartSpo2Chart = new Chart(ctxHeartSpo2, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Nhịp tim (BPM)',
+              data: [],
+              borderColor: '#ff2a6d',
+              backgroundColor: gradHr,
+              borderWidth: 2.5,
+              tension: 0.35,
+              fill: true,
+              pointRadius: 3,
+              pointHoverRadius: 6,
+              pointBackgroundColor: '#ff2a6d',
+              pointBorderColor: '#ffffff',
+              yAxisID: 'yHr'
+            },
+            {
+              label: 'SpO2 (%)',
+              data: [],
+              borderColor: '#00f2fe',
+              backgroundColor: gradSpo2,
+              borderWidth: 2.5,
+              tension: 0.35,
+              fill: true,
+              pointRadius: 3,
+              pointHoverRadius: 6,
+              pointBackgroundColor: '#00f2fe',
+              pointBorderColor: '#ffffff',
+              yAxisID: 'ySpo2'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 300 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(7, 10, 19, 0.95)',
+              titleColor: '#00f2fe',
+              bodyColor: '#f0f4fc',
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+              borderWidth: 1,
+              padding: 10,
+              displayColors: true,
+              titleFont: { family: "'Outfit', sans-serif", weight: '600' },
+              bodyFont: { family: "'JetBrains Mono', monospace" }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#8e9bb5', font: { family: "'JetBrains Mono', monospace", size: 10 } }
+            },
+            yHr: {
+              type: 'linear',
+              position: 'left',
+              min: 40,
+              max: 160,
+              grid: { color: 'rgba(255, 42, 109, 0.08)' },
+              ticks: { color: '#ff2a6d', font: { family: "'JetBrains Mono', monospace", size: 10 } },
+              title: { display: true, text: 'BPM', color: '#ff2a6d', font: { size: 10 } }
+            },
+            ySpo2: {
+              type: 'linear',
+              position: 'right',
+              min: 88,
+              max: 100,
+              grid: { display: false },
+              ticks: { color: '#00f2fe', font: { family: "'JetBrains Mono', monospace", size: 10 } },
+              title: { display: true, text: '%', color: '#00f2fe', font: { size: 10 } }
+            }
+          }
+        }
+      });
+
+      // 2. Setup 3-Axis Accelerometer Waveform Chart (m/s2)
+      const ctxAccel = document.getElementById('chartAccelWave').getContext('2d');
+      accelWaveChart = new Chart(ctxAccel, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Ax (m/s²)',
+              data: [],
+              borderColor: '#00f2fe',
+              borderWidth: 2,
+              tension: 0.25,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              fill: false
+            },
+            {
+              label: 'Ay (m/s²)',
+              data: [],
+              borderColor: '#ff2a6d',
+              borderWidth: 2,
+              tension: 0.25,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              fill: false
+            },
+            {
+              label: 'Az (m/s²)',
+              data: [],
+              borderColor: '#00ff87',
+              borderWidth: 2,
+              tension: 0.25,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 250 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(7, 10, 19, 0.95)',
+              titleColor: '#00ff87',
+              bodyColor: '#f0f4fc',
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+              borderWidth: 1,
+              titleFont: { family: "'Outfit', sans-serif" },
+              bodyFont: { family: "'JetBrains Mono', monospace" }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#8e9bb5', font: { family: "'JetBrains Mono', monospace", size: 10 } }
+            },
+            y: {
+              min: -25.0,
+              max: 25.0,
+              grid: { color: 'rgba(255, 255, 255, 0.06)' },
+              ticks: { color: '#8e9bb5', font: { family: "'JetBrains Mono', monospace", size: 10 } },
+              title: { display: true, text: 'Gia tốc (m/s²)', color: '#8e9bb5', font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // ========================================================================
+    // MQTT COMMUNICATION OVER WEBSOCKETS
+    // ========================================================================
+    function initMQTT() {
+      if (mqttClient) {
+        try { mqttClient.end(true); } catch (e) { }
+      }
+
+      updateConnectionStatus('connecting');
+      appendLog('SYS', 'SYSTEM', `Đang kết nối tới ${APP_CONFIG.brokerUrl}...`);
+
+      const options = {
+        clientId: APP_CONFIG.clientId,
+        clean: true,
+        connectTimeout: 7000,
+        reconnectPeriod: 4000,
+        keepalive: 60
+      };
+
+      if (APP_CONFIG.username) options.username = APP_CONFIG.username;
+      if (APP_CONFIG.password) options.password = APP_CONFIG.password;
+
+      try {
+        mqttClient = mqtt.connect(APP_CONFIG.brokerUrl, options);
+
+        mqttClient.on('connect', () => {
+          updateConnectionStatus('connected');
+          appendLog('SYS', 'SYSTEM', `Đã kết nối thành công! Client ID: ${APP_CONFIG.clientId}`);
+          showToast('Đã kết nối MQTT Broker thành công!', 'success');
+
+          // Subscribe to telemetry, status, and fall alert topics
+          const telemetryTopic = `${APP_CONFIG.baseTopic}/telemetry`;
+          const statusPowerTopic = `${APP_CONFIG.baseTopic}/screen_power/status`;
+          const statusPageTopic = `${APP_CONFIG.baseTopic}/screen_page/status`;
+          const fallAlertTopic = `${APP_CONFIG.baseTopic}/fall/alert`;
+
+          mqttClient.subscribe([telemetryTopic, statusPowerTopic, statusPageTopic, fallAlertTopic], { qos: 0 }, (err) => {
+            if (err) {
+              appendLog('ERR', 'SUB', `Lỗi đăng ký Topic: ${err.message}`);
+            } else {
+              appendLog('SYS', 'SUB', `Đã đăng ký Topic: telemetry, fall/alert, status/*`);
+            }
+          });
+        });
+
+        mqttClient.on('message', (topic, message) => {
+          const payloadStr = message.toString();
+          handleIncomingMqttMessage(topic, payloadStr);
+        });
+
+        mqttClient.on('error', (err) => {
+          updateConnectionStatus('disconnected');
+          appendLog('ERR', 'MQTT_ERR', `Lỗi MQTT: ${err.message}`);
+        });
+
+        mqttClient.on('close', () => {
+          if (isConnected) {
+            updateConnectionStatus('disconnected');
+            appendLog('SYS', 'SYSTEM', 'Đã đóng kết nối MQTT.');
+          }
+        });
+
+        mqttClient.on('offline', () => {
+          updateConnectionStatus('disconnected');
+          appendLog('SYS', 'SYSTEM', 'Broker đang ngoại tuyến.');
+        });
+
+        mqttClient.on('reconnect', () => {
+          updateConnectionStatus('connecting');
+          appendLog('SYS', 'SYSTEM', 'Đang thử kết nối lại MQTT...');
+        });
+
+      } catch (error) {
+        updateConnectionStatus('disconnected');
+        appendLog('ERR', 'INIT', `Khởi tạo MQTT thất bại: ${error.message}`);
+      }
+    }
+
+    // Toggle Connection State via Header Button
+    function toggleMqttConnection() {
+      if (isConnected || isConnecting) {
+        if (mqttClient) {
+          mqttClient.end(true);
+        }
+        updateConnectionStatus('disconnected');
+        appendLog('SYS', 'SYSTEM', 'Người dùng ngắt kết nối thủ công.');
+        showToast('Đã ngắt kết nối MQTT.', 'info');
+      } else {
+        initMQTT();
+      }
+    }
+
+    // Connection Status Manager
+    function updateConnectionStatus(state) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('connStatusText');
+      const btn = document.getElementById('btnConnectToggle');
+      const btnText = document.getElementById('connectBtnText');
+
+      dot.className = 'status-dot';
+
+      if (state === 'connected') {
+        isConnected = true;
+        isConnecting = false;
+        dot.classList.add('connected');
+        text.textContent = 'Đã kết nối';
+        text.style.color = 'var(--status-connected)';
+        btn.className = 'btn btn-glass';
+        btnText.textContent = 'Ngắt kết nối';
+      } else if (state === 'connecting') {
+        isConnected = false;
+        isConnecting = true;
+        dot.classList.add('connecting');
+        text.textContent = 'Đang kết nối...';
+        text.style.color = 'var(--status-connecting)';
+        btn.className = 'btn btn-glass';
+        btnText.textContent = 'Hủy kết nối';
+      } else {
+        isConnected = false;
+        isConnecting = false;
+        text.textContent = 'Chưa kết nối';
+        text.style.color = 'var(--status-disconnected)';
+        btn.className = 'btn btn-primary';
+        btnText.textContent = 'Kết nối MQTT';
+      }
+    }
+
+    // ========================================================================
+    // INCOMING MESSAGE DISPATCHER
+    // ========================================================================
+    function handleIncomingMqttMessage(topic, payloadStr) {
+      appendLog('IN', topic, payloadStr);
+      packetCounter++;
+      document.getElementById('dispPacketCount').textContent = packetCounter;
+      document.getElementById('dispLastPacketTime').textContent = new Date().toLocaleTimeString();
+
+      const base = APP_CONFIG.baseTopic;
+
+      // 1. Process Periodic Telemetry
+      if (topic === `${base}/telemetry`) {
+        try {
+          const data = JSON.parse(payloadStr);
+          processTelemetryData(data);
+        } catch (e) {
+          appendLog('ERR', 'PARSER', `Lỗi parse JSON Telemetry: ${e.message}`);
+        }
+      }
+      // 2. Process Fall Emergency Alert
+      else if (topic === `${base}/fall/alert`) {
+        try {
+          const alertData = JSON.parse(payloadStr);
+          if (alertData.alert === "FALL_DETECTED") {
+            const peak = alertData.mag_ms2 || 22.0;
+            triggerFallAlarm(peak);
+          } else if (alertData.alert === "CLEARED") {
+            closeFallAlertModalInternal();
+          }
+        } catch (e) {
+          if (payloadStr.includes("FALL")) {
+            triggerFallAlarm(22.5);
+          }
+        }
+      }
+      // 3. Process Screen Power Feedback
+      else if (topic === `${base}/screen_power/status`) {
+        const state = payloadStr.trim().toUpperCase();
+        deviceState.screen_state = state;
+        syncScreenPowerUI(state === 'ON');
+        showToast(`ESP32 phản hồi: Màn hình ${state}`, 'info');
+      }
+      // 4. Process Screen Page Feedback
+      else if (topic === `${base}/screen_page/status`) {
+        const pageNum = parseInt(payloadStr.trim(), 10);
+        if (!isNaN(pageNum)) {
+          deviceState.oled_page = pageNum;
+          syncPageSelectorUI(pageNum);
+          showToast(`ESP32 phản hồi: Đã chuyển sang Trang ${pageNum}`, 'info');
+        }
+      }
+    }
+
+    // ========================================================================
+    // TELEMETRY PROCESSING & DASHBOARD UI UPDATES
+    // ========================================================================
+    function processTelemetryData(data) {
+      if (data.finger !== undefined) deviceState.finger = data.finger;
+      if (data.max_ready !== undefined) deviceState.max_ready = data.max_ready;
+
+      // 1. Nhịp tim (Heart Rate)
+      if (data.hr !== undefined) {
+        deviceState.hr = Math.round(data.hr);
+        document.getElementById('valHeartRate').textContent = deviceState.hr;
+
+        if (deviceState.minHr === null || deviceState.hr < deviceState.minHr) deviceState.minHr = deviceState.hr;
+        if (deviceState.maxHr === null || deviceState.hr > deviceState.maxHr) deviceState.maxHr = deviceState.hr;
+        document.getElementById('statHeartMinMax').textContent = `Min: ${deviceState.minHr} | Max: ${deviceState.maxHr}`;
+
+        const hrBadge = document.getElementById('badgeHeartStatus');
+        const iconPulse = document.getElementById('iconHeartPulse');
+        if (deviceState.max_ready && !deviceState.finger) {
+          hrBadge.className = 'card-badge badge-warning';
+          hrBadge.textContent = 'Đặt ngón tay';
+          iconPulse.style.animationDuration = '1.8s';
+        } else if (deviceState.hr > 120) {
+          hrBadge.className = 'card-badge badge-danger';
+          hrBadge.textContent = 'Nhịp cao!';
+          iconPulse.style.animationDuration = '0.5s';
+        } else if (deviceState.hr < 50) {
+          hrBadge.className = 'card-badge badge-warning';
+          hrBadge.textContent = 'Nhịp chậm!';
+          iconPulse.style.animationDuration = '1.4s';
+        } else {
+          hrBadge.className = 'card-badge badge-normal';
+          hrBadge.textContent = deviceState.finger ? 'MAX30102: Đo tốt' : 'Bình thường';
+          iconPulse.style.animationDuration = '0.9s';
+        }
+      }
+
+      // 2. Nồng độ SpO2
+      if (data.spo2 !== undefined) {
+        deviceState.spo2 = parseFloat(data.spo2).toFixed(1);
+        document.getElementById('valSpo2').textContent = deviceState.spo2;
+
+        const spo2Badge = document.getElementById('badgeSpo2Status');
+        const spo2Quality = document.getElementById('statSpo2Quality');
+        if (deviceState.spo2 < 95) {
+          spo2Badge.className = 'card-badge badge-danger';
+          spo2Badge.textContent = 'Cảnh báo thấp';
+          spo2Quality.textContent = 'Chất lượng: Chú ý hô hấp!';
+          spo2Quality.style.color = 'var(--neon-pink)';
+        } else {
+          spo2Badge.className = 'card-badge badge-normal';
+          spo2Badge.textContent = 'Tối ưu';
+          spo2Quality.textContent = 'Chất lượng: Khỏe mạnh';
+          spo2Quality.style.color = 'var(--text-muted)';
+        }
+      }
+
+      // 3. Bước chân & Calo (Pedometer)
+      if (data.steps !== undefined) {
+        deviceState.steps = parseInt(data.steps, 10);
+        document.getElementById('valSteps').textContent = deviceState.steps.toLocaleString();
+
+        const stepGoal = 10000;
+        const percent = Math.min(100, Math.round((deviceState.steps / stepGoal) * 100));
+        document.getElementById('valStepsPercent').textContent = `${percent}%`;
+        document.getElementById('barStepsFill').style.width = `${percent}%`;
+
+        const calories = Math.round(deviceState.steps * 0.04);
+        const distanceKm = ((deviceState.steps * 0.75) / 1000).toFixed(2);
+        document.getElementById('valCalories').textContent = calories;
+        document.getElementById('valDistance').textContent = distanceKm;
+      }
+
+      // 4. Gia tốc 3 trục GY-521 & Phát hiện té ngã > 20 m/s2
+      if (data.ax !== undefined && data.ay !== undefined && data.az !== undefined) {
+        deviceState.ax = parseFloat(data.ax);
+        deviceState.ay = parseFloat(data.ay);
+        deviceState.az = parseFloat(data.az);
+
+        deviceState.ax_ms2 = data.ax_ms2 !== undefined ? parseFloat(data.ax_ms2) : (deviceState.ax * 9.80665);
+        deviceState.ay_ms2 = data.ay_ms2 !== undefined ? parseFloat(data.ay_ms2) : (deviceState.ay * 9.80665);
+        deviceState.az_ms2 = data.az_ms2 !== undefined ? parseFloat(data.az_ms2) : (deviceState.az * 9.80665);
+
+        if (data.a_mag_ms2 !== undefined) {
+          deviceState.a_mag_ms2 = parseFloat(data.a_mag_ms2);
+        } else {
+          deviceState.a_mag_ms2 = Math.sqrt(deviceState.ax_ms2 ** 2 + deviceState.ay_ms2 ** 2 + deviceState.az_ms2 ** 2);
+        }
+        const magG = deviceState.a_mag_ms2 / 9.80665;
+
+        document.getElementById('valAccelMagMs2').textContent = deviceState.a_mag_ms2.toFixed(1);
+        document.getElementById('valAccelMagG').textContent = magG.toFixed(2);
+
+        document.getElementById('valAccelX').textContent = `${deviceState.ax_ms2.toFixed(1)} m/s² (${deviceState.ax.toFixed(2)}g)`;
+        document.getElementById('valAccelY').textContent = `${deviceState.ay_ms2.toFixed(1)} m/s² (${deviceState.ay.toFixed(2)}g)`;
+        document.getElementById('valAccelZ').textContent = `${deviceState.az_ms2.toFixed(1)} m/s² (${deviceState.az.toFixed(2)}g)`;
+
+        const normX = Math.max(0, Math.min(100, ((deviceState.ax_ms2 + 20) / 40) * 100));
+        const normY = Math.max(0, Math.min(100, ((deviceState.ay_ms2 + 20) / 40) * 100));
+        const normZ = Math.max(0, Math.min(100, ((deviceState.az_ms2 + 20) / 40) * 100));
+
+        document.getElementById('barAccelX').style.width = `${normX}%`;
+        document.getElementById('barAccelY').style.width = `${normY}%`;
+        document.getElementById('barAccelZ').style.width = `${normZ}%`;
+
+        // Kiểm tra ngưỡng té ngã > 20 m/s2
+        const cardAccel = document.getElementById('cardAccel');
+        const motionBadge = document.getElementById('badgeMotionState');
+
+        if (deviceState.a_mag_ms2 > 20.0 || data.fall === true) {
+          motionBadge.className = 'card-badge badge-danger';
+          motionBadge.textContent = '🚨 BÁO ĐỘNG TÉ NGÃ! (> 20 m/s²)';
+          cardAccel.classList.add('fall-danger-active');
+
+          if (!deviceState.fallAlert) {
+            triggerFallAlarm(deviceState.a_mag_ms2);
+          }
+        } else {
+          cardAccel.classList.remove('fall-danger-active');
+          if (deviceState.a_mag_ms2 > 13.0) {
+            motionBadge.className = 'card-badge badge-warning';
+            motionBadge.textContent = 'Vận động';
+          } else {
+            motionBadge.className = 'card-badge badge-normal';
+            motionBadge.textContent = 'Đứng yên';
+          }
+        }
+      }
+
+      // ======================================================================
+      // 5. CẬP NHẬT TÀI NGUYÊN HỆ THỐNG ESP32-S3 (RAM, CPU, TEMP, WIFI, FLASH)
+      // ======================================================================
+      // A. RAM (Heap Memory)
+      if (data.free_heap !== undefined || data.heap_pct !== undefined) {
+        if (data.free_heap !== undefined) deviceState.free_heap = parseInt(data.free_heap, 10);
+        if (data.total_heap !== undefined) deviceState.total_heap = parseInt(data.total_heap, 10);
+
+        let pct = 0;
+        if (data.heap_pct !== undefined) {
+          pct = parseFloat(data.heap_pct);
+        } else if (deviceState.total_heap > 0) {
+          pct = (((deviceState.total_heap - deviceState.free_heap) / deviceState.total_heap) * 100);
+        }
+        deviceState.heap_pct = pct.toFixed(1);
+
+        document.getElementById('valHeapPct').textContent = deviceState.heap_pct;
+        const usedKb = Math.round((deviceState.total_heap - deviceState.free_heap) / 1024);
+        const freeKb = Math.round(deviceState.free_heap / 1024);
+        document.getElementById('valHeapUsedKb').textContent = `${usedKb} KB`;
+        document.getElementById('valHeapFreeKb').textContent = `${freeKb} KB`;
+        document.getElementById('barHeapFill').style.width = `${Math.min(100, Math.max(0, pct))}%`;
+
+        const badgeHeap = document.getElementById('badgeHeapStatus');
+        if (pct > 85) {
+          badgeHeap.className = 'card-badge badge-danger';
+          badgeHeap.textContent = 'Nguy cấp';
+        } else if (pct > 70) {
+          badgeHeap.className = 'card-badge badge-warning';
+          badgeHeap.textContent = 'Cảnh báo';
+        } else {
+          badgeHeap.className = 'card-badge badge-normal';
+          badgeHeap.textContent = 'Tối ưu';
+        }
+      }
+
+      // B. Nhiệt độ SoC ESP32-S3
+      if (data.chip_temp !== undefined) {
+        deviceState.chip_temp = parseFloat(data.chip_temp).toFixed(1);
+        const tempF = ((parseFloat(deviceState.chip_temp) * 9 / 5) + 32).toFixed(1);
+        document.getElementById('valChipTemp').textContent = deviceState.chip_temp;
+        document.getElementById('valChipTempF').textContent = tempF;
+
+        // Normalizing temp 30C - 85C
+        const tempPct = Math.min(100, Math.max(0, ((parseFloat(deviceState.chip_temp) - 25) / 60) * 100));
+        document.getElementById('dispTempPct').textContent = `${Math.round(tempPct)}%`;
+        document.getElementById('barTempFill').style.width = `${tempPct}%`;
+
+        const badgeTemp = document.getElementById('badgeTempStatus');
+        if (parseFloat(deviceState.chip_temp) > 75) {
+          badgeTemp.className = 'card-badge badge-danger';
+          badgeTemp.textContent = 'Quá nhiệt';
+        } else if (parseFloat(deviceState.chip_temp) > 60) {
+          badgeTemp.className = 'card-badge badge-warning';
+          badgeTemp.textContent = 'Ấm';
+        } else {
+          badgeTemp.className = 'card-badge badge-normal';
+          badgeTemp.textContent = 'Mát mẻ';
+        }
+      }
+
+      // C. WiFi RSSI & Link Quality
+      if (data.rssi !== undefined) {
+        deviceState.rssi = parseInt(data.rssi, 10);
+        document.getElementById('valRssi').textContent = deviceState.rssi;
+
+        // RSSI quality scale: -100 dBm (0%) to -50 dBm (100%)
+        let q = Math.min(100, Math.max(0, Math.round(2 * (deviceState.rssi + 100))));
+        document.getElementById('valRssiPct').textContent = `${q}%`;
+        document.getElementById('barRssiFill').style.width = `${q}%`;
+
+        const badgeWifi = document.getElementById('badgeWifiQuality');
+        if (deviceState.rssi > -65) {
+          badgeWifi.className = 'card-badge badge-normal';
+          badgeWifi.textContent = 'Rất mạnh';
+        } else if (deviceState.rssi > -78) {
+          badgeWifi.className = 'card-badge badge-warning';
+          badgeWifi.textContent = 'Khá tốt';
+        } else {
+          badgeWifi.className = 'card-badge badge-danger';
+          badgeWifi.textContent = 'Tín hiệu yếu';
+        }
+      }
+
+      // D. CPU Clock, Flash & Uptime
+      if (data.cpu_freq !== undefined) {
+        deviceState.cpu_freq = data.cpu_freq;
+        document.getElementById('badgeCpuFreq').textContent = `${deviceState.cpu_freq} MHz`;
+      }
+      if (data.uptime !== undefined) {
+        deviceState.uptime = parseInt(data.uptime, 10);
+        const upHours = Math.floor(deviceState.uptime / 3600);
+        const upMins = Math.floor((deviceState.uptime % 3600) / 60);
+        const upSecs = deviceState.uptime % 60;
+        const uptimeFmt = `${String(upHours).padStart(2, '0')}:${String(upMins).padStart(2, '0')}:${String(upSecs).padStart(2, '0')}`;
+        document.getElementById('valUptimeStr').textContent = uptimeFmt;
+        document.getElementById('dispBootTime').textContent = `${upHours}h ${upMins}m ${upSecs}s`;
+      }
+      if (data.sketch_size !== undefined) {
+        deviceState.sketch_size = parseInt(data.sketch_size, 10);
+        const sketchKb = Math.round(deviceState.sketch_size / 1024);
+        document.getElementById('valFlashUsed').textContent = `${sketchKb} KB`;
+        const flashPct = Math.round((deviceState.sketch_size / (8 * 1024 * 1024)) * 100);
+        document.getElementById('barFlashFill').style.width = `${Math.max(10, flashPct)}%`;
+      }
+
+      // 6. Đồng bộ Screen State & OLED Page
+      if (data.screen_state !== undefined) {
+        deviceState.screen_state = data.screen_state.toUpperCase();
+        syncScreenPowerUI(deviceState.screen_state === 'ON');
+      }
+      if (data.oled_page !== undefined) {
+        deviceState.oled_page = parseInt(data.oled_page, 10);
+        syncPageSelectorUI(deviceState.oled_page);
+      }
+
+      // 7. Update Real-Time Charts
+      updateCharts(deviceState);
+
+      // 8. Update Virtual OLED Display Mockup
+      renderVirtualOled();
+    }
+
+    // Update Chart.js datasets with newest telemetry point
+    function updateCharts(state) {
+      const nowStr = new Date().toLocaleTimeString();
+
+      // Chart 1: HR & SpO2
+      if (heartSpo2Chart) {
+        heartSpo2Chart.data.labels.push(nowStr);
+        heartSpo2Chart.data.datasets[0].data.push(state.hr);
+        heartSpo2Chart.data.datasets[1].data.push(state.spo2);
+
+        if (heartSpo2Chart.data.labels.length > MAX_DATA_POINTS) {
+          heartSpo2Chart.data.labels.shift();
+          heartSpo2Chart.data.datasets[0].data.shift();
+          heartSpo2Chart.data.datasets[1].data.shift();
+        }
+        heartSpo2Chart.update('none');
+      }
+
+      // Chart 2: Accelerometer Ax, Ay, Az in m/s2
+      if (accelWaveChart) {
+        accelWaveChart.data.labels.push(nowStr);
+        accelWaveChart.data.datasets[0].data.push(state.ax_ms2);
+        accelWaveChart.data.datasets[1].data.push(state.ay_ms2);
+        accelWaveChart.data.datasets[2].data.push(state.az_ms2);
+
+        if (accelWaveChart.data.labels.length > MAX_DATA_POINTS) {
+          accelWaveChart.data.labels.shift();
+          accelWaveChart.data.datasets[0].data.shift();
+          accelWaveChart.data.datasets[1].data.shift();
+          accelWaveChart.data.datasets[2].data.shift();
+        }
+        accelWaveChart.update('none');
+      }
+    }
+
+    // ========================================================================
+    // FALL DETECTION EMERGENCY ALARM & AUDIO SIREN
+    // ========================================================================
+    function triggerFallAlarm(peakMagnitude) {
+      deviceState.fallAlert = true;
+
+      document.getElementById('fallPeakDisplay').textContent = `${peakMagnitude.toFixed(1)} m/s²`;
+      document.getElementById('fallTimeDisplay').textContent = new Date().toLocaleTimeString();
+      document.getElementById('modalFallAlert').classList.add('active');
+
+      document.getElementById('oledDeviceFrame').classList.add('frame-fall-alert', 'vibrating');
+      startSirenSound();
+
+      appendLog('ERR', 'FALL_ALERT', `[🚨 BÁO ĐỘNG TÉ NGÃ] Gia tốc đạt đỉnh: ${peakMagnitude.toFixed(1)} m/s² (> 20 m/s²)!`);
+      renderVirtualOled();
+    }
+
+    // Nút "TÔI ỔN / HỦY BÁO ĐỘNG"
+    function dismissFallAlert() {
+      deviceState.fallAlert = false;
+      closeFallAlertModalInternal();
+
+      const topic = `${APP_CONFIG.baseTopic}/fall/dismiss`;
+      publishMqtt(topic, "DISMISS");
+
+      showToast('Đã hủy báo động té ngã và gửi lệnh tắt rung tới ESP32!', 'success');
+      appendLog('OUT', topic, "DISMISS");
+    }
+
+    function closeFallAlertModalInternal() {
+      deviceState.fallAlert = false;
+      document.getElementById('modalFallAlert').classList.remove('active');
+      document.getElementById('oledDeviceFrame').classList.remove('frame-fall-alert', 'vibrating');
+      stopSirenSound();
+      renderVirtualOled();
+    }
+
+    // Nút thử nghiệm té ngã (Test Fall 24 m/s2)
+    function triggerTestFall() {
+      showToast('Đang kích hoạt mô phỏng cú té ngã > 20 m/s²...', 'warning');
+
+      const testPayload = {
+        hr: 115,
+        spo2: 97.8,
+        steps: deviceState.steps,
+        ax: 1.25,
+        ay: -1.45,
+        az: 1.62,
+        ax_ms2: 12.2,
+        ay_ms2: -14.2,
+        az_ms2: 15.8,
+        a_mag_ms2: 24.5,
+        fall: true,
+        screen_state: "ON",
+        oled_page: 3
+      };
+
+      const topic = `${APP_CONFIG.baseTopic}/telemetry`;
+      handleIncomingMqttMessage(topic, JSON.stringify(testPayload));
+    }
+
+    // Web Audio API Dual-Tone Siren Synthesizer
+    function startSirenSound() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!sirenAudioCtx) sirenAudioCtx = new AudioCtx();
+        if (sirenAudioCtx.state === 'suspended') sirenAudioCtx.resume();
+        if (sirenInterval) return;
+
+        let highPitch = false;
+        sirenInterval = setInterval(() => {
+          if (!sirenAudioCtx) return;
+          const osc = sirenAudioCtx.createOscillator();
+          const gain = sirenAudioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.value = highPitch ? 1320 : 880;
+          gain.gain.setValueAtTime(0.18, sirenAudioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, sirenAudioCtx.currentTime + 0.22);
+          osc.connect(gain);
+          gain.connect(sirenAudioCtx.destination);
+          osc.start();
+          osc.stop(sirenAudioCtx.currentTime + 0.22);
+          highPitch = !highPitch;
+        }, 240);
+      } catch (e) {
+        console.warn("Audio Context init note:", e);
+      }
+    }
+
+    function stopSirenSound() {
+      if (sirenInterval) {
+        clearInterval(sirenInterval);
+        sirenInterval = null;
+      }
+    }
+
+    // ========================================================================
+    // REMOTE CONTROL COMMANDS (WEB -> ESP32)
+    // ========================================================================
+
+    // 1. Remote OLED Screen Power (ON / OFF)
+    function sendOledPower(isOn) {
+      const val = isOn ? "ON" : "OFF";
+      const topic = `${APP_CONFIG.baseTopic}/screen_power/set`;
+      publishMqtt(topic, val);
+
+      const fb = document.getElementById('dispOledFeedback');
+      fb.className = 'card-badge badge-warning';
+      fb.textContent = 'Đang gửi...';
+
+      setTimeout(() => {
+        fb.className = 'card-badge badge-normal';
+        fb.textContent = 'Đã gửi lệnh';
+      }, 700);
+
+      syncScreenPowerUI(isOn);
+      renderVirtualOled();
+    }
+
+    function syncScreenPowerUI(isOn) {
+      document.getElementById('toggleScreenPower').checked = isOn;
+      const screenElem = document.getElementById('virtualOledScreen');
+      const badgeElem = document.getElementById('dispOledStateBadge');
+
+      if (isOn) {
+        screenElem.classList.remove('off');
+        badgeElem.className = 'card-badge badge-normal';
+        badgeElem.textContent = 'Màn hình: ON';
+      } else {
+        screenElem.classList.add('off');
+        badgeElem.className = 'card-badge badge-warning';
+        badgeElem.textContent = 'Màn hình: OFF (Sleep)';
+      }
+    }
+
+    // 2. Remote OLED Page Switcher (1, 2, 3)
+    function sendOledPage(pageNum) {
+      const topic = `${APP_CONFIG.baseTopic}/screen_page/set`;
+      publishMqtt(topic, pageNum.toString());
+
+      deviceState.oled_page = pageNum;
+      syncPageSelectorUI(pageNum);
+      renderVirtualOled();
+      showToast(`Đã gửi lệnh chuyển sang Trang ${pageNum}`, 'info');
+    }
+
+    function syncPageSelectorUI(pageNum) {
+      for (let i = 1; i <= 3; i++) {
+        const btn = document.getElementById(`btnPage${i}`);
+        if (i === pageNum) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      }
+      document.getElementById('oledHeaderPage').textContent = `P${pageNum}/3`;
+    }
+
+    // 3. Send Message to OLED Screen
+    function sendOledMessage() {
+      const input = document.getElementById('inputOledMsg');
+      const msg = input.value.trim();
+
+      if (!msg) {
+        showToast('Vui lòng nhập nội dung tin nhắn!', 'warning');
+        input.focus();
+        return;
+      }
+
+      const topic = `${APP_CONFIG.baseTopic}/screen_msg/set`;
+      publishMqtt(topic, msg);
+
+      deviceState.customMsg = msg;
+      renderVirtualOled();
+
+      if (deviceState.customMsgTimeout) clearTimeout(deviceState.customMsgTimeout);
+      deviceState.customMsgTimeout = setTimeout(() => {
+        deviceState.customMsg = "";
+        renderVirtualOled();
+      }, 6000);
+
+      showToast(`Đã gửi tin nhắn tới vòng tay: "${msg}"`, 'success');
+      input.value = '';
+      document.getElementById('msgCharCount').textContent = '0';
+    }
+
+    function applyPresetMsg(text) {
+      const input = document.getElementById('inputOledMsg');
+      input.value = text;
+      document.getElementById('msgCharCount').textContent = text.length;
+      input.focus();
+    }
+
+    function initMessageInputCounter() {
+      const input = document.getElementById('inputOledMsg');
+      input.addEventListener('input', () => {
+        document.getElementById('msgCharCount').textContent = input.value.length;
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendOledMessage();
+      });
+    }
+
+    // 4. Remote Find Band (Vibrate Buzzer)
+    function sendFindBand() {
+      const topic = `${APP_CONFIG.baseTopic}/vibrate/set`;
+      publishMqtt(topic, "FIND");
+
+      const frame = document.getElementById('oledDeviceFrame');
+      frame.classList.add('vibrating');
+      setTimeout(() => frame.classList.remove('vibrating'), 1800);
+
+      showToast('Đang rung tìm vòng tay (BEEP/FIND)!', 'warning');
+    }
+
+    // 5. Remote Reset Steps
+    function openResetStepsConfirm() {
+      document.getElementById('modalResetConfirm').classList.add('active');
+    }
+    function closeResetConfirmModal() {
+      document.getElementById('modalResetConfirm').classList.remove('active');
+    }
+    function confirmResetSteps() {
+      closeResetConfirmModal();
+      const topic = `${APP_CONFIG.baseTopic}/reset_steps/set`;
+      publishMqtt(topic, "RESET");
+
+      deviceState.steps = 0;
+      processTelemetryData({ steps: 0 });
+      showToast('Đã gửi lệnh Reset bước chân về 0!', 'success');
+    }
+
+    // Generic MQTT Publish Helper
+    function publishMqtt(topic, message) {
+      if (mqttClient && isConnected) {
+        mqttClient.publish(topic, message, { qos: 0 }, (err) => {
+          if (err) {
+            appendLog('ERR', topic, `Lỗi gửi lệnh: ${err.message}`);
+          } else {
+            appendLog('OUT', topic, message);
+          }
+        });
+      } else if (isDemoMode) {
+        appendLog('OUT', topic, message);
+        handleDemoControlResponse(topic, message);
+      } else {
+        appendLog('ERR', topic, `Không thể gửi (Chưa kết nối MQTT): ${message}`);
+        showToast('Chưa kết nối MQTT Broker! Hãy kết nối hoặc bật Demo.', 'warning');
+      }
+    }
+
+    // ========================================================================
+    // VIRTUAL OLED SCREEN DISPLAY RENDERER (SSD1306 128x64 Simulation)
+    // ========================================================================
+    function renderVirtualOled() {
+      const content = document.getElementById('oledScreenContent');
+      const timeStr = new Date().toLocaleTimeString();
+      document.getElementById('oledFooterTime').textContent = timeStr;
+
+      // 1. Màn hình BÁO ĐỘNG TÉ NGÃ KHẨN CẤP
+      if (deviceState.fallAlert) {
+        document.getElementById('oledHeaderTitle').textContent = 'EMERGENCY ALERT';
+        content.innerHTML = `
+          <div class="oled-fall-box">
+            <div style="font-size: 0.75rem; font-weight: 800;">! CANH BAO TE NGA !</div>
+            <div style="font-size: 1.15rem; font-weight: 800; margin: 2px 0;">${deviceState.a_mag_ms2.toFixed(1)} m/s²</div>
+            <div style="font-size: 0.65rem;">&gt; 20 m/s² PHAT HIEN!</div>
+            <div style="font-size: 0.62rem; color: #ffaa00;">Rung coi... Can cuu!</div>
+          </div>
+        `;
+        return;
+      }
+
+      // 2. Màn hình tin nhắn tạm thời
+      if (deviceState.customMsg) {
+        content.innerHTML = `
+          <div class="oled-msg-popup">
+            <div style="font-size: 0.72rem; color: #ffaa00; margin-bottom: 2px;"><i class="fa-solid fa-bell"></i> THONG BAO</div>
+            <div style="font-size: 0.85rem; word-break: break-word;">${deviceState.customMsg}</div>
+          </div>
+        `;
+        return;
+      }
+
+      // 3. Render bình thường theo trang active
+      if (deviceState.oled_page === 1) {
+        // Trang 1: Sức khỏe
+        document.getElementById('oledHeaderTitle').textContent = 'HEALTH METRICS';
+        if (deviceState.max_ready && !deviceState.finger) {
+          content.innerHTML = `
+            <div style="font-size: 0.8rem; color: #ffaa00; font-weight: 700;">MAX30102 READY</div>
+            <div style="font-size: 0.95rem; color: #fff; margin-top: 4px; font-weight: 700;">>> DAT NGON TAY <<</div>
+            <div style="font-size: 0.68rem; color: #8e9bb5; margin-top: 4px;">Len cam bien (SDA:37, SCL:36)</div>
+          `;
+        } else {
+          content.innerHTML = `
+            <div style="font-size: 1.15rem; font-weight: 800; color: #ff2a6d; display: flex; align-items: center; justify-content: space-between;">
+              <span>HR: ${deviceState.hr}</span>
+              <span style="font-size: 0.75rem;">BPM</span>
+            </div>
+            <div style="font-size: 1.05rem; font-weight: 700; color: #00f2fe; margin-top: 4px; display: flex; align-items: center; justify-content: space-between;">
+              <span>SpO2: ${deviceState.spo2}%</span>
+              <span style="font-size: 0.7rem; color: #00ff87;">${deviceState.max_ready ? '[MAX30102]' : '[NORMAL]'}</span>
+            </div>
+            <div style="font-size: 0.65rem; color: #798aa8; margin-top: 4px;">PULSE OXIMETER ACTIVE</div>
+          `;
+        }
+      } else if (deviceState.oled_page === 2) {
+        // Trang 2: Bước chân
+        document.getElementById('oledHeaderTitle').textContent = 'PEDOMETER';
+        const cal = Math.round(deviceState.steps * 0.04);
+        content.innerHTML = `
+          <div style="font-size: 1.15rem; font-weight: 800; color: #00ff87;">
+            ${deviceState.steps.toLocaleString()} <span style="font-size: 0.72rem;">STEPS</span>
+          </div>
+          <div style="font-size: 0.82rem; color: #ffb703; margin-top: 4px;">
+            CAL: ${cal} kcal | ${(deviceState.steps * 0.75 / 1000).toFixed(2)} km
+          </div>
+          <div style="width: 100%; height: 4px; background: #223; border-radius: 2px; margin-top: 6px; overflow: hidden;">
+            <div style="height: 100%; width: ${Math.min(100, Math.round(deviceState.steps / 100))}%; background: #00ff87;"></div>
+          </div>
+        `;
+      } else if (deviceState.oled_page === 3) {
+        // Trang 3: Gia tốc m/s2 & Trạng thái té ngã
+        document.getElementById('oledHeaderTitle').textContent = 'ACCEL (m/s2) [P3]';
+        content.innerHTML = `
+          <div style="font-size: 0.76rem; display: flex; justify-content: space-between;">
+            <span style="color: #00f2fe;">Ax: ${deviceState.ax_ms2.toFixed(1)}</span>
+            <span style="color: #ff2a6d;">Ay: ${deviceState.ay_ms2.toFixed(1)}</span>
+          </div>
+          <div style="font-size: 0.76rem; color: #00ff87; margin-top: 2px;">
+            Az: ${deviceState.az_ms2.toFixed(1)} m/s²
+          </div>
+          <div style="font-size: 0.88rem; color: #ffb703; margin-top: 3px; font-weight: 700;">
+            |A|: ${deviceState.a_mag_ms2.toFixed(1)} m/s²
+          </div>
+          <div style="font-size: 0.68rem; color: ${deviceState.a_mag_ms2 > 20 ? '#ff0055' : '#00ff87'}; margin-top: 2px;">
+            ${deviceState.a_mag_ms2 > 20 ? '[TE NGA!! > 20 m/s2]' : (deviceState.a_mag_ms2 > 13 ? '[VAN DONG]' : '[BINH THUONG]')}
+          </div>
+        `;
+      }
+    }
+
+    // ========================================================================
+    // HARDWARE SIMULATOR (DEMO MODE)
+    // ========================================================================
+    function toggleDemoMode() {
+      isDemoMode = !isDemoMode;
+      const btn = document.getElementById('btnToggleDemo');
+      const text = document.getElementById('demoBtnText');
+
+      if (isDemoMode) {
+        btn.classList.add('btn-demo-active');
+        text.textContent = 'Chế độ Demo: BẬT';
+        showToast('Đã kích hoạt chế độ Demo mô phỏng dữ liệu ESP32!', 'success');
+        appendLog('SYS', 'DEMO', 'Bật mô phỏng ESP32 Telemetry mỗi 1.5s.');
+
+        demoInterval = setInterval(runDemoSimulationStep, 1500);
+      } else {
+        btn.classList.remove('btn-demo-active');
+        text.textContent = 'Chế độ Demo: TẮT';
+        if (demoInterval) clearInterval(demoInterval);
+        showToast('Đã tắt chế độ Demo.', 'info');
+        appendLog('SYS', 'DEMO', 'Đã tắt mô phỏng dữ liệu.');
+      }
+    }
+
+    function runDemoSimulationStep() {
+      const baseHr = 75 + Math.floor(Math.random() * 15) - 5;
+      const baseSpo2 = (97.5 + Math.random() * 2.0).toFixed(1);
+      const addSteps = Math.floor(Math.random() * 6);
+      deviceState.steps += addSteps;
+
+      const ax_ms2 = (Math.sin(Date.now() / 2000) * 3.0 + (Math.random() - 0.5) * 0.8).toFixed(2);
+      const ay_ms2 = (Math.cos(Date.now() / 2500) * 2.5 + (Math.random() - 0.5) * 0.8).toFixed(2);
+      const az_ms2 = (9.81 + (Math.random() - 0.5) * 1.0).toFixed(2);
+
+      const ax = (ax_ms2 / 9.80665).toFixed(2);
+      const ay = (ay_ms2 / 9.80665).toFixed(2);
+      const az = (az_ms2 / 9.80665).toFixed(2);
+
+      const mag_ms2 = Math.sqrt(parseFloat(ax_ms2) ** 2 + parseFloat(ay_ms2) ** 2 + parseFloat(az_ms2) ** 2);
+
+      // Mô phỏng thông số tài nguyên hệ thống
+      deviceState.uptime += 2;
+      const simHeapPct = (16.5 + (Math.random() - 0.5) * 1.2).toFixed(1);
+      const simChipTemp = (43.8 + (Math.random() - 0.5) * 1.5).toFixed(1);
+      const simRssi = -58 + Math.floor((Math.random() - 0.5) * 6);
+
+      const demoPayload = {
+        hr: baseHr,
+        spo2: parseFloat(baseSpo2),
+        steps: deviceState.steps,
+        ax: parseFloat(ax),
+        ay: parseFloat(ay),
+        az: parseFloat(az),
+        ax_ms2: parseFloat(ax_ms2),
+        ay_ms2: parseFloat(ay_ms2),
+        az_ms2: parseFloat(az_ms2),
+        a_mag_ms2: parseFloat(mag_ms2.toFixed(2)),
+        fall: mag_ms2 > 20.0,
+        screen_state: deviceState.screen_state,
+        oled_page: deviceState.oled_page,
+
+        // System resources
+        free_heap: 272000 + Math.floor((Math.random() - 0.5) * 4000),
+        total_heap: 327680,
+        heap_pct: simHeapPct,
+        chip_temp: simChipTemp,
+        rssi: simRssi,
+        uptime: deviceState.uptime,
+        cpu_freq: 240,
+        sketch_size: 760425,
+        flash_size: 8388608
+      };
+
+      const topic = `${APP_CONFIG.baseTopic}/telemetry`;
+      handleIncomingMqttMessage(topic, JSON.stringify(demoPayload));
+    }
+
+    function handleDemoControlResponse(topic, message) {
+      const base = APP_CONFIG.baseTopic;
+      if (topic === `${base}/screen_power/set`) {
+        deviceState.screen_state = message;
+        syncScreenPowerUI(message === 'ON');
+        appendLog('IN', `${base}/screen_power/status`, message);
+      } else if (topic === `${base}/screen_page/set`) {
+        deviceState.oled_page = parseInt(message, 10);
+        syncPageSelectorUI(deviceState.oled_page);
+        renderVirtualOled();
+        appendLog('IN', `${base}/screen_page/status`, message);
+      } else if (topic === `${base}/vibrate/set`) {
+        appendLog('IN', `${base}/vibrate/status`, "VIBRATING_OK");
+      } else if (topic === `${base}/fall/dismiss`) {
+        appendLog('IN', `${base}/fall/status`, "FALL_ALARM_DISMISSED");
+      }
+    }
+
+    // ========================================================================
+    // CONSOLE TERMINAL LOGGING
+    // ========================================================================
+    function appendLog(type, topic, message) {
+      const windowElem = document.getElementById('terminalWindow');
+      const timeStr = new Date().toLocaleTimeString();
+
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.dataset.type = type;
+
+      let tagClass = 'tag-info';
+      let tagText = 'SYS';
+
+      if (type === 'IN') {
+        tagClass = 'tag-in';
+        tagText = 'RX IN';
+      } else if (type === 'OUT') {
+        tagClass = 'tag-out';
+        tagText = 'TX OUT';
+      } else if (type === 'ERR') {
+        tagClass = 'tag-err';
+        tagText = 'ALARM';
+      }
+
+      line.innerHTML = `
+        <span class="log-time">[${timeStr}]</span>
+        <span class="log-tag ${tagClass}">${tagText}</span>
+        <span class="log-topic">${escapeHtml(topic)}</span>
+        <span class="log-msg">${escapeHtml(message)}</span>
+      `;
+
+      if (currentLogFilter !== 'ALL') {
+        if (currentLogFilter === 'IN' && type !== 'IN') line.style.display = 'none';
+        if (currentLogFilter === 'OUT' && type !== 'OUT') line.style.display = 'none';
+        if (currentLogFilter === 'SYS' && (type === 'IN' || type === 'OUT')) line.style.display = 'none';
+      }
+
+      windowElem.appendChild(line);
+
+      if (autoScrollLogs) {
+        windowElem.scrollTop = windowElem.scrollHeight;
+      }
+
+      if (windowElem.children.length > 250) {
+        windowElem.removeChild(windowElem.firstChild);
+      }
+    }
+
+    function setLogFilter(filter) {
+      currentLogFilter = filter;
+      const buttons = document.querySelectorAll('.filter-btn');
+      buttons.forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const lines = document.querySelectorAll('.log-line');
+      lines.forEach(line => {
+        const type = line.dataset.type;
+        if (filter === 'ALL') {
+          line.style.display = 'flex';
+        } else if (filter === 'IN') {
+          line.style.display = (type === 'IN') ? 'flex' : 'none';
+        } else if (filter === 'OUT') {
+          line.style.display = (type === 'OUT') ? 'flex' : 'none';
+        } else if (filter === 'SYS') {
+          line.style.display = (type === 'SYS' || type === 'ERR') ? 'flex' : 'none';
+        }
+      });
+    }
+
+    function clearConsoleLog() {
+      document.getElementById('terminalWindow').innerHTML = '';
+      appendLog('SYS', 'SYSTEM', 'Đã xóa lịch sử log.');
+    }
+
+    function toggleAutoScroll() {
+      autoScrollLogs = !autoScrollLogs;
+      const btn = document.getElementById('btnToggleAutoScroll');
+      btn.innerHTML = `<i class="fa-solid fa-arrows-down-to-line"></i> Auto-scroll: ${autoScrollLogs ? 'BẬT' : 'TẮT'}`;
+    }
+
+    // ========================================================================
+    // CONFIGURATION MODAL CONTROLLERS
+    // ========================================================================
+    function openConfigModal() {
+      document.getElementById('modalConfig').classList.add('active');
+    }
+    function closeConfigModal() {
+      document.getElementById('modalConfig').classList.remove('active');
+    }
+
+    function saveAndApplyConfig() {
+      const broker = document.getElementById('cfgBrokerUrl').value.trim();
+      const topic = document.getElementById('cfgBaseTopic').value.trim();
+      const client = document.getElementById('cfgClientId').value.trim() || ('web_' + Math.random().toString(16).substring(2, 10));
+      const user = document.getElementById('cfgUsername').value.trim();
+      const pass = document.getElementById('cfgPassword').value.trim();
+
+      if (!broker || !topic) {
+        showToast('Vui lòng điền đầy đủ URL Broker và Base Topic!', 'warning');
+        return;
+      }
+
+      APP_CONFIG.brokerUrl = broker;
+      APP_CONFIG.baseTopic = topic;
+      APP_CONFIG.clientId = client;
+      APP_CONFIG.username = user;
+      APP_CONFIG.password = pass;
+
+      localStorage.setItem('mqtt_broker_url', broker);
+      localStorage.setItem('mqtt_base_topic', topic);
+      localStorage.setItem('mqtt_client_id', client);
+      localStorage.setItem('mqtt_username', user);
+      localStorage.setItem('mqtt_password', pass);
+
+      initAppUI();
+      closeConfigModal();
+      showToast('Đã lưu cấu hình! Đang kết nối lại Broker...', 'success');
+
+      initMQTT();
+    }
+
+    function resetConfigToDefault() {
+      document.getElementById('cfgBrokerUrl').value = 'wss://broker.emqx.io:8084/mqtt';
+      document.getElementById('cfgBaseTopic').value = 'smartband_s3/dev01';
+      document.getElementById('cfgClientId').value = 'web_' + Math.random().toString(16).substring(2, 10);
+      document.getElementById('cfgUsername').value = '';
+      document.getElementById('cfgPassword').value = '';
+    }
+
+    // ========================================================================
+    // UTILITIES & NOTIFICATIONS
+    // ========================================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+
+      let icon = 'fa-circle-info';
+      let iconColor = 'var(--neon-cyan)';
+      if (type === 'success') {
+        icon = 'fa-circle-check';
+        iconColor = 'var(--neon-green)';
+      } else if (type === 'warning') {
+        icon = 'fa-triangle-exclamation';
+        iconColor = 'var(--neon-amber)';
+      }
+
+      toast.innerHTML = `
+        <i class="fa-solid ${icon}" style="color: ${iconColor}; font-size: 1.1rem;"></i>
+        <span>${escapeHtml(message)}</span>
+      `;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(50px)';
+        setTimeout(() => toast.remove(), 400);
+      }, 3500);
+    }
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return str;
+      return str.replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+
+</html>
