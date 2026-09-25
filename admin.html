@@ -14,8 +14,9 @@
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- MQTT CDN -->
+  <!-- MQTT & Chart.js CDNs -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     :root {
@@ -33,6 +34,15 @@
       --color-amber: #d97706;
       --color-amber-bg: #fef3c7;
       --color-danger: #dc2626;
+
+      /* Patient Vital Sign Colors */
+      --color-heart: #e11d48;
+      --color-heart-bg: #ffe4e6;
+      --color-spo2: #0284c7;
+      --color-spo2-bg: #e0f2fe;
+      --color-steps: #10b981;
+      --color-steps-bg: #dcfce7;
+      --color-warning: #f59e0b;
 
       --text-main: #0f172a;
       --text-muted: #64748b;
@@ -343,6 +353,114 @@
       margin-top: 12px;
       padding-top: 8px;
       border-top: 1px solid #f1f5f9;
+    }
+
+    /* Heart pulse animation */
+    .heart-beat-active {
+      animation: heartPulse 1.2s ease-in-out infinite;
+    }
+    @keyframes heartPulse {
+      0% { transform: scale(1); }
+      14% { transform: scale(1.18); }
+      28% { transform: scale(1); }
+      42% { transform: scale(1.12); }
+      70% { transform: scale(1); }
+    }
+
+    .card-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Step stat pills */
+    .step-stat-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .step-stat-item {
+      flex: 1;
+      background: var(--bg-subtle);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+    .step-stat-item strong {
+      display: block;
+      color: var(--text-main);
+      font-size: 0.88rem;
+      margin-top: 2px;
+    }
+
+    /* Single Chart Card */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-card);
+    }
+    .chart-canvas-wrapper {
+      position: relative;
+      height: 250px;
+      width: 100%;
+      margin-top: 12px;
+    }
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Fall alert banner (Active state) */
+    .fall-alert-banner {
+      display: none;
+      background: #fee2e2;
+      border: 2px solid var(--color-danger);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      animation: alertPulse 1.5s infinite;
+    }
+    .fall-alert-banner.active { display: flex; }
+    @keyframes alertPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0.0); }
+    }
+    .fall-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .fall-banner-icon {
+      font-size: 24px;
+      color: var(--color-danger);
+    }
+    .fall-banner-text h4 {
+      font-size: 0.92rem;
+      color: #991b1b;
+      font-weight: 700;
+    }
+    .fall-banner-text p {
+      font-size: 0.78rem;
+      color: #b91c1c;
     }
 
     /* Device Management & Diagnostics Grid */
@@ -749,6 +867,16 @@
         <i class="fa-solid fa-heart-pulse"></i> Xem Trang Người Dùng
       </a>
 
+      <!-- Toggle Audio Alert Sound -->
+      <button class="btn btn-outline" id="btnToggleAudio" onclick="toggleAudioMute()" title="Bật/Tắt chuông báo động sự cố & sinh hiệu">
+        <i class="fa-solid fa-volume-high" style="color: var(--color-amber);"></i> <span id="txtAudioState">Chuông: BẬT</span>
+      </button>
+
+      <!-- Export CSV Report -->
+      <button class="btn btn-outline" onclick="exportTelemetryCSV()" title="Tải xuống toàn bộ lịch sử đo dưới dạng CSV">
+        <i class="fa-solid fa-file-csv" style="color: #059669;"></i> Xuất CSV
+      </button>
+
       <!-- Connection Status Badge -->
       <div class="status-badge" id="connStatusBadge" title="Trạng thái MQTT Broker">
         <span class="status-dot" id="statusDot"></span>
@@ -800,7 +928,159 @@
       </div>
     </section>
 
-    <!-- SECTION HEADING: SYSTEM RESOURCES -->
+    <!-- EMERGENCY FALL ALERT BANNER -->
+    <div class="fall-alert-banner" id="fallAlertBanner">
+      <div class="fall-banner-content">
+        <i class="fa-solid fa-triangle-exclamation fall-banner-icon"></i>
+        <div class="fall-banner-text">
+          <h4>CẢNH BÁO TÉ NGÃ KHẨN CẤP!</h4>
+          <p>Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050 trên vòng tay.</p>
+        </div>
+      </div>
+      <button class="btn btn-danger" onclick="dismissFallAlert()">
+        <i class="fa-solid fa-circle-check"></i> Xác nhận / Tắt báo động
+      </button>
+    </div>
+
+    <!-- SECTION HEADING 1: PATIENT VITAL SIGNS (Y HỆT TRANG NGƯỜI DÙNG) -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-heart-pulse" style="color: var(--color-heart)"></i> CHỈ SỐ SINH HIỆU THỜI GIAN THỰC (BỆNH NHÂN / NGƯỜI ĐEO)</h3>
+      <span id="dispLastUpdateTime">Cập nhật: --:--:--</span>
+    </div>
+
+    <!-- ROW 1: 3 VITAL CARDS (Heart Rate, SpO2, Steps) -->
+    <section class="resource-grid">
+
+      <!-- 1. HEART RATE (NHỊP TIM) -->
+      <div class="card" id="cardHeart">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-heart" style="color: var(--color-heart);"></i>
+            <span>Nhịp Tim (Heart Rate)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeHeart">Bình thường</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valHeartRate" style="color: var(--color-heart);">--</span>
+            <span class="metric-unit">BPM</span>
+          </div>
+          <div class="metric-icon-box heart-beat-active" id="boxHeartIcon" style="background: var(--color-heart-bg); color: var(--color-heart);">
+            <i class="fa-solid fa-heart-pulse"></i>
+          </div>
+        </div>
+        <div class="card-desc" id="descHeart">
+          Nhịp tim nghỉ ngơi bình thường dao động từ 60 đến 100 nhịp/phút.
+        </div>
+        <div class="card-footer-info">
+          <span>Ngưỡng an toàn: <strong>50 - 115 BPM</strong></span>
+          <span id="statHeartMinMax">Min: -- | Max: --</span>
+        </div>
+      </div>
+
+      <!-- 2. SPO2 (OXY TRONG MÁU) -->
+      <div class="card" id="cardSpo2">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-lungs" style="color: var(--color-spo2);"></i>
+            <span>Oxy Trong Máu (SpO2)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeSpo2">Tối ưu</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valSpo2" style="color: var(--color-spo2);">--</span>
+            <span class="metric-unit">%</span>
+          </div>
+          <div class="metric-icon-box" style="background: var(--color-spo2-bg); color: var(--color-spo2);">
+            <i class="fa-solid fa-droplet"></i>
+          </div>
+        </div>
+        <div class="card-desc" id="descSpo2">
+          Nồng độ oxy hòa tan trong máu bình thường: 95% - 100%.
+        </div>
+        <div class="card-footer-info">
+          <span>Trạng thái: <strong id="statSpo2Quality">Khỏe mạnh</strong></span>
+          <span id="txtFingerAdmin">Cảm biến: <strong>MAX30102</strong></span>
+        </div>
+      </div>
+
+      <!-- 3. PEDOMETER (BƯỚC CHÂN & VẬN ĐỘNG) -->
+      <div class="card" id="cardSteps">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-person-walking" style="color: var(--color-steps);"></i>
+            <span>Vận Động & Bước Chân</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeSteps">Mục tiêu 10,000</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valSteps" style="color: var(--color-steps);">0</span>
+            <span class="metric-unit">bước</span>
+          </div>
+          <div class="metric-icon-box" style="background: var(--color-steps-bg); color: var(--color-steps);">
+            <i class="fa-solid fa-shoe-prints"></i>
+          </div>
+        </div>
+
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Tiến độ ngày: <strong id="valStepsPercent">0%</strong></span>
+            <span>Mục tiêu: 10,000 bước</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barStepsFill" style="width: 0%; background: var(--color-steps);"></div>
+          </div>
+        </div>
+
+        <div class="step-stat-row">
+          <div class="step-stat-item">
+            <span>Tiêu hao</span>
+            <strong id="valCalories">0 kcal</strong>
+          </div>
+          <div class="step-stat-item">
+            <span>Quãng đường</span>
+            <strong id="valDistance">0.00 km</strong>
+          </div>
+        </div>
+
+        <div class="card-footer-info">
+          <span>Bộ đếm: <strong>MPU6050 DSP</strong></span>
+          <span>Khử nhiễu: <strong>BẬT</strong></span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECTION HEADING 2: REALTIME VITAL CHART -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-chart-line" style="color: var(--color-primary)"></i> BIỂU ĐỒ SINH HIỆU THỜI GIAN THỰC (NHỊP TIM & SPO2)</h3>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="chart-legend">
+          <div class="legend-item">
+            <span class="legend-dot" style="background: var(--color-heart);"></span>
+            <span>Nhịp tim (BPM)</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot" style="background: var(--color-spo2);"></span>
+            <span>SpO2 (%)</span>
+          </div>
+        </div>
+        <button class="btn btn-outline" onclick="clearChartData()" style="padding: 4px 10px; font-size: 0.72rem;">
+          <i class="fa-solid fa-rotate-left"></i> Xóa đồ thị
+        </button>
+      </div>
+    </div>
+
+    <!-- ROW 2: CHART CONTAINER -->
+    <section class="chart-card">
+      <div class="chart-canvas-wrapper">
+        <canvas id="heartSpo2ChartCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- SECTION HEADING 3: SYSTEM RESOURCES -->
     <div class="section-heading">
       <h3><i class="fa-solid fa-microchip" style="color: var(--color-purple)"></i> HIỆU SUẤT & TÀI NGUYÊN PHẦN CỨNG ESP32-S3</h3>
       <span>Giám sát bộ nhớ Heap, Nhiệt độ chip, WiFi & Flash</span>
@@ -1138,6 +1418,18 @@
         </div>
       </div>
 
+      <!-- Alert Thresholds -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cfgAlertMaxHr">Ngưỡng Cảnh Báo Nhịp Tim Cao (BPM)</label>
+          <input type="number" class="input-field" id="cfgAlertMaxHr" value="115" min="70" max="200">
+        </div>
+        <div class="form-group">
+          <label for="cfgAlertMinSpo2">Ngưỡng Cảnh Báo SpO2 Thấp (%)</label>
+          <input type="number" class="input-field" id="cfgAlertMinSpo2" value="95.0" step="0.5" min="70" max="100">
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="resetConfigToDefault()">Khôi phục mặc định</button>
         <button class="btn btn-primary" onclick="saveAndApplyConfig()">Lưu & Kết nối lại</button>
@@ -1172,7 +1464,9 @@
       baseTopic: localStorage.getItem('mqtt_base_topic') || 'smartband_s3/dev01',
       clientId: localStorage.getItem('mqtt_client_id') || ('admin_' + Math.random().toString(16).substring(2, 10)),
       username: localStorage.getItem('mqtt_username') || '',
-      password: localStorage.getItem('mqtt_password') || ''
+      password: localStorage.getItem('mqtt_password') || '',
+      alertMaxHr: parseInt(localStorage.getItem('alert_max_hr') || '115', 10),
+      alertMinSpo2: parseFloat(localStorage.getItem('alert_min_spo2') || '95.0')
     };
 
     let mqttClient = null;
@@ -1181,6 +1475,19 @@
     let autoScrollLogs = true;
     let currentLogFilter = 'ALL';
     let packetCounter = 0;
+
+    // Vital signs & chart history
+    let minHr = null;
+    let maxHr = null;
+    let heartSpo2Chart = null;
+    const MAX_CHART_POINTS = 40;
+    const telemetryHistory = [];
+    const MAX_HISTORY_RECORDS = 500;
+
+    // Web Audio alert state
+    let audioCtx = null;
+    let isAudioMuted = false;
+    let alarmInterval = null;
 
     const deviceState = {
       screen_state: "ON",
@@ -1200,6 +1507,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       initAppUI();
+      initHeartSpo2Chart();
       initMQTT();
       initMessageInputCounter();
       setupEventListeners();
@@ -1214,6 +1522,173 @@
       document.getElementById('cfgClientId').value = APP_CONFIG.clientId;
       document.getElementById('cfgUsername').value = APP_CONFIG.username;
       document.getElementById('cfgPassword').value = APP_CONFIG.password;
+      const elMaxHr = document.getElementById('cfgAlertMaxHr');
+      const elMinSpo2 = document.getElementById('cfgAlertMinSpo2');
+      if (elMaxHr) elMaxHr.value = APP_CONFIG.alertMaxHr;
+      if (elMinSpo2) elMinSpo2.value = APP_CONFIG.alertMinSpo2;
+    }
+
+    // Chart.js Dual-Axis Realtime Chart
+    function initHeartSpo2Chart() {
+      const ctx = document.getElementById('heartSpo2ChartCanvas');
+      if (!ctx) return;
+      heartSpo2Chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Nhịp tim (BPM)',
+              data: [],
+              borderColor: '#e11d48',
+              backgroundColor: 'rgba(225, 29, 72, 0.08)',
+              borderWidth: 2.2,
+              pointRadius: 2.5,
+              pointBackgroundColor: '#e11d48',
+              tension: 0.35,
+              fill: true,
+              yAxisID: 'yHr'
+            },
+            {
+              label: 'SpO2 (%)',
+              data: [],
+              borderColor: '#0284c7',
+              backgroundColor: 'rgba(2, 132, 199, 0.08)',
+              borderWidth: 2,
+              borderDash: [4, 4],
+              pointRadius: 2.5,
+              pointBackgroundColor: '#0284c7',
+              tension: 0.3,
+              fill: false,
+              yAxisID: 'ySpo2'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 0 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#ffffff',
+              bodyColor: '#cbd5e1',
+              padding: 10,
+              cornerRadius: 8
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, color: '#94a3b8', maxRotation: 0 }
+            },
+            yHr: {
+              type: 'linear',
+              position: 'left',
+              min: 40,
+              max: 160,
+              grid: { color: '#f1f5f9' },
+              ticks: { font: { size: 10 }, color: '#e11d48', stepSize: 20 },
+              title: { display: true, text: 'BPM', color: '#e11d48', font: { size: 10, weight: 'bold' } }
+            },
+            ySpo2: {
+              type: 'linear',
+              position: 'right',
+              min: 80,
+              max: 100,
+              grid: { display: false },
+              ticks: { font: { size: 10 }, color: '#0284c7', stepSize: 5 },
+              title: { display: true, text: '% SpO2', color: '#0284c7', font: { size: 10, weight: 'bold' } }
+            }
+          }
+        }
+      });
+    }
+
+    function clearChartData() {
+      if (heartSpo2Chart) {
+        heartSpo2Chart.data.labels = [];
+        heartSpo2Chart.data.datasets[0].data = [];
+        heartSpo2Chart.data.datasets[1].data = [];
+        heartSpo2Chart.update();
+        showToast('Đã xóa dữ liệu biểu đồ sinh hiệu.', 'info');
+      }
+    }
+
+    // Web Audio Beeper for Emergency Alerts
+    function toggleAudioMute() {
+      isAudioMuted = !isAudioMuted;
+      const btn = document.getElementById('btnToggleAudio');
+      const txt = document.getElementById('txtAudioState');
+      if (btn && txt) {
+        if (isAudioMuted) {
+          btn.innerHTML = '<i class="fa-solid fa-volume-xmark" style="color: var(--text-dim);"></i> <span id="txtAudioState">Chuông: TẮT</span>';
+        } else {
+          btn.innerHTML = '<i class="fa-solid fa-volume-high" style="color: var(--color-amber);"></i> <span id="txtAudioState">Chuông: BẬT</span>';
+        }
+      }
+      showToast(`Âm thanh cảnh báo: ${isAudioMuted ? 'ĐÃ TẮT' : 'ĐÃ BẬT'}`, 'info');
+    }
+
+    function playBeep(freq = 880, type = 'sine', durationMs = 200) {
+      if (isAudioMuted) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (durationMs / 1000));
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + (durationMs / 1000));
+      } catch (e) {}
+    }
+
+    function startFallAlarm() {
+      if (alarmInterval) return;
+      playBeep(950, 'sawtooth', 250);
+      alarmInterval = setInterval(() => {
+        playBeep(950, 'sawtooth', 250);
+      }, 600);
+    }
+
+    function stopFallAlarm() {
+      if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+      }
+    }
+
+    // Export Telemetry to CSV
+    function exportTelemetryCSV() {
+      if (telemetryHistory.length === 0) {
+        showToast('Chưa có dữ liệu sinh hiệu để xuất CSV! Hãy kết nối thiết bị trước.', 'error');
+        return;
+      }
+      let csv = "Timestamp,HeartRate_BPM,SpO2_Percent,Steps,Calories_kcal,Distance_km,ChipTemp_C,RAM_Free_KB,RAM_Used_Pct,WiFi_RSSI_dBm\n";
+      telemetryHistory.forEach(row => {
+        csv += `"${row.time}",${row.hr},${row.spo2},${row.steps},${row.cal},${row.dist},${row.temp},${row.heapFree},${row.heapPct},${row.rssi}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `smartband_telemetry_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Đã xuất ${telemetryHistory.length} dòng dữ liệu sang CSV!`, 'success');
     }
 
     function setupEventListeners() {
@@ -1343,11 +1818,147 @@
     }
 
     function updateTelemetryMetrics(data) {
-      if (data.hr !== undefined) deviceState.hr = data.hr;
-      if (data.spo2 !== undefined) deviceState.spo2 = data.spo2;
-      if (data.steps !== undefined) deviceState.steps = data.steps;
+      const timeStr = new Date().toLocaleTimeString('vi-VN');
+      const dispUpdate = document.getElementById('dispLastUpdateTime');
+      if (dispUpdate) dispUpdate.textContent = `Cập nhật: ${timeStr}`;
 
-      // 1. RAM Heap
+      // 1. Nhịp tim (HR)
+      if (data.hr !== undefined) {
+        const hr = parseInt(data.hr, 10);
+        deviceState.hr = hr;
+        const valHrElem = document.getElementById('valHeartRate');
+        if (valHrElem) valHrElem.textContent = hr > 0 ? hr : '--';
+
+        const badge = document.getElementById('badgeHeart');
+        const desc = document.getElementById('descHeart');
+        const boxIcon = document.getElementById('boxHeartIcon');
+
+        if (hr === 0) {
+          if (badge) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Chờ ngón tay'; }
+          if (desc) desc.textContent = 'Vui lòng đặt ngón tay lên cảm biến MAX30102 để đo.';
+          if (boxIcon) boxIcon.classList.remove('heart-beat-active');
+        } else if (hr > APP_CONFIG.alertMaxHr) {
+          if (badge) { badge.className = 'card-badge badge-danger'; badge.textContent = 'Nhịp cao!'; }
+          if (desc) desc.textContent = `Nhịp tim vượt ngưỡng cảnh báo (> ${APP_CONFIG.alertMaxHr} BPM).`;
+          if (boxIcon) boxIcon.classList.add('heart-beat-active');
+          playBeep(780, 'sawtooth', 140);
+        } else if (hr < 55) {
+          if (badge) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Nhịp chậm'; }
+          if (desc) desc.textContent = 'Nhịp tim đang ở mức thấp.';
+          if (boxIcon) boxIcon.classList.add('heart-beat-active');
+        } else {
+          if (badge) { badge.className = 'card-badge badge-normal'; badge.textContent = 'Bình thường'; }
+          if (desc) desc.textContent = 'Nhịp tim ổn định trong phạm vi lý tưởng cho cơ thể.';
+          if (boxIcon) boxIcon.classList.add('heart-beat-active');
+        }
+
+        if (hr > 0) {
+          if (minHr === null || hr < minHr) minHr = hr;
+          if (maxHr === null || hr > maxHr) maxHr = hr;
+          const statMinMax = document.getElementById('statHeartMinMax');
+          if (statMinMax) statMinMax.textContent = `Min: ${minHr} | Max: ${maxHr}`;
+        }
+      }
+
+      // 2. SpO2 (Oxy trong máu)
+      if (data.spo2 !== undefined) {
+        const spo2 = parseFloat(data.spo2).toFixed(1);
+        deviceState.spo2 = data.spo2;
+        const valSpo2Elem = document.getElementById('valSpo2');
+        if (valSpo2Elem) valSpo2Elem.textContent = data.spo2 > 0 ? spo2 : '--';
+
+        const badge = document.getElementById('badgeSpo2');
+        const quality = document.getElementById('statSpo2Quality');
+        if (data.spo2 <= 0) {
+          if (badge) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Chờ đo'; }
+          if (quality) quality.textContent = 'Đang đo';
+        } else if (parseFloat(spo2) < APP_CONFIG.alertMinSpo2) {
+          if (badge) { badge.className = 'card-badge badge-danger'; badge.textContent = 'Cảnh báo thấp!'; }
+          if (quality) quality.textContent = 'Cần chú ý';
+          playBeep(600, 'triangle', 200);
+        } else {
+          if (badge) { badge.className = 'card-badge badge-normal'; badge.textContent = 'Tối ưu'; }
+          if (quality) quality.textContent = 'Khỏe mạnh';
+        }
+      }
+
+      // 3. Vận động & Bước chân
+      if (data.steps !== undefined) {
+        const steps = parseInt(data.steps, 10);
+        deviceState.steps = steps;
+        const valStepsElem = document.getElementById('valSteps');
+        if (valStepsElem) valStepsElem.textContent = steps.toLocaleString();
+
+        const pct = Math.min(100, Math.round((steps / 10000) * 100));
+        const valPctElem = document.getElementById('valStepsPercent');
+        const barFill = document.getElementById('barStepsFill');
+        if (valPctElem) valPctElem.textContent = `${pct}%`;
+        if (barFill) barFill.style.width = `${pct}%`;
+
+        const cal = Math.round(steps * 0.04);
+        const dist = ((steps * 0.75) / 1000).toFixed(2);
+        const valCalElem = document.getElementById('valCalories');
+        const valDistElem = document.getElementById('valDistance');
+        if (valCalElem) valCalElem.textContent = `${cal} kcal`;
+        if (valDistElem) valDistElem.textContent = `${dist} km`;
+      }
+
+      // 4. Trạng thái ngón tay
+      if (data.finger !== undefined) {
+        const isFinger = data.finger === true || data.finger === "true";
+        const txtFinger = document.getElementById('txtFingerAdmin');
+        if (txtFinger) {
+          txtFinger.innerHTML = isFinger 
+            ? 'Cảm biến: <strong style="color: var(--color-emerald)">Đã nhận tay</strong>' 
+            : 'Cảm biến: <strong style="color: var(--color-amber)">Đang chờ tay</strong>';
+        }
+      }
+
+      // 5. Cảnh báo té ngã (Fall Alert)
+      if (data.fall === true || data.fall === "true") {
+        const banner = document.getElementById('fallAlertBanner');
+        if (banner) banner.classList.add('active');
+        startFallAlarm();
+      }
+
+      // 6. Cập nhật biểu đồ sinh hiệu (Realtime Chart)
+      if (heartSpo2Chart && (data.hr > 0 || data.spo2 > 0)) {
+        const labels = heartSpo2Chart.data.labels;
+        const hrDataset = heartSpo2Chart.data.datasets[0].data;
+        const spo2Dataset = heartSpo2Chart.data.datasets[1].data;
+
+        labels.push(timeStr);
+        hrDataset.push(data.hr > 0 ? data.hr : null);
+        spo2Dataset.push(data.spo2 > 0 ? parseFloat(data.spo2).toFixed(1) : null);
+
+        if (labels.length > MAX_CHART_POINTS) {
+          labels.shift();
+          hrDataset.shift();
+          spo2Dataset.shift();
+        }
+        heartSpo2Chart.update('none');
+      }
+
+      // 7. Ghi vào lịch sử xuất CSV
+      const calCalc = Math.round((deviceState.steps || 0) * 0.04);
+      const distCalc = (((deviceState.steps || 0) * 0.75) / 1000).toFixed(2);
+      telemetryHistory.push({
+        time: timeStr,
+        hr: deviceState.hr || 0,
+        spo2: deviceState.spo2 || 0,
+        steps: deviceState.steps || 0,
+        cal: calCalc,
+        dist: distCalc,
+        temp: deviceState.chip_temp || 0,
+        heapFree: Math.round((deviceState.free_heap || 0) / 1024),
+        heapPct: deviceState.heap_pct || 0,
+        rssi: deviceState.rssi || 0
+      });
+      if (telemetryHistory.length > MAX_HISTORY_RECORDS) {
+        telemetryHistory.shift();
+      }
+
+      // 8. RAM Heap Phần cứng
       if (data.free_heap !== undefined || data.heap_pct !== undefined) {
         if (data.free_heap !== undefined) deviceState.free_heap = parseInt(data.free_heap, 10);
         if (data.total_heap !== undefined) deviceState.total_heap = parseInt(data.total_heap, 10);
@@ -1368,7 +1979,7 @@
         else { badge.className = 'card-badge badge-normal'; badge.textContent = 'Tối ưu'; }
       }
 
-      // 2. Chip Temp
+      // 9. SoC Chip Temp
       if (data.chip_temp !== undefined) {
         deviceState.chip_temp = parseFloat(data.chip_temp).toFixed(1);
         const tempF = ((parseFloat(deviceState.chip_temp) * 9/5) + 32).toFixed(1);
@@ -1385,7 +1996,7 @@
         else { badge.className = 'card-badge badge-normal'; badge.textContent = 'Mát mẻ'; }
       }
 
-      // 3. WiFi RSSI
+      // 10. WiFi RSSI
       if (data.rssi !== undefined) {
         deviceState.rssi = parseInt(data.rssi, 10);
         document.getElementById('valRssi').textContent = deviceState.rssi;
@@ -1399,7 +2010,7 @@
         else { badge.className = 'card-badge badge-danger'; badge.textContent = 'Yếu'; }
       }
 
-      // 4. Flash & Sketch
+      // 11. Flash & Sketch
       if (data.sketch_size !== undefined) {
         deviceState.sketch_size = parseInt(data.sketch_size, 10);
         const sketchKb = Math.round(deviceState.sketch_size / 1024);
@@ -1550,10 +2161,13 @@
     }
 
     function dismissFallAlert() {
-      if (!mqttClient || !isConnected) { showToast('Chưa kết nối MQTT!', 'error'); return; }
+      const banner = document.getElementById('fallAlertBanner');
+      if (banner) banner.classList.remove('active');
+      stopFallAlarm();
+      if (!mqttClient || !isConnected) { showToast('Đã tắt chuông (Chưa kết nối MQTT)', 'info'); return; }
       mqttClient.publish(`${APP_CONFIG.baseTopic}/fall/dismiss`, "DISMISS");
       appendLog('OUT', 'fall/dismiss', "DISMISS");
-      showToast('Đã gửi lệnh xóa báo động té ngã.', 'info');
+      showToast('Đã xác nhận an toàn & tắt báo động té ngã.', 'info');
     }
 
     // Terminal Logging
@@ -1622,6 +2236,8 @@
       const cid = document.getElementById('cfgClientId').value.trim();
       const user = document.getElementById('cfgUsername').value.trim();
       const pass = document.getElementById('cfgPassword').value.trim();
+      const maxHr = parseInt(document.getElementById('cfgAlertMaxHr').value, 10) || 115;
+      const minSpo2 = parseFloat(document.getElementById('cfgAlertMinSpo2').value) || 95.0;
 
       if (!broker || !topic) { showToast('Vui lòng điền đủ Broker và Topic!', 'error'); return; }
 
@@ -1630,12 +2246,16 @@
       APP_CONFIG.clientId = cid || ('admin_' + Math.random().toString(16).substring(2, 10));
       APP_CONFIG.username = user;
       APP_CONFIG.password = pass;
+      APP_CONFIG.alertMaxHr = maxHr;
+      APP_CONFIG.alertMinSpo2 = minSpo2;
 
       localStorage.setItem('mqtt_broker_url', broker);
       localStorage.setItem('mqtt_base_topic', topic);
       localStorage.setItem('mqtt_client_id', APP_CONFIG.clientId);
       localStorage.setItem('mqtt_username', user);
       localStorage.setItem('mqtt_password', pass);
+      localStorage.setItem('alert_max_hr', maxHr.toString());
+      localStorage.setItem('alert_min_spo2', minSpo2.toString());
 
       closeConfigModal();
       initAppUI();
@@ -1649,6 +2269,8 @@
       document.getElementById('cfgClientId').value = 'admin_' + Math.random().toString(16).substring(2, 10);
       document.getElementById('cfgUsername').value = '';
       document.getElementById('cfgPassword').value = '';
+      document.getElementById('cfgAlertMaxHr').value = '115';
+      document.getElementById('cfgAlertMinSpo2').value = '95.0';
     }
 
     function showToast(msg, type = 'info') {
