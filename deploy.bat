@@ -6,7 +6,7 @@ echo =======================================================
 echo   CYBERBAND S3 - AUTO DEPLOY DASHBOARD TO GITHUB PAGES
 echo =======================================================
 
-:: Tim git executable
+REM Tim git executable
 set GIT_CMD=git
 where git >nul 2>nul
 if %errorlevel% neq 0 (
@@ -21,14 +21,14 @@ if %errorlevel% neq 0 (
 
 cd /d "%~dp0"
 
-:: Kiem tra git repository da khoi tao chua
+REM Kiem tra git repository da khoi tao chua
 if not exist ".git" (
     echo [+] Khoi tao Git repository lan dau...
     "%GIT_CMD%" init
     "%GIT_CMD%" branch -M main
 )
 
-:: Kiem tra remote
+REM Kiem tra remote
 "%GIT_CMD%" remote get-url origin >nul 2>nul
 if %errorlevel% neq 0 (
     echo [!] Chua cau hinh link GitHub Remote!
