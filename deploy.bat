@@ -45,8 +45,8 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [+] Dang chuan bi deploy file index.html len GitHub...
-"%GIT_CMD%" add index.html
+echo [+] Dang chuan bi deploy file index.html va admin.html len GitHub...
+"%GIT_CMD%" add index.html admin.html
 "%GIT_CMD%" commit -m "Auto deploy update: %date% %time%" 2>nul
 
 echo [+] Dang day (push) du lieu len branch main...
@@ -56,7 +56,9 @@ if %errorlevel% equ 0 (
     echo.
     echo =======================================================
     echo   [V] DEPLOY THANH CONG!
-    echo   GitHub Pages se tu dong cap nhat web sau 15-30 giay!
+    echo   - Nguoi dung: https://vtt132109.github.io/vong-tay-thong-minh/
+    echo   - Quan tri:  https://vtt132109.github.io/vong-tay-thong-minh/admin.html
+    echo   GitHub Pages se cap nhat web sau 15-30 giay!
     echo =======================================================
 ) else (
     echo.

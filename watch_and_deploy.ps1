@@ -40,49 +40,71 @@ if (-not $originUrl) {
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  CYBERBAND S3: AUTO-DEPLOY WATCHER DANG CHAY..." -ForegroundColor Green
-Write-Host "  Moi khi ban luu file index.html (Ctrl + S)," -ForegroundColor White
-Write-Host "  He thong se TU DONG day len GitHub va build Web ngay!" -ForegroundColor White
+Write-Host "  SMARTBAND S3: AUTO-DEPLOY WATCHER DANG CHAY..." -ForegroundColor Green
+Write-Host "  Moi khi ban luu file index.html hoac admin.html (Ctrl + S)," -ForegroundColor White
+Write-Host "  He thong se TU DONG day len GitHub Pages ngay lap tuc!" -ForegroundColor White
 Write-Host "  (Nhan Ctrl + C de dung watcher bat cu luc nao)" -ForegroundColor DarkGray
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$targetFile = Join-Path $projectRoot "index.html"
-if (-not (Test-Path $targetFile)) {
-    Write-Host "[-] Khong tim thay file index.html!" -ForegroundColor Red
-    Exit 1
-}
+$filesToWatch = @("index.html", "admin.html")
+$lastWriteTimes = @{}
 
-$lastWriteTime = (Get-Item $targetFile).LastWriteTime
+foreach ($f in $filesToWatch) {
+    $fullPath = Join-Path $projectRoot $f
+    if (Test-Path $fullPath) {
+        $lastWriteTimes[$f] = (Get-Item $fullPath).LastWriteTime
+    }
+}
 
 while ($true) {
     Start-Sleep -Milliseconds 800
     try {
-        $currentWriteTime = (Get-Item $targetFile).LastWriteTime
-        if ($currentWriteTime -gt $lastWriteTime) {
-            $lastWriteTime = $currentWriteTime
-            
-            # Cho 2 giay de editor hoan tat ghi file (debounce)
+        $triggeredFile = $null
+        foreach ($f in $filesToWatch) {
+            $fullPath = Join-Path $projectRoot $f
+            if (Test-Path $fullPath) {
+                $currentWriteTime = (Get-Item $fullPath).LastWriteTime
+                if (-not $lastWriteTimes.ContainsKey($f) -or ($currentWriteTime -gt $lastWriteTimes[$f])) {
+                    $lastWriteTimes[$f] = $currentWriteTime
+                    $triggeredFile = $f
+                    break
+                }
+            }
+        }
+
+        if ($triggeredFile) {
+            # Debounce 2s de editor luu xong hoan toan
             Start-Sleep -Seconds 2
 
+            # Cap nhat lai timestamp cua tat ca file de tranh duplicate trigger
+            foreach ($f in $filesToWatch) {
+                $fullPath = Join-Path $projectRoot $f
+                if (Test-Path $fullPath) {
+                    $lastWriteTimes[$f] = (Get-Item $fullPath).LastWriteTime
+                }
+            }
+
             $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            Write-Host "`n[$timestamp] Phat hien file index.html vua duoc luu!" -ForegroundColor Yellow
-            Write-Host ">> Dang tu dong commit va deploy len GitHub Pages..." -ForegroundColor Cyan
+            Write-Host "`n[$timestamp] Phat hien thay doi tai file: $triggeredFile" -ForegroundColor Yellow
+            Write-Host ">> Dang tu dong add va commit index.html & admin.html..." -ForegroundColor Cyan
 
-            & $gitCmd add index.html
-            & $gitCmd commit -m "Auto deploy update: $timestamp" 2>$null | Out-Null
+            & $gitCmd add index.html admin.html
+            & $gitCmd commit -m "Auto deploy update ($triggeredFile): $timestamp" 2>$null | Out-Null
 
-            Write-Host ">> Dang day (push) len branch main..." -ForegroundColor Cyan
+            Write-Host ">> Dang day len GitHub (git push origin main)..." -ForegroundColor Cyan
             $pushResult = & $gitCmd push origin main 2>&1
 
             if ($LASTEXITCODE -eq 0) {
-                Write-Host "[V] DEPLOY THANH CONG LEN GITHUB! Web online dang cap nhat..." -ForegroundColor Green
+                Write-Host "[V] DEPLOY THANH CONG LEN GITHUB PAGES!" -ForegroundColor Green
+                Write-Host "    - Trang nguoi dung: https://vtt132109.github.io/vong-tay-thong-minh/" -ForegroundColor White
+                Write-Host "    - Trang quan tri:  https://vtt132109.github.io/vong-tay-thong-minh/admin.html" -ForegroundColor White
             } else {
                 Write-Host "[-] Push that bai: $pushResult" -ForegroundColor Red
             }
-            Write-Host ">> Tiep tuc theo doi file index.html..." -ForegroundColor DarkGray
+            Write-Host ">> Tiep tuc theo doi index.html & admin.html..." -ForegroundColor DarkGray
         }
     } catch {
-        # Bo qua loi truy cap file khi editor dang ghi
+        # Bo qua loi tam thoi khi file bi khoa luc dang luu
     }
 }
