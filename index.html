@@ -663,6 +663,33 @@
         </div>
       </div>
 
+      <!-- 4. SENSOR TEMPERATURE (NHIỆT ĐỘ CẢM BIẾN / TIẾP XÚC DA) -->
+      <div class="card" id="cardSensorTemp">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-temperature-half" style="color: #f59e0b;"></i>
+            <span>Nhiệt Độ Cảm Biến (Da)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeSensorTemp">Bình thường</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valSensorTemp" style="color: #f59e0b;">--</span>
+            <span class="metric-unit">°C</span>
+          </div>
+          <div class="metric-icon-box" style="background: #fef3c7; color: #d97706;">
+            <i class="fa-solid fa-thermometer"></i>
+          </div>
+        </div>
+        <div class="card-desc" id="descSensorTemp">
+          Nhiệt độ tiếp xúc bề mặt da đo bởi cảm biến quang MAX30102.
+        </div>
+        <div class="card-footer-info">
+          <span>Độ F: <strong id="valSensorTempF">-- °F</strong></span>
+          <span>Cảm biến: <strong>MAX30102 Die</strong></span>
+        </div>
+      </div>
+
     </section>
 
     <!-- SECTION HEADING: REALTIME CHART -->
@@ -955,7 +982,42 @@
         startFallAlarm();
       }
 
-      // 6. Cập nhật biểu đồ
+      // 6. Nhiệt độ cảm biến MAX30102 (Nhiệt độ tiếp xúc da)
+      if (data.sensor_temp !== undefined) {
+        const temp = parseFloat(data.sensor_temp).toFixed(1);
+        const elTemp = document.getElementById('valSensorTemp');
+        const elTempF = document.getElementById('valSensorTempF');
+        const badge = document.getElementById('badgeSensorTemp');
+        const desc = document.getElementById('descSensorTemp');
+
+        if (elTemp) elTemp.textContent = data.sensor_temp > 0 ? temp : '--';
+        if (elTempF) {
+          const f = data.sensor_temp > 0 ? ((parseFloat(temp) * 9/5) + 32).toFixed(1) : '--';
+          elTempF.textContent = `${f} °F`;
+        }
+
+        if (badge && desc) {
+          if (data.sensor_temp <= 0) {
+            badge.className = 'card-badge badge-warning';
+            badge.textContent = 'Chờ đo';
+            desc.textContent = 'Đang đọc nhiệt độ từ cảm biến MAX30102...';
+          } else if (temp > 37.8) {
+            badge.className = 'card-badge badge-danger';
+            badge.textContent = 'Nhiệt cao';
+            desc.textContent = 'Nhiệt độ tiếp xúc bề mặt da đang ở mức cao.';
+          } else if (temp < 32.0) {
+            badge.className = 'card-badge badge-warning';
+            badge.textContent = 'Lạnh / Tiếp xúc yếu';
+            desc.textContent = 'Cảm biến tiếp xúc chưa khít hoặc nhiệt độ thấp.';
+          } else {
+            badge.className = 'card-badge badge-normal';
+            badge.textContent = 'Bình thường';
+            desc.textContent = 'Nhiệt độ tiếp xúc bề mặt da ổn định lý tưởng.';
+          }
+        }
+      }
+
+      // 7. Cập nhật biểu đồ
       if (heartSpo2Chart && (data.hr > 0 || data.spo2 > 0)) {
         const labels = heartSpo2Chart.data.labels;
         const hrDataset = heartSpo2Chart.data.datasets[0].data;

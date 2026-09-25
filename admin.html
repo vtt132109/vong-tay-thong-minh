@@ -1051,6 +1051,33 @@
         </div>
       </div>
 
+      <!-- 4. SENSOR TEMPERATURE (NHIỆT ĐỘ CẢM BIẾN / TIẾP XÚC DA) -->
+      <div class="card" id="cardSensorTemp">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-temperature-half" style="color: #f59e0b;"></i>
+            <span>Nhiệt Độ Cảm Biến (Da)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeSensorTemp">Bình thường</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valSensorTemp" style="color: #f59e0b;">--</span>
+            <span class="metric-unit">°C</span>
+          </div>
+          <div class="metric-icon-box" style="background: #fef3c7; color: #d97706;">
+            <i class="fa-solid fa-thermometer"></i>
+          </div>
+        </div>
+        <div class="card-desc" id="descSensorTemp">
+          Nhiệt độ tiếp xúc bề mặt da đo bởi cảm biến quang MAX30102.
+        </div>
+        <div class="card-footer-info">
+          <span>Độ F: <strong id="valSensorTempF">-- °F</strong></span>
+          <span>Cảm biến: <strong>MAX30102 Die</strong></span>
+        </div>
+      </div>
+
     </section>
 
     <!-- SECTION HEADING 2: REALTIME VITAL CHART -->
@@ -1675,9 +1702,9 @@
         showToast('Chưa có dữ liệu sinh hiệu để xuất CSV! Hãy kết nối thiết bị trước.', 'error');
         return;
       }
-      let csv = "Timestamp,HeartRate_BPM,SpO2_Percent,Steps,Calories_kcal,Distance_km,ChipTemp_C,RAM_Free_KB,RAM_Used_Pct,WiFi_RSSI_dBm\n";
+      let csv = "Timestamp,HeartRate_BPM,SpO2_Percent,Steps,Calories_kcal,Distance_km,SensorTemp_C,ChipTemp_C,RAM_Free_KB,RAM_Used_Pct,WiFi_RSSI_dBm\n";
       telemetryHistory.forEach(row => {
-        csv += `"${row.time}",${row.hr},${row.spo2},${row.steps},${row.cal},${row.dist},${row.temp},${row.heapFree},${row.heapPct},${row.rssi}\n`;
+        csv += `"${row.time}",${row.hr},${row.spo2},${row.steps},${row.cal},${row.dist},${row.sensorTemp || 0},${row.temp},${row.heapFree},${row.heapPct},${row.rssi}\n`;
       });
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -1914,14 +1941,49 @@
         }
       }
 
-      // 5. Cảnh báo té ngã (Fall Alert)
+      // 5. Nhiệt độ cảm biến MAX30102 (Nhiệt độ tiếp xúc da)
+      if (data.sensor_temp !== undefined) {
+        deviceState.sensor_temp = parseFloat(data.sensor_temp).toFixed(1);
+        const elTemp = document.getElementById('valSensorTemp');
+        const elTempF = document.getElementById('valSensorTempF');
+        const badge = document.getElementById('badgeSensorTemp');
+        const desc = document.getElementById('descSensorTemp');
+
+        if (elTemp) elTemp.textContent = data.sensor_temp > 0 ? deviceState.sensor_temp : '--';
+        if (elTempF) {
+          const f = data.sensor_temp > 0 ? ((parseFloat(deviceState.sensor_temp) * 9/5) + 32).toFixed(1) : '--';
+          elTempF.textContent = `${f} °F`;
+        }
+
+        if (badge && desc) {
+          if (data.sensor_temp <= 0) {
+            badge.className = 'card-badge badge-warning';
+            badge.textContent = 'Chờ đo';
+            desc.textContent = 'Đang đọc nhiệt độ từ cảm biến MAX30102...';
+          } else if (deviceState.sensor_temp > 37.8) {
+            badge.className = 'card-badge badge-danger';
+            badge.textContent = 'Nhiệt cao';
+            desc.textContent = 'Nhiệt độ tiếp xúc bề mặt da đang ở mức cao.';
+          } else if (deviceState.sensor_temp < 32.0) {
+            badge.className = 'card-badge badge-warning';
+            badge.textContent = 'Lạnh / Tiếp xúc yếu';
+            desc.textContent = 'Cảm biến tiếp xúc chưa khít hoặc nhiệt độ thấp.';
+          } else {
+            badge.className = 'card-badge badge-normal';
+            badge.textContent = 'Bình thường';
+            desc.textContent = 'Nhiệt độ tiếp xúc bề mặt da ổn định lý tưởng.';
+          }
+        }
+      }
+
+      // 6. Cảnh báo té ngã (Fall Alert)
       if (data.fall === true || data.fall === "true") {
         const banner = document.getElementById('fallAlertBanner');
         if (banner) banner.classList.add('active');
         startFallAlarm();
       }
 
-      // 6. Cập nhật biểu đồ sinh hiệu (Realtime Chart)
+      // 7. Cập nhật biểu đồ sinh hiệu (Realtime Chart)
       if (heartSpo2Chart && (data.hr > 0 || data.spo2 > 0)) {
         const labels = heartSpo2Chart.data.labels;
         const hrDataset = heartSpo2Chart.data.datasets[0].data;
@@ -1939,7 +2001,7 @@
         heartSpo2Chart.update('none');
       }
 
-      // 7. Ghi vào lịch sử xuất CSV
+      // 8. Ghi vào lịch sử xuất CSV
       const calCalc = Math.round((deviceState.steps || 0) * 0.04);
       const distCalc = (((deviceState.steps || 0) * 0.75) / 1000).toFixed(2);
       telemetryHistory.push({
@@ -1949,6 +2011,7 @@
         steps: deviceState.steps || 0,
         cal: calCalc,
         dist: distCalc,
+        sensorTemp: deviceState.sensor_temp || 0,
         temp: deviceState.chip_temp || 0,
         heapFree: Math.round((deviceState.free_heap || 0) / 1024),
         heapPct: deviceState.heap_pct || 0,
