@@ -952,6 +952,7 @@
       // 5. Cảnh báo té ngã
       if (data.fall === true || data.fall === "true") {
         document.getElementById('fallAlertBanner').classList.add('active');
+        startFallAlarm();
       }
 
       // 6. Cập nhật biểu đồ
@@ -973,8 +974,43 @@
       }
     }
 
+    // Audio Beeper for Fall Emergency
+    let audioCtx = null;
+    let alarmInterval = null;
+
+    function playBeep(freq = 950, type = 'sawtooth', durationMs = 250) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (durationMs / 1000));
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + (durationMs / 1000));
+      } catch (e) {}
+    }
+
+    function startFallAlarm() {
+      if (alarmInterval) return;
+      playBeep();
+      alarmInterval = setInterval(playBeep, 600);
+    }
+
+    function stopFallAlarm() {
+      if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+      }
+    }
+
     function dismissFallAlert() {
       document.getElementById('fallAlertBanner').classList.remove('active');
+      stopFallAlarm();
       if (mqttClient) {
         mqttClient.publish(`${APP_CONFIG.baseTopic}/fall/dismiss`, "DISMISS");
       }
