@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartBand S3 - Quản Trị Viên & Kỹ Thuật</title>
+  <meta name="description" content="Trang quản trị, điều khiển từ xa và chẩn đoán tài nguyên phần cứng ESP32-S3 vòng tay thông minh.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- MQTT CDN -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --border-color: #e2e8f0;
+      
+      --color-primary: #2563eb;
+      --color-primary-light: #eff6ff;
+      --color-purple: #7c3aed;
+      --color-purple-bg: #f3e8ff;
+      --color-emerald: #10b981;
+      --color-emerald-bg: #dcfce7;
+      --color-amber: #d97706;
+      --color-amber-bg: #fef3c7;
+      --color-danger: #dc2626;
+
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px -1px rgba(0,0,0,0.04);
+      --shadow-hover: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.04);
+
+      --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* Top Navbar */
+    .navbar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--color-purple-bg);
+      color: var(--color-purple);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .brand-text h1 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--color-danger);
+    }
+    .status-dot.connected { background-color: var(--color-emerald); }
+    .status-dot.connecting { background-color: var(--color-amber); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 7px 14px;
+      font-family: var(--font-main);
+      font-size: 0.82rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-outline {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: var(--bg-subtle);
+      border-color: #cbd5e1;
+    }
+    .btn-primary {
+      background: var(--color-primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-purple {
+      background: var(--color-purple);
+      color: #ffffff;
+    }
+    .btn-purple:hover { background: #6d28d9; }
+    .btn-danger {
+      background: var(--color-danger);
+      color: #ffffff;
+    }
+    .btn-danger:hover { background: #b91c1c; }
+
+    /* Container */
+    .dashboard-container {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* System Status Bar */
+    .system-status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .sys-info-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      box-shadow: var(--shadow-sm);
+    }
+    .sys-pill {
+      background: var(--bg-subtle);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Section Headings */
+    .section-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+    .section-heading h3 {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-heading span {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* Resource Cards Grid */
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: var(--shadow-card);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card:hover {
+      box-shadow: var(--shadow-hover);
+      border-color: #cbd5e1;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .card-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .badge-normal { background: #ecfdf5; color: #059669; }
+    .badge-warning { background: #fef3c7; color: #d97706; }
+    .badge-danger { background: #fee2e2; color: #dc2626; }
+
+    .card-body {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 8px 0;
+    }
+    .metric-value-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .metric-val {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1;
+    }
+    .metric-unit {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .metric-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 19px;
+    }
+
+    .progress-bar-container { margin-top: 10px; }
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .progress-track {
+      height: 6px;
+      background: var(--bg-subtle);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.4s ease;
+    }
+
+    .card-footer-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.73rem;
+      color: var(--text-dim);
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    /* Device Management & Diagnostics Grid */
+    .device-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 992px) {
+      .device-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Virtual OLED Frame */
+    .oled-preview-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .oled-device-frame {
+      background: #0f172a;
+      border: 3px solid #334155;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      position: relative;
+      margin: 8px 0;
+    }
+    .oled-device-frame::after {
+      content: 'SSD1306 (128x64)';
+      position: absolute;
+      bottom: 3px;
+      right: 14px;
+      font-size: 0.6rem;
+      color: #64748b;
+      font-family: var(--font-mono);
+    }
+    .oled-screen {
+      background: #000000;
+      border-radius: 6px;
+      height: 160px;
+      padding: 12px;
+      color: #38bdf8;
+      font-family: var(--font-mono);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+    .oled-screen.off {
+      background: #050505;
+      color: #1e293b;
+    }
+    .oled-screen.off .oled-content { opacity: 0.05; }
+    .oled-screen.vibrating { animation: shake 0.4s infinite; }
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(-3px, 2px); }
+      75% { transform: translate(3px, -2px); }
+    }
+
+    .oled-header-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+      padding-bottom: 3px;
+    }
+    .oled-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 0;
+    }
+    .oled-line-primary {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .oled-line-secondary { font-size: 0.95rem; }
+    .oled-line-sub { font-size: 0.72rem; color: #94a3b8; }
+    .oled-footer-bar {
+      font-size: 0.65rem;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Controls */
+    .controls-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      border-radius: var(--radius-sm);
+    }
+    .control-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.83rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #cbd5e1;
+      border-radius: 24px;
+      transition: 0.25s;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.25s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
+    input:checked + .toggle-slider { background-color: var(--color-primary); }
+    input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+    /* Page buttons */
+    .page-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .btn-oled-page {
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-oled-page:hover { background: var(--bg-subtle); color: var(--text-main); }
+    .btn-oled-page.active-page {
+      background: var(--color-primary-light);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    /* Message Input */
+    .msg-input-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .input-row { display: flex; gap: 8px; }
+    .input-field {
+      flex: 1;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-family: var(--font-main);
+      font-size: 0.83rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-field:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .char-counter {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-align: right;
+    }
+    .preset-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .preset-chip {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 3px 9px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-chip:hover { background: #e2e8f0; color: var(--text-main); }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr;
+      gap: 8px;
+    }
+
+    /* Terminal Console */
+    .terminal-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: var(--shadow-card);
+    }
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .terminal-filters { display: flex; gap: 6px; }
+    .filter-btn {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover { background: #e2e8f0; color: var(--text-main); }
+    .filter-btn.active {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .terminal-window {
+      background: #0f172a;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      height: 220px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-item { display: flex; gap: 8px; line-height: 1.4; }
+    .log-time { color: #64748b; flex-shrink: 0; }
+    .log-tag {
+      font-weight: 600;
+      padding: 0 4px;
+      border-radius: 3px;
+      font-size: 0.68rem;
+    }
+    .tag-sys { background: #1e293b; color: #38bdf8; }
+    .tag-in { background: #064e3b; color: #34d399; }
+    .tag-out { background: #451a03; color: #fbbf24; }
+    .tag-err { background: #7f1d1d; color: #f87171; }
+    .log-topic { color: #a78bfa; flex-shrink: 0; }
+    .log-msg { color: #f1f5f9; word-break: break-all; }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+    .modal-box {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 500px;
+      padding: 24px;
+      position: relative;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .modal-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-close-modal {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-main);
+      animation: slideInRight 0.25s ease;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @media (max-width: 768px) {
+      .navbar { padding: 12px 16px; }
+      .dashboard-container { padding: 14px; gap: 14px; }
+      .action-row { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAVBAR -->
+  <header class="navbar">
+    <a href="#" class="brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-sliders"></i>
+      </div>
+      <div class="brand-text">
+        <h1>SMARTBAND S3 - QUẢN TRỊ</h1>
+        <p>Bảng điều khiển từ xa & Giám sát tài nguyên phần cứng ESP32</p>
+      </div>
+    </a>
+
+    <div class="nav-actions">
+      <!-- Link switch to User Dashboard -->
+      <a href="index.html" class="btn btn-outline" style="border-color: #2563eb; color: #2563eb; font-weight: 600;">
+        <i class="fa-solid fa-heart-pulse"></i> Xem Trang Người Dùng
+      </a>
+
+      <!-- Connection Status Badge -->
+      <div class="status-badge" id="connStatusBadge" title="Trạng thái MQTT Broker">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="connStatusText">Chưa kết nối</span>
+      </div>
+
+      <!-- Connect / Disconnect Action Button -->
+      <button class="btn btn-primary" id="btnConnectToggle">
+        <i class="fa-solid fa-plug"></i>
+        <span id="connectBtnText">Kết nối MQTT</span>
+      </button>
+
+      <!-- Config Modal Button -->
+      <button class="btn btn-outline" id="btnOpenConfig" title="Cấu hình MQTT Broker & Topic">
+        <i class="fa-solid fa-gear"></i> Cấu hình
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="dashboard-container">
+
+    <!-- Sub-header: Quick Session Info -->
+    <section class="system-status-bar">
+      <div class="sys-info-item">
+        <i class="fa-solid fa-server" style="color: var(--color-primary)"></i>
+        <span>Broker:</span>
+        <span class="sys-pill" id="dispBrokerHost">broker.emqx.io:8084</span>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-tag" style="color: var(--color-purple)"></i>
+        <span>Base Topic:</span>
+        <strong id="dispBaseTopic">smartband_s3/dev01</strong>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-microchip" style="color: var(--color-amber)"></i>
+        <span>Trạng thái chip:</span>
+        <strong id="dispChipState" style="color: var(--color-emerald)">ESP32-S3 Mini OK</strong>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-clock-rotate-left" style="color: var(--color-primary)"></i>
+        <span>Cập nhật cuối:</span>
+        <strong id="dispLastPacketTime">Chưa nhận dữ liệu</strong>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-arrow-down-up-across-line" style="color: var(--color-emerald)"></i>
+        <span>Gói tin:</span>
+        <strong id="dispPacketCount">0</strong>
+      </div>
+    </section>
+
+    <!-- SECTION HEADING: SYSTEM RESOURCES -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-microchip" style="color: var(--color-purple)"></i> HIỆU SUẤT & TÀI NGUYÊN PHẦN CỨNG ESP32-S3</h3>
+      <span>Giám sát bộ nhớ Heap, Nhiệt độ chip, WiFi & Flash</span>
+    </div>
+
+    <!-- ROW 1: RESOURCE METRICS CARDS (No Accel, No CPU Clock) -->
+    <section class="resource-grid">
+
+      <!-- 1. RAM HEAP MEMORY -->
+      <div class="card" id="cardHeap">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-memory" style="color: var(--color-primary);"></i>
+            <span>Bộ nhớ RAM (Heap)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeHeapStatus">Tối ưu</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valHeapPct" style="color: var(--color-primary);">--</span>
+            <span class="metric-unit">%</span>
+          </div>
+          <div class="metric-icon-box" style="background: var(--color-primary-light); color: var(--color-primary);">
+            <i class="fa-solid fa-database"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Đã dùng: <strong id="valHeapUsedKb">-- KB</strong></span>
+            <span>Còn trống: <strong id="valHeapFreeKb">-- KB</strong></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barHeapFill" style="width: 0%; background: var(--color-primary);"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Tổng Heap: <strong>320 KB</strong></span>
+          <span>Phân mảnh: <strong>Thấp (&lt;5%)</strong></span>
+        </div>
+      </div>
+
+      <!-- 2. SOC TEMPERATURE -->
+      <div class="card" id="cardTemp">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-temperature-half" style="color: var(--color-amber);"></i>
+            <span>Nhiệt độ Chip ESP32</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeTempStatus">Mát mẻ</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valChipTemp" style="color: var(--color-amber);">--</span>
+            <span class="metric-unit">°C</span>
+          </div>
+          <div class="metric-icon-box" style="background: var(--color-amber-bg); color: var(--color-amber);">
+            <i class="fa-solid fa-fire-burner"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Thang nhiệt: <strong id="dispTempPct">--%</strong></span>
+            <span>Đổi độ F: <strong id="valChipTempF">-- °F</strong></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barTempFill" style="width: 0%; background: var(--color-amber);"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Cảm biến: <strong>Built-in SoC</strong></span>
+          <span>Tản nhiệt: <strong>Tốt</strong></span>
+        </div>
+      </div>
+
+      <!-- 3. WIFI RSSI SIGNAL -->
+      <div class="card" id="cardWifi">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-wifi" style="color: var(--color-emerald);"></i>
+            <span>Tín hiệu WiFi (RSSI)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeWifiQuality">Tốt</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valRssi" style="color: var(--color-emerald);">--</span>
+            <span class="metric-unit">dBm</span>
+          </div>
+          <div class="metric-icon-box" style="background: var(--color-emerald-bg); color: var(--color-emerald);">
+            <i class="fa-solid fa-signal" id="iconWifiSignal"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Chất lượng sóng: <strong id="valRssiPct">--%</strong></span>
+            <span>Giao thức: <strong>802.11 b/g/n</strong></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barRssiFill" style="width: 0%; background: var(--color-emerald);"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Băng tần: <strong>2.4 GHz</strong></span>
+          <span>Modem Sleep: <strong>BẬT</strong></span>
+        </div>
+      </div>
+
+      <!-- 4. FLASH MEMORY & SKETCH -->
+      <div class="card" id="cardFlash">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-hard-drive" style="color: var(--color-purple);"></i>
+            <span>Bộ nhớ Flash & Sketch</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeFlashStatus">Ổn định</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valFlashUsed" style="color: var(--color-purple);">--</span>
+            <span class="metric-unit">KB</span>
+          </div>
+          <div class="metric-icon-box" style="background: var(--color-purple-bg); color: var(--color-purple);">
+            <i class="fa-solid fa-floppy-disk"></i>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-labels">
+            <span>Dung lượng: <strong>8 MB (8192 KB)</strong></span>
+            <span>Tỷ lệ chiếm dụng: <strong id="valFlashPct">--%</strong></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barFlashFill" style="width: 0%; background: var(--color-purple);"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Phân vùng: <strong>Default 8MB Flash</strong></span>
+          <span>OTA: <strong>Sẵn sàng</strong></span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECTION HEADING: REMOTE CONTROL & SIMULATOR -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-gamepad" style="color: var(--color-primary)"></i> ĐIỀU KHIỂN TỪ XA & MÀN HÌNH OLED ẢO</h3>
+      <span>Mô phỏng màn hình đồng hồ SSD1306 (128x64) & Lệnh MQTT hai chiều</span>
+    </div>
+
+    <!-- ROW 2: OLED SIMULATOR & REMOTE CONTROLS -->
+    <section class="device-grid">
+
+      <!-- LEFT: OLED VIRTUAL DISPLAY -->
+      <div class="card oled-preview-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-tv" style="color: #38bdf8;"></i>
+            <span>Màn hình OLED mô phỏng</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeOledPower">Màn hình: BẬT</span>
+        </div>
+
+        <div class="oled-device-frame" id="oledDeviceFrame">
+          <div class="oled-screen" id="oledSimScreen">
+            <div class="oled-header-bar">
+              <span id="oledHeaderLeft">PAGE 1: HEALTH</span>
+              <span id="oledHeaderRight">BAT: 98%</span>
+            </div>
+
+            <div class="oled-content" id="oledSimContent">
+              <div class="oled-line-primary" id="oledLine1">HR: -- BPM</div>
+              <div class="oled-line-secondary" id="oledLine2">SpO2: -- %</div>
+              <div class="oled-line-sub" id="oledLine3">MAX30102 Ready</div>
+            </div>
+
+            <div class="oled-footer-bar">
+              <span>CYBERBAND S3</span>
+              <span id="oledSimClock">12:00:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer-info">
+          <span>Chuẩn I2C: <strong>GPIO 37 (SDA), 36 (SCL)</strong></span>
+          <span>Tốc độ: <strong>400 kHz</strong></span>
+        </div>
+      </div>
+
+      <!-- RIGHT: REMOTE CONTROL PANEL -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-sliders" style="color: var(--color-primary)"></i>
+            <span>Bảng lệnh điều khiển vòng tay</span>
+          </div>
+          <span class="card-badge badge-normal">2-Way MQTT Active</span>
+        </div>
+
+        <div class="controls-wrapper">
+
+          <!-- 1. Bật/Tắt màn hình -->
+          <div class="control-row">
+            <div class="control-label">
+              <i class="fa-solid fa-power-off" style="color: var(--color-primary)"></i>
+              <span>Nguồn màn hình OLED vòng tay</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleScreenPower" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- 2. Chuyển trang OLED -->
+          <div>
+            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">
+              Chuyển đổi giao diện màn hình OLED:
+            </label>
+            <div class="page-buttons">
+              <button class="btn-oled-page active-page" id="btnPage1" onclick="sendOledPage(1)">
+                <i class="fa-solid fa-heart-pulse"></i> P1: Sức khỏe
+              </button>
+              <button class="btn-oled-page" id="btnPage2" onclick="sendOledPage(2)">
+                <i class="fa-solid fa-person-walking"></i> P2: Bước chân
+              </button>
+              <button class="btn-oled-page" id="btnPage3" onclick="sendOledPage(3)">
+                <i class="fa-solid fa-compass"></i> P3: Chuyển động
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Gửi tin nhắn tùy chỉnh -->
+          <div class="msg-input-wrap">
+            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">
+              Gửi tin nhắn thông báo hiển thị lên màn hình vòng tay (Tối đa 32 ký tự):
+            </label>
+            <div class="input-row">
+              <input type="text" class="input-field" id="inputCustomMsg" maxlength="32" placeholder="Ví dụ: UONG NUOC DI!">
+              <button class="btn btn-primary" id="btnSendMsg" onclick="sendCustomMessage()">
+                <i class="fa-solid fa-paper-plane"></i> Gửi
+              </button>
+            </div>
+            <div class="char-counter">
+              <span id="charCount">0</span>/32 ký tự
+            </div>
+            <div class="preset-chips">
+              <span class="preset-chip" onclick="applyPresetMessage('UONG NUOC DI!')">💧 Uống nước</span>
+              <span class="preset-chip" onclick="applyPresetMessage('DI NGU SOM NHE!')">🌙 Đi ngủ</span>
+              <span class="preset-chip" onclick="applyPresetMessage('CO CUOC GOI TOI')">📞 Cuộc gọi</span>
+              <span class="preset-chip" onclick="applyPresetMessage('CANH BAO NHIP CAO')">⚠️ Cảnh báo</span>
+            </div>
+          </div>
+
+          <!-- 4. Các nút tác vụ nhanh -->
+          <div class="action-row">
+            <button class="btn btn-outline" id="btnFindBand" onclick="sendFindBandVibrate()" style="color: var(--color-amber);">
+              <i class="fa-solid fa-bell"></i> Rung tìm vòng tay
+            </button>
+            <button class="btn btn-outline" id="btnResetSteps" onclick="openResetConfirmModal()">
+              <i class="fa-solid fa-rotate-right"></i> Reset bước chân
+            </button>
+            <button class="btn btn-outline" id="btnDismissFall" onclick="dismissFallAlert()" style="color: var(--color-danger);">
+              <i class="fa-solid fa-shield-halved"></i> Xóa báo động té ngã
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECTION HEADING: LOG CONSOLE -->
+    <div class="section-heading">
+      <h3><i class="fa-solid fa-terminal" style="color: var(--text-muted)"></i> NHẬT KÝ TRUYỀN NHẬN DỮ LIỆU MQTT (TERMINAL LOG)</h3>
+      <span>Giám sát các gói tin JSON Telemetry gửi nhận thời gian thực</span>
+    </div>
+
+    <!-- ROW 3: TERMINAL CONSOLE -->
+    <section class="terminal-container">
+      <div class="terminal-header">
+        <div class="terminal-filters">
+          <button class="filter-btn active" onclick="setLogFilter('ALL')">Tất cả</button>
+          <button class="filter-btn" onclick="setLogFilter('IN')">Nhận (IN)</button>
+          <button class="filter-btn" onclick="setLogFilter('OUT')">Gửi (OUT)</button>
+          <button class="filter-btn" onclick="setLogFilter('SYS')">Hệ thống</button>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.72rem;" onclick="clearConsoleLog()">
+            <i class="fa-solid fa-trash-can"></i> Xóa log
+          </button>
+          <button class="btn btn-outline" id="btnToggleAutoScroll" style="padding: 4px 10px; font-size: 0.72rem;" onclick="toggleAutoScroll()">
+            <i class="fa-solid fa-arrows-down-to-line"></i> Auto-scroll: BẬT
+          </button>
+        </div>
+      </div>
+
+      <div class="terminal-window" id="terminalWindow">
+        <!-- Live log items will appear here -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: MQTT BROKER CONFIGURATION -->
+  <div class="modal-backdrop" id="modalConfig">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-gear"></i> Cấu hình MQTT Broker & Topic</h3>
+        <button class="btn-close-modal" onclick="closeConfigModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="form-group">
+        <label for="cfgBrokerUrl">Địa chỉ WebSocket Broker (WSS URL)</label>
+        <input type="text" class="input-field" id="cfgBrokerUrl" value="wss://broker.emqx.io:8084/mqtt">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cfgBaseTopic">Base Topic Thiết Bị</label>
+          <input type="text" class="input-field" id="cfgBaseTopic" value="smartband_s3/dev01">
+        </div>
+        <div class="form-group">
+          <label for="cfgClientId">Client ID</label>
+          <input type="text" class="input-field" id="cfgClientId">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cfgUsername">Tên người dùng (Tùy chọn)</label>
+          <input type="text" class="input-field" id="cfgUsername" placeholder="Để trống nếu broker public">
+        </div>
+        <div class="form-group">
+          <label for="cfgPassword">Mật khẩu (Tùy chọn)</label>
+          <input type="password" class="input-field" id="cfgPassword" placeholder="Để trống nếu broker public">
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="resetConfigToDefault()">Khôi phục mặc định</button>
+        <button class="btn btn-primary" onclick="saveAndApplyConfig()">Lưu & Kết nối lại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRM RESET STEPS -->
+  <div class="modal-backdrop" id="modalResetConfirm">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 style="color: var(--color-danger);"><i class="fa-solid fa-triangle-exclamation"></i> Xác nhận Đặt lại Bước chân</h3>
+        <button class="btn-close-modal" onclick="closeResetConfirmModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-main); margin-bottom: 12px;">
+        Bạn có chắc muốn đặt lại bộ đếm bước chân trên vòng tay ESP32 về <strong>0 bước</strong>?
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeResetConfirmModal()">Hủy bỏ</button>
+        <button class="btn btn-danger" onclick="confirmResetSteps()">Xác nhận Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- JAVASCRIPT CONTROLLER -->
+  <script>
+    const APP_CONFIG = {
+      brokerUrl: localStorage.getItem('mqtt_broker_url') || 'wss://broker.emqx.io:8084/mqtt',
+      baseTopic: localStorage.getItem('mqtt_base_topic') || 'smartband_s3/dev01',
+      clientId: localStorage.getItem('mqtt_client_id') || ('admin_' + Math.random().toString(16).substring(2, 10)),
+      username: localStorage.getItem('mqtt_username') || '',
+      password: localStorage.getItem('mqtt_password') || ''
+    };
+
+    let mqttClient = null;
+    let isConnected = false;
+    let isConnecting = false;
+    let autoScrollLogs = true;
+    let currentLogFilter = 'ALL';
+    let packetCounter = 0;
+
+    const deviceState = {
+      screen_state: "ON",
+      oled_page: 1,
+      free_heap: 0,
+      total_heap: 327680,
+      heap_pct: 0,
+      chip_temp: 0,
+      rssi: -60,
+      uptime: 0,
+      sketch_size: 0,
+      flash_size: 8388608,
+      hr: 0,
+      spo2: 0,
+      steps: 0
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initAppUI();
+      initMQTT();
+      initMessageInputCounter();
+      setupEventListeners();
+      startOledClock();
+    });
+
+    function initAppUI() {
+      document.getElementById('dispBrokerHost').textContent = APP_CONFIG.brokerUrl.replace('wss://', '').replace('/mqtt', '');
+      document.getElementById('dispBaseTopic').textContent = APP_CONFIG.baseTopic;
+      document.getElementById('cfgBrokerUrl').value = APP_CONFIG.brokerUrl;
+      document.getElementById('cfgBaseTopic').value = APP_CONFIG.baseTopic;
+      document.getElementById('cfgClientId').value = APP_CONFIG.clientId;
+      document.getElementById('cfgUsername').value = APP_CONFIG.username;
+      document.getElementById('cfgPassword').value = APP_CONFIG.password;
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btnConnectToggle').addEventListener('click', toggleMqttConnection);
+      document.getElementById('btnOpenConfig').addEventListener('click', openConfigModal);
+      document.getElementById('toggleScreenPower').addEventListener('change', (e) => {
+        sendOledPower(e.target.checked);
+      });
+    }
+
+    function initMQTT() {
+      if (mqttClient) {
+        try { mqttClient.end(true); } catch (e) {}
+      }
+
+      updateConnectionStatus('connecting');
+      appendLog('SYS', 'SYSTEM', `Đang kết nối tới ${APP_CONFIG.brokerUrl}...`);
+
+      const options = {
+        clientId: APP_CONFIG.clientId,
+        clean: true,
+        connectTimeout: 7000,
+        reconnectPeriod: 4000,
+        keepalive: 60
+      };
+
+      if (APP_CONFIG.username) options.username = APP_CONFIG.username;
+      if (APP_CONFIG.password) options.password = APP_CONFIG.password;
+
+      try {
+        mqttClient = mqtt.connect(APP_CONFIG.brokerUrl, options);
+
+        mqttClient.on('connect', () => {
+          updateConnectionStatus('connected');
+          appendLog('SYS', 'SYSTEM', `Đã kết nối Broker! ID: ${APP_CONFIG.clientId}`);
+          showToast('Đã kết nối MQTT Broker thành công!', 'success');
+
+          const telemetryTopic = `${APP_CONFIG.baseTopic}/telemetry`;
+          const statusPowerTopic = `${APP_CONFIG.baseTopic}/screen_power/status`;
+          const statusPageTopic = `${APP_CONFIG.baseTopic}/screen_page/status`;
+          const fallAlertTopic = `${APP_CONFIG.baseTopic}/fall/alert`;
+
+          mqttClient.subscribe([telemetryTopic, statusPowerTopic, statusPageTopic, fallAlertTopic], { qos: 0 }, (err) => {
+            if (!err) {
+              appendLog('SYS', 'SUB', `Đã đăng ký Topic: telemetry, status/*, fall/alert`);
+            }
+          });
+        });
+
+        mqttClient.on('message', (topic, message) => {
+          handleIncomingMqttMessage(topic, message.toString());
+        });
+
+        mqttClient.on('error', (err) => {
+          updateConnectionStatus('disconnected');
+          appendLog('ERR', 'MQTT_ERR', `Lỗi: ${err.message}`);
+        });
+
+        mqttClient.on('close', () => {
+          if (isConnected) {
+            updateConnectionStatus('disconnected');
+            appendLog('SYS', 'SYSTEM', 'Đã ngắt kết nối MQTT.');
+          }
+        });
+      } catch (error) {
+        updateConnectionStatus('disconnected');
+        appendLog('ERR', 'INIT', `Lỗi khởi tạo: ${error.message}`);
+      }
+    }
+
+    function toggleMqttConnection() {
+      if (isConnected || isConnecting) {
+        if (mqttClient) mqttClient.end(true);
+        updateConnectionStatus('disconnected');
+        showToast('Đã ngắt kết nối MQTT.', 'info');
+      } else {
+        initMQTT();
+      }
+    }
+
+    function updateConnectionStatus(state) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('connStatusText');
+      const btnText = document.getElementById('connectBtnText');
+
+      dot.className = 'status-dot';
+      if (state === 'connected') {
+        isConnected = true;
+        isConnecting = false;
+        dot.classList.add('connected');
+        text.textContent = 'Đã kết nối';
+        btnText.textContent = 'Ngắt kết nối';
+      } else if (state === 'connecting') {
+        isConnected = false;
+        isConnecting = true;
+        dot.classList.add('connecting');
+        text.textContent = 'Đang kết nối...';
+        btnText.textContent = 'Đang kết nối...';
+      } else {
+        isConnected = false;
+        isConnecting = false;
+        text.textContent = 'Đã ngắt kết nối';
+        btnText.textContent = 'Kết nối MQTT';
+      }
+    }
+
+    function handleIncomingMqttMessage(topic, payload) {
+      packetCounter++;
+      document.getElementById('dispPacketCount').textContent = packetCounter.toLocaleString();
+      document.getElementById('dispLastPacketTime').textContent = new Date().toLocaleTimeString('vi-VN');
+
+      appendLog('IN', topic.replace(APP_CONFIG.baseTopic + '/', ''), payload);
+
+      if (topic.endsWith('/telemetry')) {
+        try {
+          const data = JSON.parse(payload);
+          updateTelemetryMetrics(data);
+        } catch (e) {}
+      } else if (topic.endsWith('/screen_power/status')) {
+        deviceState.screen_state = payload.trim();
+        updateOledScreenVisual();
+      } else if (topic.endsWith('/screen_page/status')) {
+        deviceState.oled_page = parseInt(payload.trim(), 10) || 1;
+        updateOledPageButtonHighlight(deviceState.oled_page);
+        updateOledScreenVisual();
+      }
+    }
+
+    function updateTelemetryMetrics(data) {
+      if (data.hr !== undefined) deviceState.hr = data.hr;
+      if (data.spo2 !== undefined) deviceState.spo2 = data.spo2;
+      if (data.steps !== undefined) deviceState.steps = data.steps;
+
+      // 1. RAM Heap
+      if (data.free_heap !== undefined || data.heap_pct !== undefined) {
+        if (data.free_heap !== undefined) deviceState.free_heap = parseInt(data.free_heap, 10);
+        if (data.total_heap !== undefined) deviceState.total_heap = parseInt(data.total_heap, 10);
+
+        let pct = data.heap_pct !== undefined ? parseFloat(data.heap_pct) : (((deviceState.total_heap - deviceState.free_heap) / deviceState.total_heap) * 100);
+        deviceState.heap_pct = pct.toFixed(1);
+
+        document.getElementById('valHeapPct').textContent = deviceState.heap_pct;
+        const usedKb = Math.round((deviceState.total_heap - deviceState.free_heap) / 1024);
+        const freeKb = Math.round(deviceState.free_heap / 1024);
+        document.getElementById('valHeapUsedKb').textContent = `${usedKb} KB`;
+        document.getElementById('valHeapFreeKb').textContent = `${freeKb} KB`;
+        document.getElementById('barHeapFill').style.width = `${Math.min(100, Math.max(0, pct))}%`;
+
+        const badge = document.getElementById('badgeHeapStatus');
+        if (pct > 80) { badge.className = 'card-badge badge-danger'; badge.textContent = 'Nguy cấp'; }
+        else if (pct > 65) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Cảnh báo'; }
+        else { badge.className = 'card-badge badge-normal'; badge.textContent = 'Tối ưu'; }
+      }
+
+      // 2. Chip Temp
+      if (data.chip_temp !== undefined) {
+        deviceState.chip_temp = parseFloat(data.chip_temp).toFixed(1);
+        const tempF = ((parseFloat(deviceState.chip_temp) * 9/5) + 32).toFixed(1);
+        document.getElementById('valChipTemp').textContent = deviceState.chip_temp;
+        document.getElementById('valChipTempF').textContent = `${tempF} °F`;
+
+        const tempPct = Math.min(100, Math.max(0, ((parseFloat(deviceState.chip_temp) - 25) / 55) * 100));
+        document.getElementById('dispTempPct').textContent = `${Math.round(tempPct)}%`;
+        document.getElementById('barTempFill').style.width = `${tempPct}%`;
+
+        const badge = document.getElementById('badgeTempStatus');
+        if (parseFloat(deviceState.chip_temp) > 70) { badge.className = 'card-badge badge-danger'; badge.textContent = 'Nóng'; }
+        else if (parseFloat(deviceState.chip_temp) > 55) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Ấm'; }
+        else { badge.className = 'card-badge badge-normal'; badge.textContent = 'Mát mẻ'; }
+      }
+
+      // 3. WiFi RSSI
+      if (data.rssi !== undefined) {
+        deviceState.rssi = parseInt(data.rssi, 10);
+        document.getElementById('valRssi').textContent = deviceState.rssi;
+        let q = Math.min(100, Math.max(0, Math.round(2 * (deviceState.rssi + 100))));
+        document.getElementById('valRssiPct').textContent = `${q}%`;
+        document.getElementById('barRssiFill').style.width = `${q}%`;
+
+        const badge = document.getElementById('badgeWifiQuality');
+        if (deviceState.rssi > -65) { badge.className = 'card-badge badge-normal'; badge.textContent = 'Rất mạnh'; }
+        else if (deviceState.rssi > -78) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Tốt'; }
+        else { badge.className = 'card-badge badge-danger'; badge.textContent = 'Yếu'; }
+      }
+
+      // 4. Flash & Sketch
+      if (data.sketch_size !== undefined) {
+        deviceState.sketch_size = parseInt(data.sketch_size, 10);
+        const sketchKb = Math.round(deviceState.sketch_size / 1024);
+        document.getElementById('valFlashUsed').textContent = sketchKb;
+
+        const flashTotalKb = 8192; // 8MB
+        const pct = ((sketchKb / flashTotalKb) * 100).toFixed(1);
+        document.getElementById('valFlashPct').textContent = `${pct}%`;
+        document.getElementById('barFlashFill').style.width = `${pct}%`;
+      }
+
+      // Screen state & OLED Page
+      if (data.screen_state !== undefined) {
+        deviceState.screen_state = data.screen_state;
+      }
+      if (data.oled_page !== undefined) {
+        deviceState.oled_page = data.oled_page;
+        updateOledPageButtonHighlight(deviceState.oled_page);
+      }
+      updateOledScreenVisual();
+    }
+
+    // OLED Screen Simulator
+    function updateOledScreenVisual() {
+      const screen = document.getElementById('oledSimScreen');
+      const badge = document.getElementById('badgeOledPower');
+      const toggle = document.getElementById('toggleScreenPower');
+      const line1 = document.getElementById('oledLine1');
+      const line2 = document.getElementById('oledLine2');
+      const line3 = document.getElementById('oledLine3');
+      const headerLeft = document.getElementById('oledHeaderLeft');
+
+      const isPowerOn = deviceState.screen_state === "ON";
+      toggle.checked = isPowerOn;
+
+      if (!isPowerOn) {
+        screen.classList.add('off');
+        badge.className = 'card-badge badge-danger';
+        badge.textContent = 'Màn hình: TẮT';
+        return;
+      }
+
+      screen.classList.remove('off');
+      badge.className = 'card-badge badge-normal';
+      badge.textContent = 'Màn hình: BẬT';
+
+      if (deviceState.oled_page === 1) {
+        headerLeft.textContent = "PAGE 1: HEALTH";
+        line1.textContent = deviceState.hr > 0 ? `HR: ${deviceState.hr} BPM` : "HR: -- BPM";
+        line2.textContent = deviceState.spo2 > 0 ? `SpO2: ${deviceState.spo2}%` : "SpO2: -- %";
+        line3.textContent = "MAX30102 Sensor";
+      } else if (deviceState.oled_page === 2) {
+        headerLeft.textContent = "PAGE 2: STEPS";
+        line1.textContent = `STEPS: ${deviceState.steps.toLocaleString()}`;
+        const cal = Math.round(deviceState.steps * 0.04);
+        line2.textContent = `CAL: ${cal} kcal`;
+        line3.textContent = "GY-521 Pedometer";
+      } else if (deviceState.oled_page === 3) {
+        headerLeft.textContent = "PAGE 3: SYSTEM";
+        line1.textContent = `TEMP: ${deviceState.chip_temp || '--'} C`;
+        line2.textContent = `WIFI: ${deviceState.rssi} dBm`;
+        line3.textContent = `HEAP: ${deviceState.heap_pct || '--'}%`;
+      }
+    }
+
+    function startOledClock() {
+      setInterval(() => {
+        const now = new Date();
+        const clockEl = document.getElementById('oledSimClock');
+        if (clockEl) clockEl.textContent = now.toLocaleTimeString('vi-VN');
+      }, 1000);
+    }
+
+    // Remote Commands
+    function sendOledPower(isOn) {
+      if (!mqttClient || !isConnected) { showToast('Chưa kết nối MQTT!', 'error'); return; }
+      const payload = isOn ? "ON" : "OFF";
+      mqttClient.publish(`${APP_CONFIG.baseTopic}/screen_power/set`, payload);
+      appendLog('OUT', 'screen_power/set', payload);
+      showToast(`Đã gửi lệnh: Màn hình ${payload}`, 'info');
+    }
+
+    function sendOledPage(page) {
+      if (!mqttClient || !isConnected) { showToast('Chưa kết nối MQTT!', 'error'); return; }
+      mqttClient.publish(`${APP_CONFIG.baseTopic}/screen_page/set`, page.toString());
+      appendLog('OUT', 'screen_page/set', page.toString());
+      updateOledPageButtonHighlight(page);
+      deviceState.oled_page = page;
+      updateOledScreenVisual();
+      showToast(`Đã chuyển sang Trang ${page}`, 'info');
+    }
+
+    function updateOledPageButtonHighlight(page) {
+      [1, 2, 3].forEach(p => {
+        const btn = document.getElementById(`btnPage${p}`);
+        if (btn) {
+          if (p === page) btn.classList.add('active-page');
+          else btn.classList.remove('active-page');
+        }
+      });
+    }
+
+    function sendCustomMessage() {
+      if (!mqttClient || !isConnected) { showToast('Chưa kết nối MQTT!', 'error'); return; }
+      const input = document.getElementById('inputCustomMsg');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      mqttClient.publish(`${APP_CONFIG.baseTopic}/screen_msg/set`, msg);
+      appendLog('OUT', 'screen_msg/set', msg);
+      showToast(`Đã gửi tin nhắn: "${msg}"`, 'success');
+      input.value = '';
+      document.getElementById('charCount').textContent = '0';
+    }
+
+    function applyPresetMessage(msg) {
+      document.getElementById('inputCustomMsg').value = msg;
+      document.getElementById('charCount').textContent = msg.length;
+      sendCustomMessage();
+    }
+
+    function initMessageInputCounter() {
+      const input = document.getElementById('inputCustomMsg');
+      const counter = document.getElementById('charCount');
+      input.addEventListener('input', () => { counter.textContent = input.value.length; });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendCustomMessage(); });
+    }
+
+    function sendFindBandVibrate() {
+      if (!mqttClient || !isConnected) { showToast('Chưa kết nối MQTT!', 'error'); return; }
+      mqttClient.publish(`${APP_CONFIG.baseTopic}/vibrate/set`, "BUZZ");
+      appendLog('OUT', 'vibrate/set', "BUZZ");
+      showToast('Đang rung motor tìm kiếm vòng tay...', 'info');
+
+      const screen = document.getElementById('oledSimScreen');
+      screen.classList.add('vibrating');
+      setTimeout(() => { screen.classList.remove('vibrating'); }, 1500);
+    }
+
+    function openResetConfirmModal() { document.getElementById('modalResetConfirm').classList.add('active'); }
+    function closeResetConfirmModal() { document.getElementById('modalResetConfirm').classList.remove('active'); }
+    function confirmResetSteps() {
+      closeResetConfirmModal();
+      if (!mqttClient || !isConnected) { showToast('Chưa kết nối MQTT!', 'error'); return; }
+      mqttClient.publish(`${APP_CONFIG.baseTopic}/reset_steps/set`, "RESET");
+      appendLog('OUT', 'reset_steps/set', "RESET");
+      showToast('Đã gửi lệnh Reset bước chân về 0!', 'success');
+    }
+
+    function dismissFallAlert() {
+      if (!mqttClient || !isConnected) { showToast('Chưa kết nối MQTT!', 'error'); return; }
+      mqttClient.publish(`${APP_CONFIG.baseTopic}/fall/dismiss`, "DISMISS");
+      appendLog('OUT', 'fall/dismiss', "DISMISS");
+      showToast('Đã gửi lệnh xóa báo động té ngã.', 'info');
+    }
+
+    // Terminal Logging
+    function appendLog(tag, topic, message) {
+      const win = document.getElementById('terminalWindow');
+      if (!win) return;
+
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      item.setAttribute('data-tag', tag);
+
+      let tagClass = 'tag-sys';
+      if (tag === 'IN') tagClass = 'tag-in';
+      else if (tag === 'OUT') tagClass = 'tag-out';
+      else if (tag === 'ERR') tagClass = 'tag-err';
+
+      const timeStr = new Date().toLocaleTimeString('vi-VN');
+      item.innerHTML = `
+        <span class="log-time">${timeStr}</span>
+        <span class="log-tag ${tagClass}">${tag}</span>
+        <span class="log-topic">${escapeHtml(topic)}</span>
+        <span class="log-msg">${escapeHtml(message)}</span>
+      `;
+
+      if (currentLogFilter !== 'ALL' && currentLogFilter !== tag) {
+        item.style.display = 'none';
+      }
+
+      win.appendChild(item);
+      if (win.children.length > 200) win.removeChild(win.children[0]);
+      if (autoScrollLogs) win.scrollTop = win.scrollHeight;
+    }
+
+    function setLogFilter(tag) {
+      currentLogFilter = tag;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.includes(tag) || (tag === 'ALL' && btn.textContent.includes('Tất cả')));
+      });
+
+      document.querySelectorAll('.log-item').forEach(item => {
+        const itemTag = item.getAttribute('data-tag');
+        item.style.display = (tag === 'ALL' || itemTag === tag) ? 'flex' : 'none';
+      });
+    }
+
+    function clearConsoleLog() {
+      document.getElementById('terminalWindow').innerHTML = '';
+      showToast('Đã xóa toàn bộ log.', 'info');
+    }
+
+    function toggleAutoScroll() {
+      autoScrollLogs = !autoScrollLogs;
+      document.getElementById('btnToggleAutoScroll').innerHTML = `<i class="fa-solid fa-arrows-down-to-line"></i> Auto-scroll: ${autoScrollLogs ? 'BẬT' : 'TẮT'}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Modal Config
+    function openConfigModal() { document.getElementById('modalConfig').classList.add('active'); }
+    function closeConfigModal() { document.getElementById('modalConfig').classList.remove('active'); }
+    function saveAndApplyConfig() {
+      const broker = document.getElementById('cfgBrokerUrl').value.trim();
+      const topic = document.getElementById('cfgBaseTopic').value.trim();
+      const cid = document.getElementById('cfgClientId').value.trim();
+      const user = document.getElementById('cfgUsername').value.trim();
+      const pass = document.getElementById('cfgPassword').value.trim();
+
+      if (!broker || !topic) { showToast('Vui lòng điền đủ Broker và Topic!', 'error'); return; }
+
+      APP_CONFIG.brokerUrl = broker;
+      APP_CONFIG.baseTopic = topic;
+      APP_CONFIG.clientId = cid || ('admin_' + Math.random().toString(16).substring(2, 10));
+      APP_CONFIG.username = user;
+      APP_CONFIG.password = pass;
+
+      localStorage.setItem('mqtt_broker_url', broker);
+      localStorage.setItem('mqtt_base_topic', topic);
+      localStorage.setItem('mqtt_client_id', APP_CONFIG.clientId);
+      localStorage.setItem('mqtt_username', user);
+      localStorage.setItem('mqtt_password', pass);
+
+      closeConfigModal();
+      initAppUI();
+      initMQTT();
+      showToast('Đã lưu cấu hình và kết nối lại!', 'success');
+    }
+
+    function resetConfigToDefault() {
+      document.getElementById('cfgBrokerUrl').value = 'wss://broker.emqx.io:8084/mqtt';
+      document.getElementById('cfgBaseTopic').value = 'smartband_s3/dev01';
+      document.getElementById('cfgClientId').value = 'admin_' + Math.random().toString(16).substring(2, 10);
+      document.getElementById('cfgUsername').value = '';
+      document.getElementById('cfgPassword').value = '';
+    }
+
+    function showToast(msg, type = 'info') {
+      const box = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      let icon = 'circle-info';
+      let color = '#2563eb';
+      if (type === 'success') { icon = 'circle-check'; color = '#10b981'; }
+      else if (type === 'error') { icon = 'triangle-exclamation'; color = '#dc2626'; }
+      toast.innerHTML = `<i class="fa-solid fa-${icon}" style="color:${color}"></i> <span>${escapeHtml(msg)}</span>`;
+      box.appendChild(toast);
+      setTimeout(() => { toast.remove(); }, 3500);
+    }
+  </script>
+</body>
+</html>
