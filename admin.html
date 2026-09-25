@@ -917,6 +917,16 @@
         <strong id="dispChipState" style="color: var(--color-emerald)">ESP32-S3 Mini OK</strong>
       </div>
       <div class="sys-info-item">
+        <i class="fa-solid fa-bolt" style="color: #f59e0b"></i>
+        <span>Xung nhịp:</span>
+        <strong id="dispCpuFreq">240 MHz</strong>
+      </div>
+      <div class="sys-info-item">
+        <i class="fa-solid fa-hourglass-half" style="color: #8b5cf6"></i>
+        <span>Uptime:</span>
+        <strong id="dispUptime">--</strong>
+      </div>
+      <div class="sys-info-item">
         <i class="fa-solid fa-clock-rotate-left" style="color: var(--color-primary)"></i>
         <span>Cập nhật cuối:</span>
         <strong id="dispLastPacketTime">Chưa nhận dữ liệu</strong>
@@ -934,7 +944,7 @@
         <i class="fa-solid fa-triangle-exclamation fall-banner-icon"></i>
         <div class="fall-banner-text">
           <h4>CẢNH BÁO TÉ NGÃ KHẨN CẤP!</h4>
-          <p>Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050 trên vòng tay.</p>
+          <p id="fallAlertDesc">Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050 trên vòng tay.</p>
         </div>
       </div>
       <button class="btn btn-danger" onclick="dismissFallAlert()">
@@ -1235,7 +1245,7 @@
         </div>
         <div class="progress-bar-container">
           <div class="progress-labels">
-            <span>Dung lượng: <strong>8 MB (8192 KB)</strong></span>
+            <span>Dung lượng: <strong id="valFlashTotal">8 MB (8192 KB)</strong></span>
             <span>Tỷ lệ chiếm dụng: <strong id="valFlashPct">--%</strong></span>
           </div>
           <div class="progress-track">
@@ -1243,8 +1253,55 @@
           </div>
         </div>
         <div class="card-footer-info">
-          <span>Phân vùng: <strong>Default 8MB Flash</strong></span>
+          <span>Phân vùng: <strong>Default Flash</strong></span>
           <span>OTA: <strong>Sẵn sàng</strong></span>
+        </div>
+      </div>
+
+      <!-- 5. MPU6050 MOTION ACCELEROMETER -->
+      <div class="card" id="cardAccel">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-person-running" style="color: #ec4899;"></i>
+            <span>Gia tốc MPU6050 (GY-521)</span>
+          </div>
+          <span class="card-badge badge-normal" id="badgeAccelStatus">Bình thường</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-value-wrap">
+            <span class="metric-val" id="valAccelMag" style="color: #ec4899;">--</span>
+            <span class="metric-unit">m/s²</span>
+          </div>
+          <div class="metric-icon-box" style="background: #fdf2f8; color: #db2777;">
+            <i class="fa-solid fa-gauge-high"></i>
+          </div>
+        </div>
+        <div class="step-stat-row" style="margin-top: 6px;">
+          <div class="step-stat-item" style="padding: 4px 6px;">
+            <span style="font-size: 0.7rem;">Ax</span>
+            <strong id="valAxMs2" style="font-size: 0.8rem;">--</strong>
+          </div>
+          <div class="step-stat-item" style="padding: 4px 6px;">
+            <span style="font-size: 0.7rem;">Ay</span>
+            <strong id="valAyMs2" style="font-size: 0.8rem;">--</strong>
+          </div>
+          <div class="step-stat-item" style="padding: 4px 6px;">
+            <span style="font-size: 0.7rem;">Az</span>
+            <strong id="valAzMs2" style="font-size: 0.8rem;">--</strong>
+          </div>
+        </div>
+        <div class="progress-bar-container" style="margin-top: 8px;">
+          <div class="progress-labels">
+            <span>Độ mạnh xung lực: <strong id="valAccelPct">0%</strong></span>
+            <span>Ngưỡng ngã: <strong>20.0 m/s²</strong></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="barAccelFill" style="width: 0%; background: #ec4899;"></div>
+          </div>
+        </div>
+        <div class="card-footer-info">
+          <span>Giao tiếp: <strong>I2C1 (GPIO 40, 41)</strong></span>
+          <span>Tốc độ: <strong>400 kHz</strong></span>
         </div>
       </div>
 
@@ -1290,8 +1347,8 @@
         </div>
 
         <div class="card-footer-info">
-          <span>Chuẩn I2C: <strong>GPIO 37 (SDA), 36 (SCL)</strong></span>
-          <span>Tốc độ: <strong>400 kHz</strong></span>
+          <span>Chuẩn I2C0: <strong>GPIO 1 (SDA), GPIO 2 (SCL)</strong></span>
+          <span>Tốc độ: <strong>400 kHz (Wire)</strong></span>
         </div>
       </div>
 
@@ -1408,6 +1465,18 @@
       </div>
     </section>
 
+    <!-- FOOTER -->
+    <footer class="page-footer" style="text-align: center; padding: 20px 0; color: var(--text-dim); font-size: 0.8rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+      <div>
+        <strong>SmartBand S3</strong> — Cổng Quản Trị Kỹ Thuật & Giám Sát Phần Cứng ESP32.
+      </div>
+      <div>
+        <a href="index.html" style="color: var(--color-primary); text-decoration: none; font-weight: 500;">
+          <i class="fa-solid fa-arrow-left"></i> Chuyển sang Trang Sức Khỏe Người Dùng &rarr;
+        </a>
+      </div>
+    </footer>
+
   </main>
 
   <!-- MODAL: MQTT BROKER CONFIGURATION -->
@@ -1511,10 +1580,22 @@
     const telemetryHistory = [];
     const MAX_HISTORY_RECORDS = 500;
 
-    // Web Audio alert state
+    // Web Audio alert state & Browser Autoplay Unlock
     let audioCtx = null;
     let isAudioMuted = false;
     let alarmInterval = null;
+    let audioUnlocked = false;
+
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        audioUnlocked = true;
+      } catch (e) {}
+    }
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
 
     const deviceState = {
       screen_state: "ON",
@@ -1523,13 +1604,23 @@
       total_heap: 327680,
       heap_pct: 0,
       chip_temp: 0,
+      sensor_temp: 0,
       rssi: -60,
       uptime: 0,
+      cpu_freq: 240,
       sketch_size: 0,
       flash_size: 8388608,
       hr: 0,
       spo2: 0,
-      steps: 0
+      steps: 0,
+      ax_ms2: 0,
+      ay_ms2: 0,
+      az_ms2: 9.8,
+      a_mag_ms2: 9.8,
+      finger: false,
+      max_ready: true,
+      fall: false,
+      customMessage: ''
     };
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -1614,8 +1705,8 @@
             yHr: {
               type: 'linear',
               position: 'left',
-              min: 40,
-              max: 160,
+              suggestedMin: 50,
+              suggestedMax: 150,
               grid: { color: '#f1f5f9' },
               ticks: { font: { size: 10 }, color: '#e11d48', stepSize: 20 },
               title: { display: true, text: 'BPM', color: '#e11d48', font: { size: 10, weight: 'bold' } }
@@ -1623,7 +1714,8 @@
             ySpo2: {
               type: 'linear',
               position: 'right',
-              min: 80,
+              min: 70,
+              suggestedMin: 85,
               max: 100,
               grid: { display: false },
               ticks: { font: { size: 10 }, color: '#0284c7', stepSize: 5 },
@@ -1646,6 +1738,7 @@
 
     // Web Audio Beeper for Emergency Alerts
     function toggleAudioMute() {
+      unlockAudio();
       isAudioMuted = !isAudioMuted;
       const btn = document.getElementById('btnToggleAudio');
       const txt = document.getElementById('txtAudioState');
@@ -1702,9 +1795,9 @@
         showToast('Chưa có dữ liệu sinh hiệu để xuất CSV! Hãy kết nối thiết bị trước.', 'error');
         return;
       }
-      let csv = "Timestamp,HeartRate_BPM,SpO2_Percent,Steps,Calories_kcal,Distance_km,SensorTemp_C,ChipTemp_C,RAM_Free_KB,RAM_Used_Pct,WiFi_RSSI_dBm\n";
+      let csv = "Timestamp,HeartRate_BPM,SpO2_Percent,Steps,Calories_kcal,Distance_km,SensorTemp_C,ChipTemp_C,RAM_Free_KB,RAM_Used_Pct,WiFi_RSSI_dBm,Accel_Mag_ms2,Fall_Alert\n";
       telemetryHistory.forEach(row => {
-        csv += `"${row.time}",${row.hr},${row.spo2},${row.steps},${row.cal},${row.dist},${row.sensorTemp || 0},${row.temp},${row.heapFree},${row.heapPct},${row.rssi}\n`;
+        csv += `"${row.time}",${row.hr},${row.spo2},${row.steps},${row.cal},${row.dist},${row.sensorTemp || 0},${row.temp},${row.heapFree},${row.heapPct},${row.rssi},${row.accelMag || 0},${row.fall ? 'YES' : 'NO'}\n`;
       });
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -1841,6 +1934,28 @@
         deviceState.oled_page = parseInt(payload.trim(), 10) || 1;
         updateOledPageButtonHighlight(deviceState.oled_page);
         updateOledScreenVisual();
+      } else if (topic.endsWith('/fall/alert')) {
+        try {
+          const alert = JSON.parse(payload);
+          const banner = document.getElementById('fallAlertBanner');
+          const desc = document.getElementById('fallAlertDesc');
+          if (alert.alert === "FALL_DETECTED") {
+            deviceState.fall = true;
+            if (alert.mag_ms2) deviceState.a_mag_ms2 = parseFloat(alert.mag_ms2).toFixed(1);
+            if (banner) banner.classList.add('active');
+            if (desc) {
+              const force = alert.mag_ms2 ? ` (Lực va chạm: ${parseFloat(alert.mag_ms2).toFixed(1)} m/s²)` : '';
+              desc.innerHTML = `Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050${force}! Vòng tay đang rung báo động!`;
+            }
+            startFallAlarm();
+            updateOledScreenVisual();
+          } else if (alert.alert === "CLEARED") {
+            deviceState.fall = false;
+            if (banner) banner.classList.remove('active');
+            stopFallAlarm();
+            updateOledScreenVisual();
+          }
+        } catch (e) {}
       }
     }
 
@@ -1848,6 +1963,27 @@
       const timeStr = new Date().toLocaleTimeString('vi-VN');
       const dispUpdate = document.getElementById('dispLastUpdateTime');
       if (dispUpdate) dispUpdate.textContent = `Cập nhật: ${timeStr}`;
+
+      // Uptime & CPU Freq
+      if (data.uptime !== undefined) {
+        deviceState.uptime = parseInt(data.uptime, 10);
+        const h = Math.floor(deviceState.uptime / 3600);
+        const m = Math.floor((deviceState.uptime % 3600) / 60);
+        const s = deviceState.uptime % 60;
+        const uptimeStr = h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
+        const elUp = document.getElementById('dispUptime');
+        if (elUp) elUp.textContent = uptimeStr;
+      }
+
+      if (data.cpu_freq !== undefined) {
+        deviceState.cpu_freq = parseInt(data.cpu_freq, 10);
+        const elCpu = document.getElementById('dispCpuFreq');
+        if (elCpu) elCpu.textContent = `${deviceState.cpu_freq} MHz`;
+      }
+
+      // Trạng thái phần cứng cảm biến MAX30102 (max_ready)
+      const isMaxReady = data.max_ready !== undefined ? (data.max_ready === true || data.max_ready === "true") : true;
+      deviceState.max_ready = isMaxReady;
 
       // 1. Nhịp tim (HR)
       if (data.hr !== undefined) {
@@ -1860,7 +1996,11 @@
         const desc = document.getElementById('descHeart');
         const boxIcon = document.getElementById('boxHeartIcon');
 
-        if (hr === 0) {
+        if (!isMaxReady) {
+          if (badge) { badge.className = 'card-badge badge-danger'; badge.textContent = 'Lỗi cảm biến'; }
+          if (desc) desc.textContent = 'Cảm biến MAX30102 chưa sẵn sàng hoặc lỏng dây I2C (GPIO 37/36).';
+          if (boxIcon) boxIcon.classList.remove('heart-beat-active');
+        } else if (hr === 0) {
           if (badge) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Chờ ngón tay'; }
           if (desc) desc.textContent = 'Vui lòng đặt ngón tay lên cảm biến MAX30102 để đo.';
           if (boxIcon) boxIcon.classList.remove('heart-beat-active');
@@ -1896,7 +2036,10 @@
 
         const badge = document.getElementById('badgeSpo2');
         const quality = document.getElementById('statSpo2Quality');
-        if (data.spo2 <= 0) {
+        if (!isMaxReady) {
+          if (badge) { badge.className = 'card-badge badge-danger'; badge.textContent = 'Lỗi cảm biến'; }
+          if (quality) quality.textContent = 'Mất kết nối';
+        } else if (data.spo2 <= 0) {
           if (badge) { badge.className = 'card-badge badge-warning'; badge.textContent = 'Chờ đo'; }
           if (quality) quality.textContent = 'Đang đo';
         } else if (parseFloat(spo2) < APP_CONFIG.alertMinSpo2) {
@@ -1931,13 +2074,18 @@
       }
 
       // 4. Trạng thái ngón tay
-      if (data.finger !== undefined) {
+      if (data.finger !== undefined || !isMaxReady) {
         const isFinger = data.finger === true || data.finger === "true";
+        deviceState.finger = isFinger;
         const txtFinger = document.getElementById('txtFingerAdmin');
         if (txtFinger) {
-          txtFinger.innerHTML = isFinger 
-            ? 'Cảm biến: <strong style="color: var(--color-emerald)">Đã nhận tay</strong>' 
-            : 'Cảm biến: <strong style="color: var(--color-amber)">Đang chờ tay</strong>';
+          if (!isMaxReady) {
+            txtFinger.innerHTML = 'Cảm biến: <strong style="color: var(--color-danger)">Lỗi kết nối MAX30102</strong>';
+          } else {
+            txtFinger.innerHTML = isFinger 
+              ? 'Cảm biến: <strong style="color: var(--color-emerald)">Đã nhận tay</strong>' 
+              : 'Cảm biến: <strong style="color: var(--color-amber)">Đang chờ tay</strong>';
+          }
         }
       }
 
@@ -1956,10 +2104,10 @@
         }
 
         if (badge && desc) {
-          if (data.sensor_temp <= 0) {
+          if (!isMaxReady || data.sensor_temp <= 0) {
             badge.className = 'card-badge badge-warning';
-            badge.textContent = 'Chờ đo';
-            desc.textContent = 'Đang đọc nhiệt độ từ cảm biến MAX30102...';
+            badge.textContent = isMaxReady ? 'Chờ đo' : 'Lỗi cảm biến';
+            desc.textContent = isMaxReady ? 'Đang đọc nhiệt độ từ cảm biến MAX30102...' : 'Chưa đọc được dữ liệu từ MAX30102.';
           } else if (deviceState.sensor_temp > 37.8) {
             badge.className = 'card-badge badge-danger';
             badge.textContent = 'Nhiệt cao';
@@ -1976,14 +2124,63 @@
         }
       }
 
-      // 6. Cảnh báo té ngã (Fall Alert)
-      if (data.fall === true || data.fall === "true") {
-        const banner = document.getElementById('fallAlertBanner');
-        if (banner) banner.classList.add('active');
-        startFallAlarm();
+      // 6. Cảm biến gia tốc MPU6050 (GY-521)
+      if (data.a_mag_ms2 !== undefined || data.ax_ms2 !== undefined) {
+        deviceState.ax_ms2 = data.ax_ms2 !== undefined ? parseFloat(data.ax_ms2).toFixed(1) : 0;
+        deviceState.ay_ms2 = data.ay_ms2 !== undefined ? parseFloat(data.ay_ms2).toFixed(1) : 0;
+        deviceState.az_ms2 = data.az_ms2 !== undefined ? parseFloat(data.az_ms2).toFixed(1) : 9.8;
+        deviceState.a_mag_ms2 = data.a_mag_ms2 !== undefined ? parseFloat(data.a_mag_ms2).toFixed(1) : 9.8;
+
+        const elMag = document.getElementById('valAccelMag');
+        const elAx = document.getElementById('valAxMs2');
+        const elAy = document.getElementById('valAyMs2');
+        const elAz = document.getElementById('valAzMs2');
+        const elPct = document.getElementById('valAccelPct');
+        const barFill = document.getElementById('barAccelFill');
+        const badge = document.getElementById('badgeAccelStatus');
+
+        if (elMag) elMag.textContent = deviceState.a_mag_ms2;
+        if (elAx) elAx.textContent = deviceState.ax_ms2;
+        if (elAy) elAy.textContent = deviceState.ay_ms2;
+        if (elAz) elAz.textContent = deviceState.az_ms2;
+
+        const magVal = parseFloat(deviceState.a_mag_ms2);
+        const pct = Math.min(100, Math.max(0, Math.round((magVal / 25.0) * 100)));
+        if (elPct) elPct.textContent = `${pct}%`;
+        if (barFill) barFill.style.width = `${pct}%`;
+
+        if (badge) {
+          if (magVal > 20.0 || data.fall === true || data.fall === "true") {
+            badge.className = 'card-badge badge-danger';
+            badge.textContent = 'Cảnh báo té ngã!';
+          } else if (magVal > 13.0) {
+            badge.className = 'card-badge badge-warning';
+            badge.textContent = 'Vận động mạnh';
+          } else {
+            badge.className = 'card-badge badge-normal';
+            badge.textContent = 'Bình thường';
+          }
+        }
       }
 
-      // 7. Cập nhật biểu đồ sinh hiệu (Realtime Chart)
+      // 7. Cảnh báo té ngã (Fall Alert)
+      const isFall = data.fall === true || data.fall === "true";
+      deviceState.fall = isFall;
+      const banner = document.getElementById('fallAlertBanner');
+      const desc = document.getElementById('fallAlertDesc');
+      if (isFall) {
+        if (banner) banner.classList.add('active');
+        if (desc) {
+          const force = data.a_mag_ms2 ? ` (Lực va chạm: ${parseFloat(data.a_mag_ms2).toFixed(1)} m/s²)` : '';
+          desc.innerHTML = `Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050${force}! Vòng tay đang rung báo động!`;
+        }
+        startFallAlarm();
+      } else {
+        if (banner) banner.classList.remove('active');
+        stopFallAlarm();
+      }
+
+      // 8. Cập nhật biểu đồ sinh hiệu (Realtime Chart)
       if (heartSpo2Chart && (data.hr > 0 || data.spo2 > 0)) {
         const labels = heartSpo2Chart.data.labels;
         const hrDataset = heartSpo2Chart.data.datasets[0].data;
@@ -2001,7 +2198,7 @@
         heartSpo2Chart.update('none');
       }
 
-      // 8. Ghi vào lịch sử xuất CSV
+      // 9. Ghi vào lịch sử xuất CSV
       const calCalc = Math.round((deviceState.steps || 0) * 0.04);
       const distCalc = (((deviceState.steps || 0) * 0.75) / 1000).toFixed(2);
       telemetryHistory.push({
@@ -2015,13 +2212,15 @@
         temp: deviceState.chip_temp || 0,
         heapFree: Math.round((deviceState.free_heap || 0) / 1024),
         heapPct: deviceState.heap_pct || 0,
-        rssi: deviceState.rssi || 0
+        rssi: deviceState.rssi || 0,
+        accelMag: deviceState.a_mag_ms2 || 0,
+        fall: isFall
       });
       if (telemetryHistory.length > MAX_HISTORY_RECORDS) {
         telemetryHistory.shift();
       }
 
-      // 8. RAM Heap Phần cứng
+      // 10. RAM Heap Phần cứng
       if (data.free_heap !== undefined || data.heap_pct !== undefined) {
         if (data.free_heap !== undefined) deviceState.free_heap = parseInt(data.free_heap, 10);
         if (data.total_heap !== undefined) deviceState.total_heap = parseInt(data.total_heap, 10);
@@ -2042,7 +2241,7 @@
         else { badge.className = 'card-badge badge-normal'; badge.textContent = 'Tối ưu'; }
       }
 
-      // 9. SoC Chip Temp
+      // 11. SoC Chip Temp
       if (data.chip_temp !== undefined) {
         deviceState.chip_temp = parseFloat(data.chip_temp).toFixed(1);
         const tempF = ((parseFloat(deviceState.chip_temp) * 9/5) + 32).toFixed(1);
@@ -2059,7 +2258,7 @@
         else { badge.className = 'card-badge badge-normal'; badge.textContent = 'Mát mẻ'; }
       }
 
-      // 10. WiFi RSSI
+      // 12. WiFi RSSI
       if (data.rssi !== undefined) {
         deviceState.rssi = parseInt(data.rssi, 10);
         document.getElementById('valRssi').textContent = deviceState.rssi;
@@ -2073,16 +2272,23 @@
         else { badge.className = 'card-badge badge-danger'; badge.textContent = 'Yếu'; }
       }
 
-      // 11. Flash & Sketch
+      // 13. Flash & Sketch
       if (data.sketch_size !== undefined) {
         deviceState.sketch_size = parseInt(data.sketch_size, 10);
         const sketchKb = Math.round(deviceState.sketch_size / 1024);
         document.getElementById('valFlashUsed').textContent = sketchKb;
 
-        const flashTotalKb = 8192; // 8MB
+        const flashTotalKb = data.flash_size ? Math.round(data.flash_size / 1024) : 8192;
         const pct = ((sketchKb / flashTotalKb) * 100).toFixed(1);
         document.getElementById('valFlashPct').textContent = `${pct}%`;
         document.getElementById('barFlashFill').style.width = `${pct}%`;
+      }
+
+      if (data.flash_size !== undefined) {
+        deviceState.flash_size = parseInt(data.flash_size, 10);
+        const flashMb = Math.round(deviceState.flash_size / (1024 * 1024));
+        const elTotal = document.getElementById('valFlashTotal');
+        if (elTotal) elTotal.textContent = `${flashMb} MB (${Math.round(deviceState.flash_size / 1024)} KB)`;
       }
 
       // Screen state & OLED Page
@@ -2096,7 +2302,7 @@
       updateOledScreenVisual();
     }
 
-    // OLED Screen Simulator
+    // OLED Screen Simulator (Đồng bộ tuyệt đối với logic C++ updateOLED trong main.cpp)
     function updateOledScreenVisual() {
       const screen = document.getElementById('oledSimScreen');
       const badge = document.getElementById('badgeOledPower');
@@ -2109,7 +2315,7 @@
       const isPowerOn = deviceState.screen_state === "ON";
       toggle.checked = isPowerOn;
 
-      if (!isPowerOn) {
+      if (!isPowerOn && !deviceState.fall) {
         screen.classList.add('off');
         badge.className = 'card-badge badge-danger';
         badge.textContent = 'Màn hình: TẮT';
@@ -2120,22 +2326,53 @@
       badge.className = 'card-badge badge-normal';
       badge.textContent = 'Màn hình: BẬT';
 
-      if (deviceState.oled_page === 1) {
-        headerLeft.textContent = "PAGE 1: HEALTH";
-        line1.textContent = deviceState.hr > 0 ? `HR: ${deviceState.hr} BPM` : "HR: -- BPM";
-        line2.textContent = deviceState.spo2 > 0 ? `SpO2: ${deviceState.spo2}%` : "SpO2: -- %";
-        line3.textContent = "MAX30102 Sensor";
-      } else if (deviceState.oled_page === 2) {
-        headerLeft.textContent = "PAGE 2: STEPS";
-        line1.textContent = `STEPS: ${deviceState.steps.toLocaleString()}`;
-        const cal = Math.round(deviceState.steps * 0.04);
-        line2.textContent = `CAL: ${cal} kcal`;
-        line3.textContent = "GY-521 Pedometer";
-      } else if (deviceState.oled_page === 3) {
-        headerLeft.textContent = "PAGE 3: SYSTEM";
-        line1.textContent = `TEMP: ${deviceState.chip_temp || '--'} C`;
-        line2.textContent = `WIFI: ${deviceState.rssi} dBm`;
-        line3.textContent = `HEAP: ${deviceState.heap_pct || '--'}%`;
+      // 1. Nếu có cảnh báo té ngã -> Ưu tiên hiển thị màn hình té ngã
+      if (deviceState.fall) {
+        headerLeft.textContent = "! CANH BAO TE NGA !";
+        line1.textContent = `${deviceState.a_mag_ms2 || '24.8'} m/s2`;
+        line2.textContent = "VIB! EMERGENCY";
+        line3.textContent = "Nhan de tat";
+      }
+      // 2. Nếu có tin nhắn mới -> Hiển thị Popup
+      else if (deviceState.customMessage) {
+        headerLeft.textContent = "THONG BAO [MSG]";
+        line1.textContent = "MESSAGE:";
+        line2.textContent = `"${deviceState.customMessage}"`;
+        line3.textContent = "SmartBand S3";
+      }
+      // 3. Trang 1: Sức khỏe (Nhịp tim & SpO2)
+      else if (deviceState.oled_page === 1) {
+        headerLeft.textContent = "HEALTH MONITOR [P1]";
+        if (deviceState.max_ready === false) {
+          line1.textContent = "MAX30102 LOI";
+          line2.textContent = "Kiem tra day";
+          line3.textContent = "GPIO 37/36";
+        } else if (!deviceState.finger) {
+          line1.textContent = "MAX30102 SAN SANG";
+          line2.textContent = ">> DAT NGON TAY <<";
+          line3.textContent = deviceState.sensor_temp > 0 ? `T: ${deviceState.sensor_temp} C` : "MAX30102 Ready";
+        } else {
+          line1.textContent = deviceState.hr > 0 ? `HR: ${deviceState.hr} BPM` : "HR: -- BPM";
+          line2.textContent = deviceState.spo2 > 0 ? `SpO2: ${deviceState.spo2}%` : "SpO2: -- %";
+          line3.textContent = deviceState.sensor_temp > 0 ? `T: ${deviceState.sensor_temp} C | OK` : "MAX30102 OK";
+        }
+      }
+      // 4. Trang 2: Đếm bước chân & Calo
+      else if (deviceState.oled_page === 2) {
+        headerLeft.textContent = "PEDOMETER      [P2]";
+        line1.textContent = `STEPS: ${(deviceState.steps || 0).toLocaleString()}`;
+        const cal = Math.round((deviceState.steps || 0) * 0.04);
+        line2.textContent = `Cal: ${cal} kcal`;
+        line3.textContent = `Dist: ${(((deviceState.steps || 0) * 0.75) / 1000).toFixed(2)} km`;
+      }
+      // 5. Trang 3: Cảm biến gia tốc GY-521 (m/s^2)
+      else if (deviceState.oled_page === 3) {
+        headerLeft.textContent = "ACCEL (m/s2)   [P3]";
+        line1.textContent = `Ax:${deviceState.ax_ms2 || 0} Ay:${deviceState.ay_ms2 || 0}`;
+        line2.textContent = `Az:${deviceState.az_ms2 || 0} m/s2`;
+        const mag = parseFloat(deviceState.a_mag_ms2 || 0);
+        const tag = mag > 20.0 ? '[TE NGA!]' : (mag > 13.0 ? '[VAN DONG]' : '[BINH THUONG]');
+        line3.textContent = `|A|: ${deviceState.a_mag_ms2 || 0} ${tag}`;
       }
     }
 
@@ -2187,6 +2424,16 @@
       showToast(`Đã gửi tin nhắn: "${msg}"`, 'success');
       input.value = '';
       document.getElementById('charCount').textContent = '0';
+
+      // Mô phỏng hiển thị tin nhắn 6s trên OLED giả lập giống ESP32
+      deviceState.customMessage = msg;
+      updateOledScreenVisual();
+      setTimeout(() => {
+        if (deviceState.customMessage === msg) {
+          deviceState.customMessage = '';
+          updateOledScreenVisual();
+        }
+      }, 6000);
     }
 
     function applyPresetMessage(msg) {
@@ -2224,9 +2471,11 @@
     }
 
     function dismissFallAlert() {
+      deviceState.fall = false;
       const banner = document.getElementById('fallAlertBanner');
       if (banner) banner.classList.remove('active');
       stopFallAlarm();
+      updateOledScreenVisual();
       if (!mqttClient || !isConnected) { showToast('Đã tắt chuông (Chưa kết nối MQTT)', 'info'); return; }
       mqttClient.publish(`${APP_CONFIG.baseTopic}/fall/dismiss`, "DISMISS");
       appendLog('OUT', 'fall/dismiss', "DISMISS");

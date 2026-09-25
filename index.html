@@ -485,6 +485,88 @@
       .health-grid { grid-template-columns: 1fr; }
       .chart-canvas-wrapper { height: 220px; }
     }
+
+    /* Modal & Config Dialog */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+    .modal-box {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 480px;
+      padding: 24px;
+      position: relative;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .modal-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-close-modal {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .input-field {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-family: var(--font-main);
+      font-size: 0.83rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-field:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-color);
+    }
   </style>
 </head>
 <body>
@@ -502,11 +584,21 @@
     </a>
 
     <div class="nav-actions">
+      <!-- Toggle Audio Alert Sound -->
+      <button class="btn btn-outline" id="btnToggleAudio" onclick="toggleAudioMute()" title="Bật/Tắt chuông cảnh báo">
+        <i class="fa-solid fa-volume-high" style="color: var(--color-warning);"></i> <span id="txtAudioState">Chuông: BẬT</span>
+      </button>
+
       <!-- Connection Status Badge -->
       <div class="status-badge" id="connStatusBadge">
         <span class="status-dot" id="statusDot"></span>
         <span id="connStatusText">Đang kết nối...</span>
       </div>
+
+      <!-- Config Modal Button -->
+      <button class="btn btn-outline" onclick="openConfigModal()" title="Cài đặt MQTT Broker & Vòng tay">
+        <i class="fa-solid fa-gear"></i> Cấu hình
+      </button>
 
       <!-- Link to Admin Portal -->
       <a href="admin.html" class="btn btn-admin">
@@ -525,7 +617,7 @@
         <p>Dữ liệu sinh hiệu được vòng tay thông minh ESP32 cập nhật tự động mỗi 1.5 giây.</p>
       </div>
       <div class="device-pills">
-        <div class="device-pill">
+        <div class="device-pill" id="pillFinger">
           <i class="fa-solid fa-hand-holding-medical" id="iconFinger" style="color: var(--color-primary)"></i>
           <span id="txtFinger">Cảm biến: Đang chờ tay</span>
         </div>
@@ -534,8 +626,8 @@
           <span id="txtWifiQuality">Sóng WiFi: Rất mạnh</span>
         </div>
         <div class="device-pill">
-          <i class="fa-solid fa-battery-three-quarters" style="color: #3b82f6"></i>
-          <span>Pin: Ổn định</span>
+          <i class="fa-solid fa-microchip" style="color: #3b82f6"></i>
+          <span id="txtEspUptime">ESP32: Online</span>
         </div>
       </div>
     </section>
@@ -546,7 +638,7 @@
         <i class="fa-solid fa-triangle-exclamation fall-banner-icon"></i>
         <div class="fall-banner-text">
           <h4>CẢNH BÁO TÉ NGÃ KHẨN CẤP!</h4>
-          <p>Phát hiện va đập bất thường. Vòng tay đang rung báo động.</p>
+          <p id="fallAlertDesc">Phát hiện va đập bất thường từ cảm biến MPU6050. Vòng tay đang rung báo động!</p>
         </div>
       </div>
       <button class="btn btn-danger" onclick="dismissFallAlert()">
@@ -613,7 +705,7 @@
         </div>
         <div class="card-footer-info">
           <span>Trạng thái: <strong id="statSpo2Quality">Khỏe mạnh</strong></span>
-          <span>Cảm biến: <strong>MAX30102</strong></span>
+          <span>Cảm biến: <strong id="statMaxSensor">MAX30102</strong></span>
         </div>
       </div>
 
@@ -726,6 +818,31 @@
       </div>
     </footer>
 
+  <!-- MODAL: MQTT BROKER CONFIGURATION -->
+  <div class="modal-backdrop" id="modalConfig">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-gear"></i> Cấu hình MQTT Broker & Vòng Tay</h3>
+        <button class="btn-close-modal" onclick="closeConfigModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="form-group">
+        <label for="cfgBrokerUrl">Địa chỉ WebSocket Broker (WSS URL)</label>
+        <input type="text" class="input-field" id="cfgBrokerUrl" value="wss://broker.emqx.io:8084/mqtt">
+      </div>
+
+      <div class="form-group">
+        <label for="cfgBaseTopic">Base Topic Thiết Bị</label>
+        <input type="text" class="input-field" id="cfgBaseTopic" value="smartband_s3/dev01">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="resetConfigToDefault()">Khôi phục mặc định</button>
+        <button class="btn btn-admin" style="background:#2563eb; color:#fff; border-color:#2563eb;" onclick="saveAndApplyConfig()">Lưu & Kết nối lại</button>
+      </div>
+    </div>
+  </div>
+
   </main>
 
   <!-- JAVASCRIPT LOGIC -->
@@ -733,15 +850,46 @@
     const APP_CONFIG = {
       brokerUrl: localStorage.getItem('mqtt_broker_url') || 'wss://broker.emqx.io:8084/mqtt',
       baseTopic: localStorage.getItem('mqtt_base_topic') || 'smartband_s3/dev01',
-      clientId: 'user_' + Math.random().toString(16).substring(2, 10)
+      clientId: localStorage.getItem('mqtt_user_client_id') || ('user_' + Math.random().toString(16).substring(2, 10))
     };
 
     let mqttClient = null;
     let heartSpo2Chart = null;
-    const MAX_POINTS = 20;
+    const MAX_POINTS = 25;
 
     let minHr = null;
     let maxHr = null;
+
+    // Web Audio State & Browser Autoplay Unlock
+    let audioCtx = null;
+    let isAudioMuted = false;
+    let alarmInterval = null;
+    let audioUnlocked = false;
+
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        audioUnlocked = true;
+      } catch (e) {}
+    }
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+
+    function toggleAudioMute() {
+      unlockAudio();
+      isAudioMuted = !isAudioMuted;
+      const txt = document.getElementById('txtAudioState');
+      const btn = document.getElementById('btnToggleAudio');
+      if (btn && txt) {
+        if (isAudioMuted) {
+          btn.innerHTML = '<i class="fa-solid fa-volume-xmark" style="color: var(--text-dim);"></i> <span id="txtAudioState">Chuông: TẮT</span>';
+        } else {
+          btn.innerHTML = '<i class="fa-solid fa-volume-high" style="color: var(--color-warning);"></i> <span id="txtAudioState">Chuông: BẬT</span>';
+        }
+      }
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
       initChart();
@@ -818,8 +966,8 @@
             yHr: {
               type: 'linear',
               position: 'left',
-              min: 40,
-              max: 150,
+              suggestedMin: 50,
+              suggestedMax: 140,
               grid: { color: 'rgba(225, 29, 72, 0.06)' },
               ticks: { color: '#e11d48', font: { size: 10 } },
               title: { display: true, text: 'BPM', color: '#e11d48', font: { size: 10 } }
@@ -827,7 +975,8 @@
             ySpo2: {
               type: 'linear',
               position: 'right',
-              min: 90,
+              min: 70,
+              suggestedMin: 85,
               max: 100,
               grid: { display: false },
               ticks: { color: '#0284c7', font: { size: 10 } },
@@ -839,6 +988,10 @@
     }
 
     function initMQTT() {
+      if (mqttClient) {
+        try { mqttClient.end(true); } catch (e) {}
+      }
+
       updateStatus(false, 'Đang kết nối...');
       try {
         mqttClient = mqtt.connect(APP_CONFIG.brokerUrl, {
@@ -863,10 +1016,18 @@
           } else if (topic.endsWith('/fall/alert')) {
             try {
               const alert = JSON.parse(message.toString());
+              const banner = document.getElementById('fallAlertBanner');
+              const desc = document.getElementById('fallAlertDesc');
               if (alert.alert === "FALL_DETECTED") {
-                document.getElementById('fallAlertBanner').classList.add('active');
+                if (banner) banner.classList.add('active');
+                if (desc) {
+                  const force = alert.mag_ms2 ? ` (Lực va chạm: ${parseFloat(alert.mag_ms2).toFixed(1)} m/s²)` : '';
+                  desc.textContent = `Phát hiện va đập bất thường từ cảm biến MPU6050${force}. Vòng tay đang rung báo động!`;
+                }
+                startFallAlarm();
               } else if (alert.alert === "CLEARED") {
-                document.getElementById('fallAlertBanner').classList.remove('active');
+                if (banner) banner.classList.remove('active');
+                stopFallAlarm();
               }
             } catch (e) {}
           }
@@ -882,15 +1043,43 @@
     function updateStatus(connected, text) {
       const dot = document.getElementById('statusDot');
       const txt = document.getElementById('connStatusText');
-      txt.textContent = text;
-      dot.className = 'status-dot';
-      if (connected) dot.classList.add('connected');
-      else dot.classList.add('connecting');
+      if (txt) txt.textContent = text;
+      if (dot) {
+        dot.className = 'status-dot';
+        if (connected) dot.classList.add('connected');
+        else dot.classList.add('connecting');
+      }
     }
 
     function handleTelemetry(data) {
       const timeStr = new Date().toLocaleTimeString('vi-VN');
-      document.getElementById('dispLastUpdateTime').textContent = `Cập nhật: ${timeStr}`;
+      const dispTime = document.getElementById('dispLastUpdateTime');
+      if (dispTime) dispTime.textContent = `Cập nhật: ${timeStr}`;
+
+      // Uptime
+      if (data.uptime !== undefined) {
+        const up = parseInt(data.uptime, 10);
+        const h = Math.floor(up / 3600);
+        const m = Math.floor((up % 3600) / 60);
+        const s = up % 60;
+        const uptimeStr = h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+        const elUp = document.getElementById('txtEspUptime');
+        if (elUp) elUp.textContent = `ESP32: ${uptimeStr}`;
+      }
+
+      // Kiểm tra trạng thái cảm biến MAX30102 (max_ready)
+      const isMaxReady = data.max_ready !== undefined ? (data.max_ready === true || data.max_ready === "true") : true;
+      const isFinger = data.finger === true || data.finger === "true";
+      const txtFinger = document.getElementById('txtFinger');
+      const iconFinger = document.getElementById('iconFinger');
+
+      if (!isMaxReady) {
+        if (txtFinger) txtFinger.textContent = "Cảm biến: Lỗi kết nối / Phần cứng";
+        if (iconFinger) iconFinger.style.color = "var(--color-danger)";
+      } else {
+        if (txtFinger) txtFinger.textContent = isFinger ? "Cảm biến: Đã nhận tay" : "Cảm biến: Đang chờ tay";
+        if (iconFinger) iconFinger.style.color = isFinger ? "var(--color-steps)" : "var(--color-warning)";
+      }
 
       // 1. Nhịp tim
       if (data.hr !== undefined) {
@@ -899,7 +1088,11 @@
 
         const badge = document.getElementById('badgeHeart');
         const desc = document.getElementById('descHeart');
-        if (hr === 0) {
+        if (!isMaxReady) {
+          badge.className = 'card-badge badge-danger';
+          badge.textContent = 'Lỗi cảm biến';
+          desc.textContent = 'Cảm biến MAX30102 chưa sẵn sàng hoặc lỏng dây I2C (GPIO 37/36).';
+        } else if (hr === 0) {
           badge.className = 'card-badge badge-warning';
           badge.textContent = 'Chờ ngón tay';
           desc.textContent = 'Vui lòng đặt ngón tay lên cảm biến MAX30102 để đo.';
@@ -931,11 +1124,15 @@
 
         const badge = document.getElementById('badgeSpo2');
         const quality = document.getElementById('statSpo2Quality');
-        if (data.spo2 <= 0) {
+        if (!isMaxReady) {
+          badge.className = 'card-badge badge-danger';
+          badge.textContent = 'Lỗi cảm biến';
+          quality.textContent = 'Mất kết nối';
+        } else if (data.spo2 <= 0) {
           badge.className = 'card-badge badge-warning';
           badge.textContent = 'Chờ đo';
           quality.textContent = 'Đang đo';
-        } else if (spo2 < 95.0) {
+        } else if (parseFloat(spo2) < 95.0) {
           badge.className = 'card-badge badge-danger';
           badge.textContent = 'Cảnh báo thấp';
           quality.textContent = 'Cần chú ý';
@@ -960,13 +1157,7 @@
         document.getElementById('valDistance').textContent = `${dist} km`;
       }
 
-      // 4. Trạng thái ngón tay & WiFi
-      if (data.finger !== undefined) {
-        const isFinger = data.finger === true || data.finger === "true";
-        document.getElementById('txtFinger').textContent = isFinger ? "Cảm biến: Đã nhận tay" : "Cảm biến: Đang chờ tay";
-        document.getElementById('iconFinger').style.color = isFinger ? "var(--color-steps)" : "var(--color-warning)";
-      }
-
+      // 4. WiFi
       if (data.rssi !== undefined) {
         const rssi = parseInt(data.rssi, 10);
         let q = "Khá";
@@ -977,9 +1168,19 @@
       }
 
       // 5. Cảnh báo té ngã
-      if (data.fall === true || data.fall === "true") {
-        document.getElementById('fallAlertBanner').classList.add('active');
+      const isFall = data.fall === true || data.fall === "true";
+      const banner = document.getElementById('fallAlertBanner');
+      const desc = document.getElementById('fallAlertDesc');
+      if (isFall) {
+        if (banner) banner.classList.add('active');
+        if (desc) {
+          const force = data.a_mag_ms2 ? ` (Lực va chạm: ${parseFloat(data.a_mag_ms2).toFixed(1)} m/s²)` : '';
+          desc.textContent = `Phát hiện va đập bất thường từ cảm biến MPU6050${force}. Vòng tay đang rung báo động!`;
+        }
         startFallAlarm();
+      } else {
+        if (banner) banner.classList.remove('active');
+        stopFallAlarm();
       }
 
       // 6. Nhiệt độ cảm biến MAX30102 (Nhiệt độ tiếp xúc da)
@@ -988,7 +1189,7 @@
         const elTemp = document.getElementById('valSensorTemp');
         const elTempF = document.getElementById('valSensorTempF');
         const badge = document.getElementById('badgeSensorTemp');
-        const desc = document.getElementById('descSensorTemp');
+        const descTemp = document.getElementById('descSensorTemp');
 
         if (elTemp) elTemp.textContent = data.sensor_temp > 0 ? temp : '--';
         if (elTempF) {
@@ -996,23 +1197,23 @@
           elTempF.textContent = `${f} °F`;
         }
 
-        if (badge && desc) {
-          if (data.sensor_temp <= 0) {
+        if (badge && descTemp) {
+          if (!isMaxReady || data.sensor_temp <= 0) {
             badge.className = 'card-badge badge-warning';
-            badge.textContent = 'Chờ đo';
-            desc.textContent = 'Đang đọc nhiệt độ từ cảm biến MAX30102...';
+            badge.textContent = isMaxReady ? 'Chờ đo' : 'Lỗi cảm biến';
+            descTemp.textContent = isMaxReady ? 'Đang đọc nhiệt độ từ cảm biến MAX30102...' : 'Chưa đọc được dữ liệu nhiệt độ từ MAX30102.';
           } else if (temp > 37.8) {
             badge.className = 'card-badge badge-danger';
             badge.textContent = 'Nhiệt cao';
-            desc.textContent = 'Nhiệt độ tiếp xúc bề mặt da đang ở mức cao.';
+            descTemp.textContent = 'Nhiệt độ tiếp xúc bề mặt da đang ở mức cao.';
           } else if (temp < 32.0) {
             badge.className = 'card-badge badge-warning';
             badge.textContent = 'Lạnh / Tiếp xúc yếu';
-            desc.textContent = 'Cảm biến tiếp xúc chưa khít hoặc nhiệt độ thấp.';
+            descTemp.textContent = 'Cảm biến tiếp xúc chưa khít hoặc nhiệt độ thấp.';
           } else {
             badge.className = 'card-badge badge-normal';
             badge.textContent = 'Bình thường';
-            desc.textContent = 'Nhiệt độ tiếp xúc bề mặt da ổn định lý tưởng.';
+            descTemp.textContent = 'Nhiệt độ tiếp xúc bề mặt da ổn định lý tưởng.';
           }
         }
       }
@@ -1037,10 +1238,8 @@
     }
 
     // Audio Beeper for Fall Emergency
-    let audioCtx = null;
-    let alarmInterval = null;
-
     function playBeep(freq = 950, type = 'sawtooth', durationMs = 250) {
+      if (isAudioMuted) return;
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1071,11 +1270,43 @@
     }
 
     function dismissFallAlert() {
-      document.getElementById('fallAlertBanner').classList.remove('active');
+      const banner = document.getElementById('fallAlertBanner');
+      if (banner) banner.classList.remove('active');
       stopFallAlarm();
       if (mqttClient) {
         mqttClient.publish(`${APP_CONFIG.baseTopic}/fall/dismiss`, "DISMISS");
       }
+    }
+
+    // Config Modal
+    function openConfigModal() {
+      document.getElementById('cfgBrokerUrl').value = APP_CONFIG.brokerUrl;
+      document.getElementById('cfgBaseTopic').value = APP_CONFIG.baseTopic;
+      document.getElementById('modalConfig').classList.add('active');
+    }
+
+    function closeConfigModal() {
+      document.getElementById('modalConfig').classList.remove('active');
+    }
+
+    function saveAndApplyConfig() {
+      const broker = document.getElementById('cfgBrokerUrl').value.trim();
+      const topic = document.getElementById('cfgBaseTopic').value.trim();
+      if (!broker || !topic) {
+        alert('Vui lòng nhập đầy đủ Broker URL và Base Topic!');
+        return;
+      }
+      APP_CONFIG.brokerUrl = broker;
+      APP_CONFIG.baseTopic = topic;
+      localStorage.setItem('mqtt_broker_url', broker);
+      localStorage.setItem('mqtt_base_topic', topic);
+      closeConfigModal();
+      initMQTT();
+    }
+
+    function resetConfigToDefault() {
+      document.getElementById('cfgBrokerUrl').value = 'wss://broker.emqx.io:8084/mqtt';
+      document.getElementById('cfgBaseTopic').value = 'smartband_s3/dev01';
     }
   </script>
 </body>
