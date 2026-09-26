@@ -479,6 +479,167 @@
       gap: 10px;
     }
 
+    /* Power & Battery Estimation Section */
+    .power-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .power-grid { grid-template-columns: 1fr; }
+    }
+    .power-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+    .power-card:hover {
+      box-shadow: var(--shadow-hover);
+      border-color: #cbd5e1;
+    }
+    .battery-status-box {
+      background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin: 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .battery-kpi {
+      display: flex;
+      flex-direction: column;
+    }
+    .battery-kpi-val {
+      font-family: var(--font-display);
+      font-size: 2.3rem;
+      font-weight: 700;
+      color: #059669;
+      line-height: 1.1;
+    }
+    .battery-kpi-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #166534;
+      margin-top: 3px;
+    }
+    .battery-visual-icon {
+      font-size: 40px;
+      color: #10b981;
+    }
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width: 550px) {
+      .scenario-grid { grid-template-columns: 1fr; }
+    }
+    .scenario-box {
+      background: var(--bg-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+      transition: all 0.2s;
+    }
+    .scenario-box.highlight {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
+    .scenario-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .scenario-val {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .scenario-desc {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Component Breakdown Table */
+    .component-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.8rem;
+    }
+    .component-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+    }
+    .component-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--text-main);
+    }
+    .component-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
+    .component-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge-on { background: #dcfce7; color: #15803d; }
+    .badge-off { background: #f1f5f9; color: #64748b; }
+    .badge-alert { background: #fee2e2; color: #b91c1c; }
+
+    /* Capacity Selector */
+    .cap-selector-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .cap-chip {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .cap-chip:hover {
+      border-color: #cbd5e1;
+      background: #e2e8f0;
+    }
+    .cap-chip.active {
+      background: var(--color-primary);
+      color: #ffffff;
+      border-color: var(--color-primary);
+    }
+
     @media (max-width: 768px) {
       .navbar { padding: 12px 16px; }
       .dashboard-container { padding: 14px; gap: 16px; }
@@ -628,6 +789,10 @@
         <div class="device-pill">
           <i class="fa-solid fa-microchip" style="color: #3b82f6"></i>
           <span id="txtEspUptime">ESP32: Online</span>
+        </div>
+        <div class="device-pill" id="pillBattery">
+          <i class="fa-solid fa-battery-three-quarters" id="iconBatteryPill" style="color: #10b981;"></i>
+          <span id="txtBatteryPill">Pin 500mAh: ~10.2h</span>
         </div>
       </div>
     </section>
@@ -804,6 +969,194 @@
       <div class="chart-canvas-wrapper">
         <canvas id="chartHeartSpo2"></canvas>
       </div>
+    </section>
+
+    <!-- SECTION HEADING: POWER & BATTERY PREDICTION -->
+    <div class="section-heading" style="margin-top: 8px;">
+      <h3><i class="fa-solid fa-battery-three-quarters" style="color: #10b981;"></i> NGUỒN TIÊU THỤ & DỰ ĐOÁN THỜI LƯỢNG PIN</h3>
+      <span id="dispBatterySummary">Dung lượng Pin danh định: 500 mAh (Hiệu dụng: 440 mAh)</span>
+    </div>
+
+    <!-- ROW 3: POWER CONSUMPTION & RUNTIME PREDICTION -->
+    <section class="power-grid">
+
+      <!-- LEFT: BATTERY RUNTIME PREDICTION -->
+      <div class="power-card">
+        <div>
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-hourglass-half" style="color: #10b981;"></i>
+              <span>Dự Đoán Thời Lượng Pin (500mAh)</span>
+            </div>
+            <span class="card-badge badge-normal" id="badgePowerState">Chế độ Thường (Active)</span>
+          </div>
+
+          <div class="battery-status-box">
+            <div class="battery-kpi">
+              <div class="battery-kpi-val" id="valHoursEstimated">~10.2 giờ</div>
+              <div class="battery-kpi-label">Thời gian sử dụng thực tế (Hỗn hợp thường ngày)</div>
+            </div>
+            <div class="battery-visual-icon">
+              <i class="fa-solid fa-battery-three-quarters" id="iconBatteryGauge"></i>
+            </div>
+          </div>
+
+          <!-- Total Current & Power -->
+          <div class="step-stat-row">
+            <div class="step-stat-item">
+              <span>Dòng tải hiện tại</span>
+              <strong id="valTotalCurrent" style="color: #0284c7;">58.0 mA</strong>
+            </div>
+            <div class="step-stat-item">
+              <span>Công suất tiêu thụ</span>
+              <strong id="valTotalPower" style="color: #7c3aed;">214.6 mW</strong>
+            </div>
+            <div class="step-stat-item">
+              <span>Hiệu dụng an toàn</span>
+              <strong id="valUsableCap" style="color: #059669;">440 mAh (88%)</strong>
+            </div>
+          </div>
+
+          <!-- 3 Scenarios -->
+          <div class="scenario-grid">
+            <div class="scenario-box" id="scenActive">
+              <div class="scenario-title">🔆 SÁNG LIÊN TỤC</div>
+              <div class="scenario-val" id="valHoursActive">~7.6 h</div>
+              <div class="scenario-desc">Màn hình BẬT 100% (58mA)</div>
+            </div>
+            <div class="scenario-box highlight" id="scenMixed">
+              <div class="scenario-title">⏱️ HỖN HỢP THỰC TẾ</div>
+              <div class="scenario-val" id="valHoursMixed" style="color: var(--color-primary);">~10.2 h</div>
+              <div class="scenario-desc">20% Bật / 80% Tắt (43mA)</div>
+            </div>
+            <div class="scenario-box" id="scenEco">
+              <div class="scenario-title">🌙 TIẾT KIỆM (ECO)</div>
+              <div class="scenario-val" id="valHoursEco" style="color: #10b981;">~11.1 h</div>
+              <div class="scenario-desc">Màn hình TẮT (39.5mA)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Battery Capacity Selector -->
+        <div>
+          <div class="cap-selector-row">
+            <span style="font-size: 0.76rem; font-weight: 600; color: var(--text-muted);">Đổi dung lượng Pin:</span>
+            <span class="cap-chip" onclick="setBatteryCapacity(300, this)">300 mAh</span>
+            <span class="cap-chip active" onclick="setBatteryCapacity(500, this)">500 mAh (Chuẩn)</span>
+            <span class="cap-chip" onclick="setBatteryCapacity(800, this)">800 mAh</span>
+            <span class="cap-chip" onclick="setBatteryCapacity(1000, this)">1000 mAh</span>
+          </div>
+          <div class="card-footer-info" style="margin-top: 14px;">
+            <span>Điện áp danh định: <strong>3.7V Li-Po</strong></span>
+            <span>Ngưỡng ngắt xả an toàn: <strong>3.0V (DoD 88%)</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: COMPONENT BREAKDOWN TABLE -->
+      <div class="power-card">
+        <div>
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-microchip" style="color: var(--color-primary);"></i>
+              <span>Phân Rã Nguồn Tiêu Thụ Toàn Bộ Linh Kiện</span>
+            </div>
+            <span class="card-badge badge-normal" id="badgeComponentCount">6 Module I2C/RF</span>
+          </div>
+
+          <table class="component-table">
+            <thead>
+              <tr>
+                <th>Linh kiện / Thành phần</th>
+                <th>Dòng tải (mA)</th>
+                <th>Công suất</th>
+                <th>Tỷ trọng</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="component-name">
+                    <i class="fa-solid fa-wifi" style="color: #3b82f6;"></i>
+                    <span>ESP32-S3 Mini (WiFi/CPU)</span>
+                  </div>
+                </td>
+                <td id="tblCurEsp">32.5 mA</td>
+                <td id="tblPwrEsp">120.3 mW</td>
+                <td id="tblPctEsp">56.0%</td>
+                <td><span class="component-badge badge-on">Modem Sleep</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="component-name">
+                    <i class="fa-solid fa-tv" style="color: #0284c7;"></i>
+                    <span>Màn hình OLED SSD1306</span>
+                  </div>
+                </td>
+                <td id="tblCurOled">18.5 mA</td>
+                <td id="tblPwrOled">68.5 mW</td>
+                <td id="tblPctOled">31.9%</td>
+                <td><span class="component-badge badge-on" id="tblBadgeOled">BẬT (ON)</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="component-name">
+                    <i class="fa-solid fa-compass" style="color: #ec4899;"></i>
+                    <span>Cảm biến MPU6050 (GY-521)</span>
+                  </div>
+                </td>
+                <td id="tblCurMpu">3.8 mA</td>
+                <td id="tblPwrMpu">14.1 mW</td>
+                <td id="tblPctMpu">6.5%</td>
+                <td><span class="component-badge badge-on">Lấy mẫu 50Hz</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="component-name">
+                    <i class="fa-solid fa-heart-pulse" style="color: #ef4444;"></i>
+                    <span>Cảm biến MAX30102</span>
+                  </div>
+                </td>
+                <td id="tblCurMax">1.2 mA</td>
+                <td id="tblPwrMax">4.4 mW</td>
+                <td id="tblPctMax">2.1%</td>
+                <td><span class="component-badge badge-on" id="tblBadgeMax">Đo quang PPG</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="component-name">
+                    <i class="fa-solid fa-plug" style="color: #8b5cf6;"></i>
+                    <span>Ổn áp LDO & Pullup I2C</span>
+                  </div>
+                </td>
+                <td id="tblCurLdo">2.0 mA</td>
+                <td id="tblPwrLdo">7.4 mW</td>
+                <td id="tblPctLdo">3.4%</td>
+                <td><span class="component-badge badge-on">Dòng tĩnh 3.3V</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="component-name">
+                    <i class="fa-solid fa-bell" style="color: #f59e0b;"></i>
+                    <span>Motor Rung / Còi (GPIO 2)</span>
+                  </div>
+                </td>
+                <td id="tblCurVib">0.0 mA</td>
+                <td id="tblPwrVib">0.0 mW</td>
+                <td id="tblPctVib">0.0%</td>
+                <td><span class="component-badge badge-off" id="tblBadgeVib">TẮT</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-footer-info">
+          <span>Tổng tải hệ thống: <strong id="valTableTotalCur">58.0 mA (~214.6 mW)</strong></span>
+          <span>Điện áp danh định: <strong>3.7V Li-Po</strong></span>
+        </div>
+      </div>
+
     </section>
 
     <!-- FOOTER -->
@@ -1091,7 +1444,7 @@
         if (!isMaxReady) {
           badge.className = 'card-badge badge-danger';
           badge.textContent = 'Lỗi cảm biến';
-          desc.textContent = 'Cảm biến MAX30102 chưa sẵn sàng hoặc lỏng dây I2C (GPIO 37/36).';
+          desc.textContent = 'Cảm biến MAX30102 chưa sẵn sàng hoặc lỏng dây I2C (SDA/SCL).';
         } else if (hr === 0) {
           badge.className = 'card-badge badge-warning';
           badge.textContent = 'Chờ ngón tay';
@@ -1235,6 +1588,9 @@
         }
         heartSpo2Chart.update('none');
       }
+
+      // 8. Cập nhật ước tính nguồn tiêu thụ & pin 500mAh
+      updatePowerAndBattery(data);
     }
 
     // Audio Beeper for Fall Emergency
@@ -1308,6 +1664,168 @@
       document.getElementById('cfgBrokerUrl').value = 'wss://broker.emqx.io:8084/mqtt';
       document.getElementById('cfgBaseTopic').value = 'smartband_s3/dev01';
     }
+
+    // =========================================================================
+    // TÍNH TOÁN NGUỒN TIÊU THỤ & DỰ ĐOÁN THỜI LƯỢNG PIN 500MAH
+    // =========================================================================
+    let batteryCapacityMah = 500; // Mặc định 500 mAh
+    const BATTERY_VOLTAGE = 3.7; // Điện áp danh định pin LiPo (V)
+    const BATTERY_EFFICIENCY = 0.88; // 88% dung lượng an toàn tránh xả sâu (440 mAh / 500 mAh)
+    let lastReceivedTelemetry = null;
+
+    function calculatePowerBreakdown(state) {
+      // 1. ESP32-S3 Mini (160MHz + WiFi Modem Sleep + TX MQTT mỗi 1.5s): ~32.5 mA
+      const iEsp32 = 32.5;
+
+      // 2. Màn hình OLED SSD1306 (128x64): Bật ~18.5 mA, Tắt (Sleep) ~0.05 mA
+      const isScreenOn = (state && state.screen_state) ? (state.screen_state.toUpperCase() === 'ON') : true;
+      const iOled = isScreenOn ? 18.5 : 0.05;
+
+      // 3. MPU6050 (GY-521): Gia tốc 50Hz, 3 trục: ~3.8 mA
+      const iMpu = 3.8;
+
+      // 4. MAX30102: Áp ngón tay đo quang ~1.2 mA, Chờ không áp tay ~0.6 mA
+      const isFinger = state ? (state.finger === true || state.finger === "true") : false;
+      const iMax = isFinger ? 1.2 : 0.6;
+
+      // 5. Mạch ổn áp LDO 3.3V & Trở kéo I2C: ~2.0 mA
+      const iLdo = 2.0;
+
+      // 6. Motor rung báo động (GPIO 2): Khi rung ~70.0 mA, bình thường 0 mA
+      const isVibrating = state ? (state.fall === true || state.fall === "true" || state.is_vibrating === true) : false;
+      const iVibrate = isVibrating ? 70.0 : 0.0;
+
+      const totalCurrentMa = iEsp32 + iOled + iMpu + iMax + iLdo + iVibrate;
+      const totalPowerMw = totalCurrentMa * BATTERY_VOLTAGE;
+
+      const usableCapacityMah = batteryCapacityMah * BATTERY_EFFICIENCY;
+
+      // Kịch bản 1: Màn hình BẬT 100%
+      const currentActive = iEsp32 + 18.5 + iMpu + (isFinger ? 1.2 : 0.6) + iLdo;
+      const hoursActive = usableCapacityMah / currentActive;
+
+      // Kịch bản 2: Màn hình TẮT (Eco)
+      const currentEco = iEsp32 + 0.05 + iMpu + (isFinger ? 1.2 : 0.6) + iLdo;
+      const hoursEco = usableCapacityMah / currentEco;
+
+      // Kịch bản 3: Hỗn hợp thực tế (20% Bật / 80% Tắt)
+      const currentMixed = (currentActive * 0.2) + (currentEco * 0.8);
+      const hoursMixed = usableCapacityMah / currentMixed;
+
+      return {
+        iEsp32,
+        iOled,
+        iMpu,
+        iMax,
+        iLdo,
+        iVibrate,
+        totalCurrentMa,
+        totalPowerMw,
+        hoursActive,
+        hoursEco,
+        hoursMixed,
+        isScreenOn,
+        isVibrating
+      };
+    }
+
+    function setBatteryCapacity(mah, el) {
+      batteryCapacityMah = mah;
+      document.querySelectorAll('.cap-chip').forEach(c => c.classList.remove('active'));
+      if (el) el.classList.add('active');
+      const dispSum = document.getElementById('dispBatterySummary');
+      if (dispSum) {
+        dispSum.textContent = `Dung lượng Pin danh định: ${mah} mAh (Hiệu dụng: ${Math.round(mah * BATTERY_EFFICIENCY)} mAh)`;
+      }
+      updatePowerAndBattery(lastReceivedTelemetry || { screen_state: "ON" });
+    }
+
+    function updatePowerAndBattery(data) {
+      if (data) lastReceivedTelemetry = data;
+      const p = calculatePowerBreakdown(lastReceivedTelemetry);
+
+      const elHoursEst = document.getElementById('valHoursEstimated');
+      if (elHoursEst) elHoursEst.textContent = `~${p.hoursMixed.toFixed(1)} giờ`;
+
+      const elCur = document.getElementById('valTotalCurrent');
+      if (elCur) elCur.textContent = `${p.totalCurrentMa.toFixed(1)} mA`;
+
+      const elPwr = document.getElementById('valTotalPower');
+      if (elPwr) elPwr.textContent = `${p.totalPowerMw.toFixed(1)} mW`;
+
+      const elUsable = document.getElementById('valUsableCap');
+      if (elUsable) elUsable.textContent = `${Math.round(batteryCapacityMah * BATTERY_EFFICIENCY)} mAh (88%)`;
+
+      const elActive = document.getElementById('valHoursActive');
+      if (elActive) elActive.textContent = `~${p.hoursActive.toFixed(1)} h`;
+
+      const elMixed = document.getElementById('valHoursMixed');
+      if (elMixed) elMixed.textContent = `~${p.hoursMixed.toFixed(1)} h`;
+
+      const elEco = document.getElementById('valHoursEco');
+      if (elEco) elEco.textContent = `~${p.hoursEco.toFixed(1)} h`;
+
+      const badgeState = document.getElementById('badgePowerState');
+      if (badgeState) {
+        if (p.isVibrating) {
+          badgeState.className = 'card-badge badge-danger';
+          badgeState.textContent = 'Báo động (Rung motor)';
+        } else if (!p.isScreenOn) {
+          badgeState.className = 'card-badge badge-normal';
+          badgeState.textContent = 'Chế độ Tiết kiệm (Eco)';
+        } else {
+          badgeState.className = 'card-badge badge-normal';
+          badgeState.textContent = 'Chế độ Thường (Active)';
+        }
+      }
+
+      const setEl = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+      setEl('tblCurEsp', `${p.iEsp32.toFixed(1)} mA`);
+      setEl('tblPwrEsp', `${(p.iEsp32 * BATTERY_VOLTAGE).toFixed(1)} mW`);
+      setEl('tblPctEsp', `${((p.iEsp32 / p.totalCurrentMa) * 100).toFixed(1)}%`);
+
+      setEl('tblCurOled', `${p.iOled.toFixed(2)} mA`);
+      setEl('tblPwrOled', `${(p.iOled * BATTERY_VOLTAGE).toFixed(1)} mW`);
+      setEl('tblPctOled', `${((p.iOled / p.totalCurrentMa) * 100).toFixed(1)}%`);
+      const badgeOled = document.getElementById('tblBadgeOled');
+      if (badgeOled) {
+        badgeOled.className = p.isScreenOn ? 'component-badge badge-on' : 'component-badge badge-off';
+        badgeOled.textContent = p.isScreenOn ? 'BẬT (ON)' : 'TẮT (Sleep)';
+      }
+
+      setEl('tblCurMpu', `${p.iMpu.toFixed(1)} mA`);
+      setEl('tblPwrMpu', `${(p.iMpu * BATTERY_VOLTAGE).toFixed(1)} mW`);
+      setEl('tblPctMpu', `${((p.iMpu / p.totalCurrentMa) * 100).toFixed(1)}%`);
+
+      setEl('tblCurMax', `${p.iMax.toFixed(1)} mA`);
+      setEl('tblPwrMax', `${(p.iMax * BATTERY_VOLTAGE).toFixed(1)} mW`);
+      setEl('tblPctMax', `${((p.iMax / p.totalCurrentMa) * 100).toFixed(1)}%`);
+      const badgeMax = document.getElementById('tblBadgeMax');
+      if (badgeMax) {
+        badgeMax.textContent = (lastReceivedTelemetry && (lastReceivedTelemetry.finger === true || lastReceivedTelemetry.finger === "true")) ? 'Đo quang PPG' : 'Chờ ngón tay';
+      }
+
+      setEl('tblCurLdo', `${p.iLdo.toFixed(1)} mA`);
+      setEl('tblPwrLdo', `${(p.iLdo * BATTERY_VOLTAGE).toFixed(1)} mW`);
+      setEl('tblPctLdo', `${((p.iLdo / p.totalCurrentMa) * 100).toFixed(1)}%`);
+
+      setEl('tblCurVib', `${p.iVibrate.toFixed(1)} mA`);
+      setEl('tblPwrVib', `${(p.iVibrate * BATTERY_VOLTAGE).toFixed(1)} mW`);
+      setEl('tblPctVib', `${((p.iVibrate / p.totalCurrentMa) * 100).toFixed(1)}%`);
+      const badgeVib = document.getElementById('tblBadgeVib');
+      if (badgeVib) {
+        badgeVib.className = p.isVibrating ? 'component-badge badge-alert' : 'component-badge badge-off';
+        badgeVib.textContent = p.isVibrating ? 'ĐANG RUNG' : 'TẮT';
+      }
+
+      setEl('valTableTotalCur', `${p.totalCurrentMa.toFixed(1)} mA (~${p.totalPowerMw.toFixed(1)} mW)`);
+
+      const txtPill = document.getElementById('txtBatteryPill');
+      if (txtPill) txtPill.textContent = `Pin ${batteryCapacityMah}mAh: ~${p.hoursMixed.toFixed(1)}h`;
+    }
+
+    // Khởi tạo ban đầu
+    updatePowerAndBattery({ screen_state: "ON" });
   </script>
 </body>
 </html>
