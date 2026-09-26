@@ -215,8 +215,6 @@ void taskSensorsDsp(void *pvParameters) {
         uint32_t red = 0, ir = 0;
         if (max30102.readFifo(red, ir)) {
           ppg.processSample(red, ir, mpu.getAxG(), mpu.getAyG());
-          // Tự động chuyển Eco-Sense (tắt Red LED, IR 0.8mA) khi không chạm ngón tay
-          max30102.setEcoMode(!ppg.isFingerDetected());
         }
         max30102.updateTemperature();
       } else {

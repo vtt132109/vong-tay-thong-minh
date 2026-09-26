@@ -26,17 +26,12 @@ public:
   uint8_t availableSamples();
   bool readFifo(uint32_t &red, uint32_t &ir);
 
-  // Chế độ tiết kiệm năng lượng Eco-Sense
-  void setEcoMode(bool eco);
-  bool isEcoMode() const { return _ecoMode; }
-
   // Đọc nhiệt độ cảm biến không khóa CPU (Non-blocking Asynchronous)
   float updateTemperature();
   float getTemperature() const { return _sensorTemp; }
 
 private:
   bool _ready;
-  bool _ecoMode;
   float _sensorTemp;
   unsigned long _lastTempTriggerMillis;
   bool _tempConverting;

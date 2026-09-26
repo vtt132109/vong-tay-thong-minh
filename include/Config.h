@@ -57,7 +57,7 @@
 // =========================================================================
 // 4. HẰNG SỐ DSP & BỘ LỌC SINH HIỆU PPG (MAX30102)
 // =========================================================================
-#define PPG_TOUCH_MIN_IR 8000           // Ngưỡng phát hiện tiếp xúc da/ngón tay
+#define PPG_TOUCH_MIN_IR 7000           // Ngưỡng phát hiện tiếp xúc da/ngón tay (nhạy và ổn định)
 #define PPG_ADC_SATURATION_LIMIT 260000 // Trần bão hòa ADC 18-bit (262143)
 #define PPG_DC_TRACK_ALPHA 0.96f        // Hệ số lọc thông cao tách thành phần tĩnh DC
 #define PPG_LPF_ALPHA 0.60f             // Hệ số lọc thông thấp chống rung cơ học
@@ -119,7 +119,7 @@
 // =========================================================================
 // true: Xuất liên tục "ax,ay,az\n" ở 50Hz qua Serial cho Edge Impulse Studio
 // false: Chế độ vòng tay bình thường (xuất log nhịp tim & Telemetry)
-#define EDGE_IMPULSE_DATA_FORWARDER true
+#define EDGE_IMPULSE_DATA_FORWARDER false
 
 // =========================================================================
 // 12. CẤU HÌNH TỰ ĐỘNG TẮT & LẮC CỔ TAY SÁNG MÀN HÌNH (WRIST WAKE-UP)
@@ -145,9 +145,8 @@
 #define TINYML_FALL_THRESHOLD_PROB 0.70f  // Ngưỡng Tầng 2: Xác suất mạng nơ-ron xác nhận té ngã (> 70%)
 
 // =========================================================================
-// 15. CẤU HÌNH TIẾT KIỆM NĂNG LƯỢNG ECO-SENSE (MAX30102)
+// 15. CẤU HÌNH DÒNG PHÁT LED QUANG HỌC (MAX30102)
 // =========================================================================
-#define MAX_LED_ACTIVE_CURRENT 0x32       // ~10.0mA khi chạm da/ngón tay
-#define MAX_LED_ECO_IR_CURRENT 0x04       // ~0.8mA khi không chạm da (tiết kiệm 94% dòng LED)
+#define MAX_LED_ACTIVE_CURRENT 0x32       // ~10.0mA chuẩn cho mạch đập mao mạch cổ tay/ngón tay
 
 #endif // CONFIG_H
