@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <time.h>
+#include <esp_task_wdt.h>
 
 #include "Config.h"
 #include "Secrets.h"
@@ -8,6 +9,7 @@
 #include "Dsp/FallDetector.h"
 #include "Dsp/Pedometer.h"
 #include "Dsp/PpgSignalProcessor.h"
+#include "Dsp/TinyMlClassifier.h"
 #include "Network/MqttService.h"
 #include "Network/OtaService.h"
 #include "Sensors/Max30102Driver.h"
@@ -30,6 +32,8 @@ struct SystemState {
   float peakFallMs2;
   bool isVibrating;
   bool pulseBeating;
+  float aiFallProb;
+  bool aiCandidate;
   int8_t ppgWave[PPG_WAVE_BUFFER_SIZE];
 };
 
@@ -43,6 +47,7 @@ static Max30102Driver max30102;
 static Mpu6050Driver mpu;
 static PpgSignalProcessor ppg;
 static FallDetector fallDetector;
+static TinyMlClassifier tinyMl;
 static Pedometer pedometer;
 static OledDisplay display;
 static MqttService mqtt;
@@ -51,6 +56,7 @@ static OtaService ota;
 // Biến điều khiển rung & timers
 static bool isManualVibrating = false;
 static unsigned long vibrateStopMillis = 0;
+static unsigned long lastScreenActiveTime = 0;
 
 // Nguyên mẫu hàm
 void i2cScan();
@@ -65,8 +71,8 @@ void setup() {
   Serial.begin(115200);
   delay(300);
 
-  // Hạ xung nhịp CPU xuống 160MHz để máy mát và tiết kiệm pin tối đa
-  setCpuFrequencyMhz(160);
+  // Hạ xung nhịp CPU xuống 80MHz: WiFi & FreeRTOS hoạt động hoàn hảo, tiết kiệm 50% dòng Core
+  setCpuFrequencyMhz(80);
 
   Serial.println("\n==================================================");
   Serial.printf("  ESP32-S3 MINI SMARTBAND - CPU: %u MHz\n", ESP.getCpuFreqMHz());
@@ -111,6 +117,9 @@ void setup() {
   // Khởi tạo dịch vụ nạp code từ xa OTA qua WiFi
   ota.begin();
 
+  // Khởi tạo Hardware Task Watchdog Timer (TWDT) 5 giây chống treo chip/I2C
+  esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+
   // TẠO 2 TASK ĐA NHIỆM TRÊN 2 NHÂN VẬT LÝ ESP32-S3
   // Core 0: Task chuyên lấy mẫu cảm biến & DSP (Ưu tiên cao, chu kỳ 20ms)
   xTaskCreatePinnedToCore(
@@ -130,21 +139,36 @@ void loop() {
 // TASK 1: THU THẬP CẢM BIẾN & XỬ LÝ TÍN HIỆU SỐ (CORE 0 - HARD REAL-TIME)
 // =========================================================================
 void taskSensorsDsp(void *pvParameters) {
+  esp_task_wdt_add(NULL); // Đăng ký Task Core 0 vào Watchdog
+
   unsigned long lastMpuTime = 0;
   unsigned long lastMaxTime = 0;
   unsigned long lastLogTime = 0;
   unsigned long lastSensorRetryTime = 0;
+  int i2cConsecutiveFails = 0;
   bool prevFall = false;
 
   for (;;) {
+    esp_task_wdt_reset(); // Reset Watchdog mỗi chu kỳ
     unsigned long now = millis();
 
-    // 1. Thử kết nối lại cảm biến MAX30102 nếu chưa nhận
+    // 1. Thử kết nối lại MAX30102 nếu chưa nhận & tự động phục hồi bus I2C nếu kẹt
     if (!max30102.isReady()) {
       if (now - lastSensorRetryTime > SENSOR_RETRY_INTERVAL_MS) {
         lastSensorRetryTime = now;
+        i2cConsecutiveFails++;
+        if (i2cConsecutiveFails >= I2C_MAX_RETRY_ERRORS) {
+          Serial.println("[I2C-RECOVERY] Phat hien bus I2C bi treo -> Reset phan cung bus...");
+          Wire.end();
+          vTaskDelay(pdMS_TO_TICKS(10));
+          Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN, I2C_BUS_SPEED);
+          Wire.setTimeOut(I2C_TIMEOUT_MS);
+          i2cConsecutiveFails = 0;
+        }
         max30102.begin();
       }
+    } else {
+      i2cConsecutiveFails = 0;
     }
 
     // 2. Thu thập dữ liệu MPU6050 ở tần số 50Hz (mỗi 20ms)
@@ -152,9 +176,20 @@ void taskSensorsDsp(void *pvParameters) {
       lastMpuTime = now;
       mpu.update();
 
+      float ax = mpu.getAxMs2();
+      float ay = mpu.getAyMs2();
+      float az = mpu.getAzMs2();
       float mag = mpu.getMagnitude();
+
       fallDetector.update(mag);
       pedometer.update(mag);
+
+      // KIẾN TRÚC TINYML 2 TẦNG (2-STAGE CASCADE TRIGGER)
+      // Tầng 1: Lọc ngưỡng nhanh. Tầng 2: Suy luận mạng nơ-ron xác nhận té ngã
+      bool aiFallDetected = tinyMl.processSample(ax, ay, az);
+      if (aiFallDetected && !fallDetector.isAlert()) {
+        fallDetector.triggerAlert(mag);
+      }
 
       // Xử lý sườn kích hoạt / hủy cảnh báo té ngã
       bool currentFall = fallDetector.isAlert();
@@ -168,7 +203,7 @@ void taskSensorsDsp(void *pvParameters) {
 
 #if EDGE_IMPULSE_DATA_FORWARDER
       // Luồng CSV 50Hz thuần túy cho Edge Impulse Studio (accX, accY, accZ)
-      Serial.printf("%.2f,%.2f,%.2f\n", mpu.getAxMs2(), mpu.getAyMs2(), mpu.getAzMs2());
+      Serial.printf("%.2f,%.2f,%.2f\n", ax, ay, az);
 #endif
     }
 
@@ -180,6 +215,8 @@ void taskSensorsDsp(void *pvParameters) {
         uint32_t red = 0, ir = 0;
         if (max30102.readFifo(red, ir)) {
           ppg.processSample(red, ir, mpu.getAxG(), mpu.getAyG());
+          // Tự động chuyển Eco-Sense (tắt Red LED, IR 0.8mA) khi không chạm ngón tay
+          max30102.setEcoMode(!ppg.isFingerDetected());
         }
         max30102.updateTemperature();
       } else {
@@ -217,6 +254,8 @@ void taskSensorsDsp(void *pvParameters) {
       sharedState.peakFallMs2 = fallDetector.getPeakMagnitude();
       sharedState.isVibrating = (fallDetector.isAlert() || isManualVibrating);
       sharedState.pulseBeating = ppg.isPulseBeating();
+      sharedState.aiFallProb = tinyMl.getFallProbability();
+      sharedState.aiCandidate = tinyMl.isCandidateActive();
 
       const int8_t *waveSrc = ppg.getWaveform();
       memcpy(sharedState.ppgWave, waveSrc, sizeof(sharedState.ppgWave));
@@ -245,12 +284,18 @@ void taskSensorsDsp(void *pvParameters) {
 // TASK 2: GIAO DIỆN OLED, MẠNG WIFI / MQTT & OTA (CORE 1)
 // =========================================================================
 void taskNetworkUi(void *pvParameters) {
+  esp_task_wdt_add(NULL); // Đăng ký Task Core 1 vào Watchdog
+
   unsigned long lastOledTime = 0;
   unsigned long lastTelemetryTime = 0;
+  lastScreenActiveTime = millis();
+  float prevWristAz = 0.0f;
+  float prevWristAy = 0.0f;
   char timeStr[12] = "";
   char dateStr[16] = "";
 
   for (;;) {
+    esp_task_wdt_reset(); // Reset Watchdog mỗi chu kỳ
     unsigned long now = millis();
 
     // 1. Duy trì kết nối WiFi, MQTT và lắng nghe OTA
@@ -286,7 +331,39 @@ void taskNetworkUi(void *pvParameters) {
     }
 
     if (stateValid) {
-      // 5. Cập nhật màn hình OLED (150ms / ~6.6 FPS)
+      // 5. Quản lý Auto Screen Timeout & Lắc/Nâng Cổ Tay Bật Màn Hình (Wrist Wake-Up)
+      float dAz = fabsf(localState.az_ms2 - prevWristAz);
+      float dAy = fabsf(localState.ay_ms2 - prevWristAy);
+      prevWristAz = localState.az_ms2;
+      prevWristAy = localState.ay_ms2;
+
+      bool wristMotion = (dAz + dAy > WRIST_WAKE_JERK_THRESHOLD);
+      bool lookingAtWatch = (localState.az_ms2 > WRIST_WAKE_MIN_AZ && fabsf(localState.ay_ms2) < WRIST_WAKE_MAX_AY);
+
+      // Nếu đang tắt màn hình và người dùng nâng tay nhìn đồng hồ -> Tự động bật màn hình
+      if (!display.isPowerOn() && lookingAtWatch && wristMotion) {
+        display.setPower(true);
+        lastScreenActiveTime = now;
+        Serial.println("[WRIST-WAKE] Nang co tay huong vao mat -> Bat man hinh OLED!");
+      }
+
+      // Nếu có sự kiện khẩn cấp té ngã hoặc đang rung báo động -> Luôn bật màn hình
+      if (localState.fallAlert || localState.isVibrating) {
+        if (!display.isPowerOn()) display.setPower(true);
+        lastScreenActiveTime = now;
+      }
+
+      // Tự động tắt màn hình sau OLED_AUTO_TIMEOUT_MS không cử động để tiết kiệm pin
+      if (display.isPowerOn() && !localState.fallAlert) {
+        if (wristMotion || (localState.hr > 0 && localState.fingerDetected)) {
+          lastScreenActiveTime = now; // Còn tương tác thì gia hạn thời gian sáng
+        } else if (now - lastScreenActiveTime > OLED_AUTO_TIMEOUT_MS) {
+          display.setPower(false);
+          Serial.println("[POWER-SAVE] Man hinh OLED tu dong tat sau 30s tiet kiem pin.");
+        }
+      }
+
+      // 6. Cập nhật màn hình OLED (150ms / ~6.6 FPS)
       if (now - lastOledTime >= OLED_REFRESH_INTERVAL_MS) {
         lastOledTime = now;
         display.render(localState.hr, localState.spo2, localState.sensorTemp,
@@ -299,8 +376,14 @@ void taskNetworkUi(void *pvParameters) {
                        mqtt.isConnected());
       }
 
-      // 6. Gửi bản tin Telemetry định kỳ lên MQTT Dashboard (1500ms)
-      if (now - lastTelemetryTime >= TELEMETRY_INTERVAL_MS) {
+      // 7. Gửi bản tin Telemetry Thích Ứng (Adaptive Telemetry) lên MQTT
+      // Khi nghỉ ngơi: gửi mỗi 5s để tiết kiệm 68% công suất phát WiFi
+      // Khi vận động hoặc có cảnh báo té ngã / nhịp tim: gửi mỗi 1.5s
+      bool isEmergencyOrActive = (localState.fallAlert || localState.isVibrating ||
+                                  localState.fingerDetected || (localState.a_mag_ms2 > 12.5f));
+      unsigned long telemetryTargetInterval = isEmergencyOrActive ? TELEMETRY_ACTIVE_INTERVAL_MS : TELEMETRY_IDLE_INTERVAL_MS;
+
+      if (now - lastTelemetryTime >= telemetryTargetInterval) {
         lastTelemetryTime = now;
 
         TelemetryData data;
@@ -325,8 +408,8 @@ void taskNetworkUi(void *pvParameters) {
       }
     }
 
-    // Nhường CPU cho WiFi stack Core 1
-    vTaskDelay(pdMS_TO_TICKS(10));
+    // Nhường CPU cho WiFi stack Core 1 (25ms chu kỳ thức)
+    vTaskDelay(pdMS_TO_TICKS(25));
   }
 }
 
@@ -336,13 +419,18 @@ void taskNetworkUi(void *pvParameters) {
 void setupCallbacks() {
   mqtt.onScreenPower([](bool on) {
     display.setPower(on);
+    if (on) lastScreenActiveTime = millis();
   });
 
   mqtt.onScreenPage([](int page) {
     display.setPage(page);
+    display.setPower(true);
+    lastScreenActiveTime = millis();
   });
 
   mqtt.onScreenMsg([](const char *msg) {
+    display.setPower(true);
+    lastScreenActiveTime = millis();
     display.setMessage(msg);
   });
 

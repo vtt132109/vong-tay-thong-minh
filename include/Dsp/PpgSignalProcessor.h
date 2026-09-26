@@ -14,9 +14,9 @@ public:
   // Reset toàn bộ bộ lọc về trạng thái ban đầu
   void reset();
 
-  // Lấy kết quả sau lọc
-  int getHeartRate() const { return _heartRate; }
-  float getSpO2() const { return _spo2; }
+  // Lấy kết quả sau lọc (trả về 0 khi không chạm da)
+  int getHeartRate() const { return _fingerDetected ? _heartRate : 0; }
+  float getSpO2() const { return _fingerDetected ? _spo2 : 0.0f; }
   bool isFingerDetected() const { return _fingerDetected; }
   uint32_t getRawRed() const { return _rawRed; }
   uint32_t getRawIr() const { return _rawIr; }

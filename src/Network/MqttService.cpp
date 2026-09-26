@@ -18,6 +18,7 @@ void MqttService::staticMqttCallback(char *topic, byte *payload,
 
 void MqttService::begin() {
   connectWiFi();
+  _espClient.setTimeout(2); // Timeout TCP socket tối đa 2s chống block lâu
   _mqttClient.setServer(SECRET_MQTT_BROKER, SECRET_MQTT_PORT);
   _mqttClient.setCallback(staticMqttCallback);
   _mqttClient.setBufferSize(768);
@@ -129,7 +130,7 @@ void MqttService::handleMessage(char *topic, byte *payload,
     publishScreenStatus(on ? "ON" : "OFF");
   } else if (strcmp(topic, TOPIC_SCREEN_PAGE_SET) == 0) {
     int targetPage = atoi(message);
-    if (targetPage >= 1 && targetPage <= 3) {
+    if (targetPage >= 0 && targetPage <= 3) {
       if (_onScreenPage) _onScreenPage(targetPage);
       publishPageStatus(targetPage);
     }

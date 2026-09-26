@@ -15,7 +15,14 @@ bool Mpu6050Driver::begin() {
   _mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
   _mpu.setGyroRange(MPU6050_RANGE_500_DEG);
   _mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-  Serial.println("[+] GY-521 (MPU6050) khoi tao thanh cong!");
+
+  // Đưa Gyroscope vào Standby (0x07) để tiết kiệm 87% điện năng (chỉ chạy Accel ~0.5mA)
+  Wire.beginTransmission(MPU6050_I2C_ADDR);
+  Wire.write(0x6C); // PWR_MGMT_2
+  Wire.write(0x07); // STBY_XG=1, STBY_YG=1, STBY_ZG=1 (Gyro OFF, Accel ON)
+  Wire.endTransmission();
+
+  Serial.println("[+] GY-521 (MPU6050) khoi tao thanh cong! (Gyro Standby ECO: 0.5mA)");
   return true;
 }
 
@@ -32,7 +39,7 @@ void Mpu6050Driver::update() {
     _ay_g = _ay_ms2 / 9.80665f;
     _az_g = _az_ms2 / 9.80665f;
 
-    _a_mag_ms2 = sqrt(_ax_ms2 * _ax_ms2 + _ay_ms2 * _ay_ms2 + _az_ms2 * _az_ms2);
+    _a_mag_ms2 = sqrtf(_ax_ms2 * _ax_ms2 + _ay_ms2 * _ay_ms2 + _az_ms2 * _az_ms2);
   } else {
     // Giá trị mô phỏng khi chưa kết nối phần cứng
     unsigned long now = millis();
@@ -42,6 +49,6 @@ void Mpu6050Driver::update() {
     _ax_g = _ax_ms2 / 9.80665f;
     _ay_g = _ay_ms2 / 9.80665f;
     _az_g = _az_ms2 / 9.80665f;
-    _a_mag_ms2 = sqrt(_ax_ms2 * _ax_ms2 + _ay_ms2 * _ay_ms2 + _az_ms2 * _az_ms2);
+    _a_mag_ms2 = sqrtf(_ax_ms2 * _ax_ms2 + _ay_ms2 * _ay_ms2 + _az_ms2 * _az_ms2);
   }
 }

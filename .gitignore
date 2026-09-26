@@ -8,3 +8,5 @@ include/Secrets.h
 .agents/
 edge_impulse_dataset/
 tasks/
+ei_key.txt
+__pycache__/

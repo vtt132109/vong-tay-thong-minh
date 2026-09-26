@@ -31,7 +31,7 @@ private:
   unsigned long _freefallStartMillis;
   unsigned long _impactMillis;
   unsigned long _immobilityStartMillis;
-  unsigned long _alertExpireMillis;
+  unsigned long _alertStartMillis;
   float _peakMagnitude;
   float _immobilityMinMag, _immobilityMaxMag;
 };

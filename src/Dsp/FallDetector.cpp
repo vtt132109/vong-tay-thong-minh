@@ -2,13 +2,13 @@
 
 FallDetector::FallDetector()
     : _state(FALL_IDLE), _freefallStartMillis(0), _impactMillis(0),
-      _immobilityStartMillis(0), _alertExpireMillis(0), _peakMagnitude(9.81f),
+      _immobilityStartMillis(0), _alertStartMillis(0), _peakMagnitude(9.81f),
       _immobilityMinMag(999.0f), _immobilityMaxMag(-999.0f) {}
 
 void FallDetector::triggerAlert(float peakMs2) {
   _state = FALL_ALERT_ACTIVE;
   _peakMagnitude = peakMs2;
-  _alertExpireMillis = millis() + FALL_ALERT_DURATION_MS;
+  _alertStartMillis = millis();
   Serial.printf("\n[CANH BAO TE NGA] Xac nhan nga voi gia toc dinh: %.2f m/s2\n", peakMs2);
 }
 
@@ -83,8 +83,8 @@ void FallDetector::update(float magnitude) {
     break;
 
   case FALL_ALERT_ACTIVE:
-    // Duy trì báo động trong 15s hoặc cho đến khi dismiss
-    if (now >= _alertExpireMillis) {
+    // Duy trì báo động trong 15s hoặc cho đến khi dismiss (chống tràn số millis)
+    if (now - _alertStartMillis >= FALL_ALERT_DURATION_MS) {
       dismiss();
     }
     break;

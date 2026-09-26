@@ -1548,7 +1548,10 @@
               Chuyển đổi giao diện màn hình OLED:
             </label>
             <div class="page-buttons">
-              <button class="btn-oled-page active-page" id="btnPage1" onclick="sendOledPage(1)">
+              <button class="btn-oled-page active-page" id="btnPage0" onclick="sendOledPage(0)">
+                <i class="fa-solid fa-clock"></i> P0: Đồng hồ
+              </button>
+              <button class="btn-oled-page" id="btnPage1" onclick="sendOledPage(1)">
                 <i class="fa-solid fa-heart-pulse"></i> P1: Sức khỏe
               </button>
               <button class="btn-oled-page" id="btnPage2" onclick="sendOledPage(2)">
@@ -2713,7 +2716,15 @@
         line2.textContent = `"${deviceState.customMessage}"`;
         line3.textContent = "SmartBand S3";
       }
-      // 3. Trang 1: Sức khỏe (Nhịp tim & SpO2)
+      // 3. Trang 0: Mặt đồng hồ thông minh (Watchface)
+      else if (deviceState.oled_page === 0) {
+        headerLeft.textContent = "WATCHFACE      [P0]";
+        line1.textContent = document.getElementById('oledSimClock') ? document.getElementById('oledSimClock').textContent : "12:00:00";
+        line2.textContent = new Date().toLocaleDateString('vi-VN');
+        const hrStr = deviceState.hr > 0 ? `${deviceState.hr} BPM` : '--';
+        line3.textContent = `Stp: ${(deviceState.steps || 0).toLocaleString()} | HR: ${hrStr}`;
+      }
+      // 4. Trang 1: Sức khỏe (Nhịp tim & SpO2)
       else if (deviceState.oled_page === 1) {
         headerLeft.textContent = "HEALTH MONITOR [P1]";
         if (deviceState.max_ready === false) {
@@ -2730,7 +2741,7 @@
           line3.textContent = deviceState.sensor_temp > 0 ? `T: ${deviceState.sensor_temp} C | OK` : "MAX30102 OK";
         }
       }
-      // 4. Trang 2: Đếm bước chân & Calo
+      // 5. Trang 2: Đếm bước chân & Calo
       else if (deviceState.oled_page === 2) {
         headerLeft.textContent = "PEDOMETER      [P2]";
         line1.textContent = `STEPS: ${(deviceState.steps || 0).toLocaleString()}`;
@@ -2738,7 +2749,7 @@
         line2.textContent = `Cal: ${cal} kcal`;
         line3.textContent = `Dist: ${(((deviceState.steps || 0) * 0.75) / 1000).toFixed(2)} km`;
       }
-      // 5. Trang 3: Cảm biến gia tốc GY-521 (m/s^2)
+      // 6. Trang 3: Cảm biến gia tốc GY-521 (m/s^2)
       else if (deviceState.oled_page === 3) {
         headerLeft.textContent = "ACCEL (m/s2)   [P3]";
         line1.textContent = `Ax:${deviceState.ax_ms2 || 0} Ay:${deviceState.ay_ms2 || 0}`;
@@ -2780,7 +2791,7 @@
     }
 
     function updateOledPageButtonHighlight(page) {
-      [1, 2, 3].forEach(p => {
+      [0, 1, 2, 3].forEach(p => {
         const btn = document.getElementById(`btnPage${p}`);
         if (btn) {
           if (p === page) btn.classList.add('active-page');

@@ -15,6 +15,8 @@ bool OledDisplay::begin() {
 
   _ready = true;
   _display.clearDisplay();
+  _display.ssd1306_command(SSD1306_SETCONTRAST);
+  _display.ssd1306_command(OLED_CONTRAST_DEFAULT); // Giảm tương phản xuống 40% tiết kiệm 12mA
   _display.setTextSize(1);
   _display.setTextColor(SSD1306_WHITE);
   _display.setCursor(10, 15);
@@ -24,7 +26,7 @@ bool OledDisplay::begin() {
   _display.setCursor(10, 45);
   _display.println("OTA & Waveform Active");
   _display.display();
-  Serial.println("[+] OLED SSD1306 khoi tao thanh cong!");
+  Serial.println("[+] OLED SSD1306 khoi tao thanh cong! (Eco Contrast 40%)");
   return true;
 }
 

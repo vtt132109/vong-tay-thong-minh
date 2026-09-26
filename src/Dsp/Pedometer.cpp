@@ -45,7 +45,7 @@ void Pedometer::update(float magnitude) {
       _stepCount++;
       _lastStepMillis = now;
       _stepArmed = false;
-      checkAutoSave();
+      // Việc lưu Flash NVS (checkAutoSave) do Core 1 đảm nhiệm độc quyền
     }
   }
 }

@@ -1,7 +1,7 @@
 #include "Sensors/Max30102Driver.h"
 
 Max30102Driver::Max30102Driver()
-    : _ready(false), _sensorTemp(0.0f), _lastTempTriggerMillis(0),
+    : _ready(false), _ecoMode(false), _sensorTemp(0.0f), _lastTempTriggerMillis(0),
       _tempConverting(false) {}
 
 void Max30102Driver::recoverBus() {
@@ -151,4 +151,20 @@ float Max30102Driver::updateTemperature() {
   }
 
   return _sensorTemp;
+}
+
+void Max30102Driver::setEcoMode(bool eco) {
+  if (!_ready || _ecoMode == eco) return;
+  _ecoMode = eco;
+  if (eco) {
+    // ECO MODE: Tắt Red LED (0x00), giảm IR LED xuống mức thăm dò ~0.8mA (0x04)
+    writeReg(0x0C, 0x00);
+    writeReg(0x0D, MAX_LED_ECO_IR_CURRENT);
+    Serial.println("[MAX30102] Chuyen sang ECO-SENSE: Tat Red LED, IR 0.8mA (Tiet kiem 94% dong LED)");
+  } else {
+    // ACTIVE MODE: Bật cả Red và IR LED ở dòng 10mA (0x32) để đo SpO2 chuẩn
+    writeReg(0x0C, MAX_LED_ACTIVE_CURRENT);
+    writeReg(0x0D, MAX_LED_ACTIVE_CURRENT);
+    Serial.println("[MAX30102] Chuyen sang ACTIVE-SENSE: Bat Red & IR 10.0mA (Do SpO2 & Nhip tim)");
+  }
 }

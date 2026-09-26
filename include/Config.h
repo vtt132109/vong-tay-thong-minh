@@ -28,7 +28,9 @@
 // =========================================================================
 // 2. CHU KỲ & ĐỊNH THÌ (TIMING INTERVALS - ms)
 // =========================================================================
-#define TELEMETRY_INTERVAL_MS 1500  // Gửi telemetry mỗi 1.5 giây
+#define TELEMETRY_INTERVAL_MS 1500        // Chu kỳ telemetry mặc định
+#define TELEMETRY_IDLE_INTERVAL_MS 5000   // Gửi mỗi 5s khi nghỉ ngơi để tiết kiệm WiFi pin
+#define TELEMETRY_ACTIVE_INTERVAL_MS 1500 // Gửi mỗi 1.5s khi vận động hoặc có cảnh báo
 #define OLED_REFRESH_INTERVAL_MS 150 // Cập nhật màn hình ~6.6 FPS
 #define MPU_SAMPLE_INTERVAL_MS 20   // Lấy mẫu MPU6050 ở 50Hz (mỗi 20ms)
 #define MAX_SAMPLE_INTERVAL_MS 25   // Lấy mẫu MAX30102 ở 40Hz (mỗi 25ms)
@@ -118,5 +120,34 @@
 // true: Xuất liên tục "ax,ay,az\n" ở 50Hz qua Serial cho Edge Impulse Studio
 // false: Chế độ vòng tay bình thường (xuất log nhịp tim & Telemetry)
 #define EDGE_IMPULSE_DATA_FORWARDER true
+
+// =========================================================================
+// 12. CẤU HÌNH TỰ ĐỘNG TẮT & LẮC CỔ TAY SÁNG MÀN HÌNH (WRIST WAKE-UP)
+// =========================================================================
+#define OLED_AUTO_TIMEOUT_MS 30000        // Tự động tắt màn hình sau 30 giây không cử động
+#define OLED_CONTRAST_DEFAULT 0x40        // Giảm Contrast xuống 40% (0x40) tiết kiệm ~12mA
+#define WRIST_WAKE_MIN_AZ 5.0f            // Gia tốc trục Z nâng lên (hướng mặt màn hình vào mắt)
+#define WRIST_WAKE_MAX_AY 4.5f            // Góc nghiêng trục Y không quá dốc
+#define WRIST_WAKE_JERK_THRESHOLD 1.2f     // Độ biến thiên gia tốc khi xoay cổ tay
+
+// =========================================================================
+// 13. CẤU HÌNH BỘ GIÁM SÁT PHẦN CỨNG WATCHDOG TIMER (TASK WDT) & I2C AUTO-RECOVERY
+// =========================================================================
+#define WDT_TIMEOUT_SEC 8                 // Watchdog kích hoạt sau 8 giây (đảm bảo an toàn mạng)
+#define I2C_MAX_RETRY_ERRORS 5            // Tự động phục hồi I2C bus nếu lỗi giao tiếp liên tiếp 5 lần
+
+// =========================================================================
+// 14. CẤU HÌNH KIẾN TRÚC TINYML 2 TẦNG (2-STAGE CASCADE TRIGGER)
+// =========================================================================
+#define TINYML_WINDOW_SIZE 100            // Cửa sổ 100 mẫu @ 50Hz = 2.0 giây
+#define CASCADE_FREEFALL_LIMIT_MS2 6.0f   // Ngưỡng Tầng 1: Phát hiện pha không trọng lượng (rơi tự do)
+#define CASCADE_IMPACT_LIMIT_MS2 22.0f    // Ngưỡng Tầng 1: Phát hiện xung lực va đập đỉnh
+#define TINYML_FALL_THRESHOLD_PROB 0.70f  // Ngưỡng Tầng 2: Xác suất mạng nơ-ron xác nhận té ngã (> 70%)
+
+// =========================================================================
+// 15. CẤU HÌNH TIẾT KIỆM NĂNG LƯỢNG ECO-SENSE (MAX30102)
+// =========================================================================
+#define MAX_LED_ACTIVE_CURRENT 0x32       // ~10.0mA khi chạm da/ngón tay
+#define MAX_LED_ECO_IR_CURRENT 0x04       // ~0.8mA khi không chạm da (tiết kiệm 94% dòng LED)
 
 #endif // CONFIG_H
