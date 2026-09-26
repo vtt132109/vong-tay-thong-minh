@@ -4,3 +4,7 @@
 .vscode/launch.json
 .vscode/ipch
 .git_bin/
+include/Secrets.h
+.agents/
+edge_impulse_dataset/
+tasks/

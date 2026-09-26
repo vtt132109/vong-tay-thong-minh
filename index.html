@@ -1612,8 +1612,22 @@
       } catch (e) {}
     }
 
+    function triggerWebNotification(title, body) {
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") {
+        try { new Notification(title, { body: body }); } catch (e) {}
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            try { new Notification(title, { body: body }); } catch (e) {}
+          }
+        });
+      }
+    }
+
     function startFallAlarm() {
       if (alarmInterval) return;
+      triggerWebNotification("CẢNH BÁO TÉ NGÃ KHẨN CẤP!", "Phát hiện sự cố va đập hoặc té ngã từ SmartBand S3!");
       playBeep();
       alarmInterval = setInterval(playBeep, 600);
     }

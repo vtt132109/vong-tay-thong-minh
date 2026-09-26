@@ -2129,8 +2129,22 @@
       } catch (e) {}
     }
 
+    function triggerWebNotification(title, body) {
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") {
+        try { new Notification(title, { body: body }); } catch (e) {}
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            try { new Notification(title, { body: body }); } catch (e) {}
+          }
+        });
+      }
+    }
+
     function startFallAlarm() {
       if (alarmInterval) return;
+      triggerWebNotification("CẢNH BÁO TÉ NGÃ KHẨN CẤP!", "SmartBand S3 phát hiện sự cố rơi tự do hoặc va đập mạnh!");
       playBeep(950, 'sawtooth', 250);
       alarmInterval = setInterval(() => {
         playBeep(950, 'sawtooth', 250);
@@ -2301,7 +2315,7 @@
             if (banner) banner.classList.add('active');
             if (desc) {
               const force = alert.mag_ms2 ? ` (Lực va chạm: ${parseFloat(alert.mag_ms2).toFixed(1)} m/s²)` : '';
-              desc.innerHTML = `Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050${force}! Vòng tay đang rung báo động!`;
+              desc.textContent = `Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050${force}! Vòng tay đang rung báo động!`;
             }
             startFallAlarm();
             updateOledScreenVisual();
@@ -2530,7 +2544,7 @@
         if (banner) banner.classList.add('active');
         if (desc) {
           const force = data.a_mag_ms2 ? ` (Lực va chạm: ${parseFloat(data.a_mag_ms2).toFixed(1)} m/s²)` : '';
-          desc.innerHTML = `Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050${force}! Vòng tay đang rung báo động!`;
+          desc.textContent = `Phát hiện chuyển động rơi tự do hoặc va đập mạnh từ cảm biến MPU6050${force}! Vòng tay đang rung báo động!`;
         }
         startFallAlarm();
       } else {
