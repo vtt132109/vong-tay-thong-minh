@@ -1602,6 +1602,84 @@ transition-duration: .001ms !important;
 
   <script>
     (() => {
+      if (!new URLSearchParams(location.search).has("demo")) return;
+      const ORDER = ["IDLE", "COUNTDOWN", "ALARM", "SNOOZE"];
+      const DUR = { IDLE: 12, COUNTDOWN: 10, ALARM: 10, SNOOZE: 10 };
+      let phase = "IDLE";
+      let phaseEnd = Date.now() + DUR.IDLE * 1000;
+      let thresh = 25;
+      let falls = 3;
+      let steps = 1420;
+      let testUntil = 0;
+      const t0 = Date.now();
+      const ok = () => Promise.resolve(new Response("OK", { status: 200, headers: { "Content-Type": "text/plain" } }));
+      function sample() {
+        const now = Date.now();
+        while (now >= phaseEnd) {
+          phase = ORDER[(ORDER.indexOf(phase) + 1) % ORDER.length];
+          phaseEnd = now + DUR[phase] * 1000;
+        }
+        const t = (now - t0) / 1000;
+        const left = Math.max(0, (phaseEnd - now) / 1000);
+        const bpm = Math.round(75 + 1.6 * Math.sin(t / 2.3) + (Math.random() * 1.4 - 0.7));
+        const spo2 = Math.round(97 + 0.7 * Math.sin(t / 3.7) + (Math.random() * 0.8 - 0.4));
+        return {
+          state: phase, bpm, spo2,
+          raw_bpm: +(bpm + Math.random() * 3 - 1.5).toFixed(1),
+          raw_spo2: Math.min(99, Math.max(95, spo2 + Math.round(Math.random() * 2 - 1))),
+          acc: +(10.05 + 0.2 * Math.sin(t * 3.1) + 0.07 * Math.sin(t * 11.3)).toFixed(2),
+          thresh, max30102: true, lead_off: false, falls, fps: 49.1, steps,
+          distance_km: +(steps * 0.0007).toFixed(3),
+          calories: +(steps * 0.03).toFixed(1),
+          battery_v: 3.94, battery_pct: 88, ram_pct: 42,
+          buzzer: phase === "ALARM" || now < testUntil,
+          motor: false,
+          snooze_sec: phase === "SNOOZE" ? Math.max(1, Math.ceil(left * 2)) : 0,
+          cd_sec: phase === "COUNTDOWN" ? Math.max(1, Math.ceil(left)) : 0,
+          mpu: true, finger: true, ppg_motion: false,
+          ai_label: "n/a", ai_conf: 0.0, ai_fall: false
+        };
+      }
+      window.fetch = (input, init) => {
+        const url = new URL(typeof input === "string" ? input : input.url, location.href);
+        const path = url.pathname;
+        if (path.endsWith("/data")) {
+          return Promise.resolve(new Response(JSON.stringify(sample()), {
+            status: 200, headers: { "Content-Type": "application/json" }
+          }));
+        }
+        if (path.endsWith("/set_time")) return ok();
+        if (path.endsWith("/cancel")) {
+          phase = "SNOOZE";
+          phaseEnd = Date.now() + DUR.SNOOZE * 1000;
+          return ok();
+        }
+        if (path.endsWith("/test_hw")) {
+          testUntil = Date.now() + 2000;
+          return ok();
+        }
+        if (path.endsWith("/clear_nvs")) {
+          falls = 0;
+          steps = 0;
+          return ok();
+        }
+        if (path.endsWith("/set_thresh")) {
+          const val = parseFloat(url.searchParams.get("val"));
+          if (val >= 10 && val <= 60) thresh = val;
+          return ok();
+        }
+        return Promise.resolve(new Response("DEMO", { status: 200, headers: { "Content-Type": "text/plain" } }));
+      };
+      window.addEventListener("DOMContentLoaded", () => {
+        const badge = document.createElement("div");
+        badge.textContent = "DEMO · dữ liệu mô phỏng";
+        badge.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:9999;padding:8px 12px;border:1px solid #f0715f;border-radius:999px;background:rgba(13,15,13,.92);color:#f0715f;font:600 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;";
+        document.body.appendChild(badge);
+      });
+    })();
+  </script>
+  <script>
+    (() => {
       "use strict";
 
       const POLL_MS = 220;

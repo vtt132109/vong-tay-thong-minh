@@ -1,6 +1,7 @@
 # Bio-Band ESP32-S3 Super Mini — Project Handoff
 
 > Repo công khai: https://github.com/vtt132109/vong-tay-thong-minh
+> GitHub Pages: https://vtt132109.github.io/vong-tay-thong-minh/
 > File này là nguồn thông tin chính cho session tiếp theo. Đọc hết trước khi sửa code.
 > Cập nhật lần cuối: 2026-10-29.
 
@@ -287,6 +288,7 @@ Ghi chú: key `max30102` được giữ để tương thích HTML, dù phần c�
 - `vtt.html`: testbench mô phỏng OLED/FSM/countdown/lead-off/battery; vẫn dùng Tailwind CDN nên cần Internet để hiển thị đầy đủ.
 - `simulation.html`: bản mô phỏng cũ, trùng chức năng với `vtt.html`; hiện vẫn giữ, có thể xóa nếu không cần.
 - Dashboard tự gửi `/set_time?epoch=...` khi mở (và mỗi 10 phút) để đồng bộ giờ cho OLED, kể cả khi board ở AP không có Internet.
+- `index.html`: trang chủ GitHub Pages (giới thiệu dự án, ảnh dashboard PC/điện thoại, pinout, trạng thái). `realtime.html?demo=1` chạy dashboard với dữ liệu mô phỏng, không cần board.
 - Test UI không cần board: `python tools/mock_server.py --port 8000` rồi mở `http://127.0.0.1:8000/`; mock tự chạy FSM IDLE → COUNTDOWN → ALARM → SNOOZE.
 
 Cách dùng dashboard:
