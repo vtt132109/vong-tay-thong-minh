@@ -52,10 +52,14 @@ static void drawTopBar() {
   drawWifiStatus();
 
   char buf[12];
-  snprintf(buf, sizeof(buf), "%u", (unsigned)batteryPercent);
+  if (batteryVoltage > 0.1f) {
+    snprintf(buf, sizeof(buf), "%u", (unsigned)batteryPercent);
+  } else {
+    strcpy(buf, "--");
+  }
   display.setCursor(112 - (int)strlen(buf) * 6, 1);
   display.print(buf);
-  drawBattery(113, 1, batteryPercent);
+  drawBattery(113, 1, batteryVoltage > 0.1f ? batteryPercent : 0);
   display.drawFastHLine(0, 9, W, SSD1306_WHITE);
 }
 
@@ -248,7 +252,7 @@ static void drawNotFound() {
 static void drawButtonTest() {
   drawTopBar();
   centerText("BUTTON OK", 18, 2);
-  centerText("GPIO1 / GPIO2 / BOOT", 38, 1);
+  centerText("GPIO2 / BOOT", 38, 1);
   centerText("NUT DA HOAT DONG", 50, 1);
   display.display();
 }

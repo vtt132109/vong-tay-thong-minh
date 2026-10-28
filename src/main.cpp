@@ -127,12 +127,12 @@ void setup() {
   pinMode(PIN_BUZZER, OUTPUT);
   digitalWrite(PIN_BUZZER, LOW);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
-  pinMode(PIN_BUTTON_MIRROR, INPUT_PULLUP);
   pinMode(PIN_BUTTON_ALT, INPUT_PULLUP);
-  Serial.printf("[BTN] GPIO1=%d GPIO2=%d BOOT=%d\n",
-                digitalRead(PIN_BUTTON), digitalRead(PIN_BUTTON_MIRROR),
-                digitalRead(PIN_BUTTON_ALT));
-  analogSetPinAttenuation(PIN_BATTERY_ADC, ADC_11db);
+  Serial.printf("[BTN] GPIO2=%d BOOT=%d\n",
+                digitalRead(PIN_BUTTON), digitalRead(PIN_BUTTON_ALT));
+  if (PIN_BATTERY_ADC >= 0) {
+    analogSetPinAttenuation((uint8_t)PIN_BATTERY_ADC, ADC_11db);
+  }
 
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
   Wire.setClock(100000);

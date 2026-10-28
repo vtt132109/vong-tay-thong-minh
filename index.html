@@ -446,7 +446,7 @@
         <div>
           <p class="eyebrow">03 · Phần cứng</p>
           <h2 id="hardware-title">Đúng linh kiện, đúng chân.</h2>
-          <p>ESP32-S3 Super Mini, bus I2C dùng chung 8/9, cảm biến quang MAX30100 và MPU6050. Pin LiPo chưa hàn; ADC GPIO3 dành sẵn cho cầu phân áp.</p>
+          <p>ESP32-S3 Super Mini, bus I2C dùng chung 8/9, cảm biến quang MAX30100 và MPU6050. Pin LiPo chưa hàn; ADC pin chưa gán, sẽ cấu hình khi hàn cầu phân áp.</p>
           <a class="text-link" href="https://github.com/vtt132109/vong-tay-thong-minh/blob/main/README.md" target="_blank" rel="noopener">Đọc handoff đầy đủ ↗</a>
         </div>
         <div class="pin-table" role="table" aria-label="Sơ đồ chân">
@@ -454,8 +454,8 @@
           <div role="row"><span role="cell">MPU6050</span><code role="cell">0x68</code></div>
           <div role="row"><span role="cell">MAX30100</span><code role="cell">0x57</code></div>
           <div role="row"><span role="cell">I2C SDA / SCL</span><code role="cell">GPIO 8 / 9</code></div>
-          <div role="row"><span role="cell">Nút ngoài</span><code role="cell">GPIO 1 / 2</code></div>
-          <div role="row"><span role="cell">Buzzer active</span><code role="cell">GPIO 7</code></div>
+          <div role="row"><span role="cell">Nút ngoài / BOOT</span><code role="cell">GPIO 2 / 0</code></div>
+          <div role="row"><span role="cell">Buzzer active</span><code role="cell">GPIO 3</code></div>
         </div>
       </section>
 

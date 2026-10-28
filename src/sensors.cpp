@@ -20,9 +20,10 @@ uint8_t lipoPercent(float v) {
 }
 
 float readBatteryVoltage() {
+  if (PIN_BATTERY_ADC < 0) return 0.0f;
   uint32_t mv = 0;
   for (int i = 0; i < 8; ++i) {
-    mv += analogReadMilliVolts(PIN_BATTERY_ADC);
+    mv += analogReadMilliVolts((uint8_t)PIN_BATTERY_ADC);
   }
   return (mv / 8.0f) * 2.0f / 1000.0f;
 }

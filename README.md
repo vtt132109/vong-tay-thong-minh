@@ -9,13 +9,14 @@
 
 - Firmware đã được viết lại từ đầu theo sơ đồ EasyEDA `Sheet_1`.
 - Build PlatformIO **thành công**:
-  - RAM: `49,068 / 327,680 bytes` (15.0%)
-  - Flash: `949,737 / 1,310,720 bytes` (72.5% của app partition 1.25 MB, đã gồm dashboard nhúng)
+  - RAM: `48,700 / 327,680 bytes` (14.9%)
+  - Flash: `943,473 / 1,310,720 bytes` (72.0% của app partition 1.25 MB, đã gồm dashboard nhúng)
 - **Đã flash COM13 và chạy thật.** I2C 100 kHz ổn định; MAX30100 part `0x11` nhận đúng; HR/SpO2 đã đo bằng đầu ngón tay (HR ~68–78 bpm, SpO2 ~97%, IR ~18k–20k, PI ~2.5%).
 - WiFi: `include/secrets.h` đã đặt SSID `vtt`. Khi hotspot 2.4 GHz bật, board vào STA và in `[NET] STA IP ...` (IP DHCP có thể đổi). Máy tính đang ở mạng 5 GHz khác nên có thể không truy cập được subnet của hotspot; dùng điện thoại cùng `vtt` hoặc chuyển PC sang `vtt`. Nếu STA fail, board fallback AP `BioBand-Setup` / `bioband123` tại `192.168.4.1` và in scan 2.4 GHz ra Serial. ESP32-S3 chỉ hỗ trợ 2.4 GHz.
 - Dashboard `realtime.html` mới: tự chứa/không CDN, đã test desktop + mobile bằng `tools/mock_server.py`; các lệnh Test còi, Lưu ngưỡng, HỦY gửi đúng. Firmware nhúng dashboard và phục vụ tại `GET /`.
 - OLED đã thiết kế lại: bỏ dải IR/RED và footer MPU/MAX/F; thêm giờ:phút, giây, ngày/tháng, cột WiFi, số bước, điện áp pin. Giờ lấy từ NTP khi STA có Internet, hoặc được dashboard đồng bộ qua `/set_time` khi mở web; nếu chưa có cả hai thì hiện `--:--`.
-- Pin vẫn đọc ~1.25–1.27 V / 0% trên USB vì **pin chưa hàn** (bỏ qua); `falls=7` lưu NVS (xóa bằng `/clear_nvs`). Nút ngoài GPIO1/2 đang bị kéo LOW (chập/kẹt dây) nên firmware dùng nút **BOOT onboard** làm fallback; buzzer/FSM chưa test đầy đủ.
+- Pin chưa hàn nên firmware tắt ADC pin (`PIN_BATTERY_ADC=-1`), dashboard/OLED hiện 0%/`--`; khi hàn cầu phân áp, gán lại pin.
+- Nút ngoài **GPIO2** (active-low) đang đọc `0` khi không nhấn → kiểm tra chập GND/đấu chân tactile; nút **BOOT GPIO0** vẫn dùng được. Buzzer active **GPIO3**. `falls=7` lưu NVS (xóa bằng `/clear_nvs`); buzzer/FSM chưa test đầy đủ.
 - Edge AI scaffold + capture mode đã có; mặc định `ENABLE_EDGE_AI=0` để build không cần model.
 - Có script tạo synthetic data/upload tại `tools/generate_synthetic_imu.py` và `tools/upload_dataset.py` (fake data chỉ để test pipeline).
 - HTML được giữ lại: `realtime.html`, `vtt.html`, `simulation.html`.
@@ -43,9 +44,9 @@ Vòng đeo tay sức khỏe dùng ESP32-S3 Super Mini:
 | OLED SSD1306 | 0x3C | Có fallback 0x3D |
 | MPU6050 | 0x68 | AD0 để mặc định |
 | MAX30100 (GY-MAX30100) | 0x57 | Part ID mong đợi: `0x11` |
-| ADC pin | **GPIO3** | Cầu phân áp R1/R2 100k/100k → nhân 2 khi đọc |
-| Nút nhấn | **GPIO1** | GPIO2 nối song song; INPUT_PULLUP; nhấn = LOW |
-| Buzzer active | **GPIO7** | HIGH = kêu, LOW = tắt |
+| ADC pin | **Chưa gán** | Pin chưa hàn; firmware đặt `PIN_BATTERY_ADC=-1`; gán lại khi hàn cầu phân áp |
+| Nút nhấn | **GPIO2** | INPUT_PULLUP; nhấn = LOW; nút **BOOT GPIO0** là fallback |
+| Buzzer active | **GPIO3** | HIGH = kêu, LOW = tắt; GPIO3 là strapping pin |
 | Công tắc MSK-12D19 | — | Công tắc nguồn, **không phải GPIO** |
 | Motor rung | — | Không có trên board |
 
@@ -60,16 +61,16 @@ Vòng đeo tay sức khỏe dùng ESP32-S3 Super Mini:
 - U7: active buzzer.
 - U8: push button.
 - NO1: MSK-12D19 — công tắc nguồn giữa battery+ và rail 5V.
-- R1 = R2 = 100k (chia áp pin), C1 = 100nF (lọc ADC).
+- R1 = R2 = 100k (cầu phân áp pin, **chưa gán GPIO**), C1 = 100nF (lọc ADC khi hàn).
 - OLED/MPU/MAX đều dùng 3.3V, chung GND, chung bus I2C 8/9.
 
 ### 3.3 Cảnh báo phần cứng
 
-- **GPIO3 là strapping pin** trên ESP32-S3. Cầu phân áp có thể ảnh hưởng trạng thái boot. Nếu board boot không ổn định, kiểm tra/đổi chân ADC.
+- **GPIO3 là strapping pin** và đang dùng cho **buzzer**. Nếu board boot không ổn định, kiểm tra mức GPIO3 lúc boot. ADC pin hiện **chưa gán** (`PIN_BATTERY_ADC=-1`) vì pin chưa hàn.
 - **Đường nguồn TP4057 + USB + pin**: cần kiểm tra backfeed khi vừa cắm USB vừa có pin. Nếu chưa có diode/load-sharing, không nên cắm cả hai lâu dài.
-- Nguồn ADC 100k/100k có trở kháng nguồn cao; C1 giúp ổn định nhưng số đọc có thể lệch. Hiệu chuẩn lại nếu cần.
-- Buzzer active giả định kích mức HIGH. Nếu module kích LOW, đảo logic trong `src/controls.cpp`.
-- **Nút ngoài GPIO1/GPIO2 phải là loại thường mở, nối xuống GND.** Firmware bật pull-up nội; nếu Serial in `GPIO1=0 GPIO2=0` khi **không nhấn**, đường nút đang bị chập GND/button kẹt/hàn sai — cần sửa dây. Khi đó firmware tự dùng nút **BOOT onboard (GPIO0)** làm fallback. Nút chỉ hủy/snooze khi đang countdown/alarm; nhấn ngắn ở IDLE hiện `BUTTON OK` trên OLED 1,2 giây; giữ 3 giây → `PANIC SOS`.
+- Khi hàn cầu phân áp pin, dùng nguồn có trở kháng thấp và C1 100nF; sau đó gán `PIN_BATTERY_ADC` rồi hiệu chuẩn.
+- Buzzer active giả định kích mức HIGH; nếu module kích LOW, đảo logic trong `src/controls.cpp`.
+- **Nút ngoài GPIO2 phải là loại thường mở, nối xuống GND.** Firmware bật pull-up nội; nếu Serial in `[BTN] GPIO2=0` khi **không nhấn**, đường nút đang bị chập GND/button kẹt/hàn sai (đặc biệt tactile 4 chân đấu nhầm cặp) — cần sửa dây. Khi đó firmware tự dùng nút **BOOT onboard (GPIO0)** làm fallback. Nút chỉ hủy/snooze khi đang countdown/alarm; nhấn ngắn ở IDLE hiện `BUTTON OK` trên OLED 1,2 giây; giữ 3 giây → `PANIC SOS`.
 - Không có motor; mọi hiển thị motor trong HTML chỉ là mô phỏng.
 
 ### 3.4 Xử lý MAX30100
@@ -185,7 +186,7 @@ include/
   - FREE_FALL/IMPACT/INACTIVITY: tên trạng thái, `a=... m/s2`, `VERIFYING...`, chấm nhấp nháy
   - LEAD-OFF: icon ngón tay + slash, `LEAD-OFF`, `PLACE FINGER ON SENSOR`
   - MOVING: `MOVING`, `HOLD STILL`, `PPG LOCKED`
-  - BUTTON OK: hiện 1,2 giây sau khi nhấn nút ngắn ở IDLE; xác nhận GPIO1/GPIO2/BOOT đã đọc được
+  - BUTTON OK: hiện 1,2 giây sau khi nhấn nút ngắn ở IDLE; xác nhận GPIO2/BOOT đã đọc được
   - MAX30100 NOT FOUND: `MAX30100`, `NOT FOUND`, `CHECK I2C 8/9 + 3V3`
 - Giờ trên OLED: NTP khi STA có Internet, hoặc dashboard tự gửi `/set_time?epoch=...` khi mở web (kể cả AP); nếu chưa có nguồn giờ thì `--:--`.
 - Nếu OLED không tìm thấy, firmware vẫn chạy (không treo).
@@ -325,14 +326,14 @@ Build hiện tại: RAM **49,068 / 327,680** (15.0%), flash **949,737 / 1,310,72
 
 ## 10. Quyết định quan trọng (không làm lại từ đầu)
 
-- Pinout lấy từ sơ đồ EasyEDA, **không** dùng các pinout cũ 5/4, 17/18, 35/36, 40/41.
+- Pinout theo dây thực tế: nút **GPIO2**, buzzer **GPIO3**, I2C 8/9; **không** dùng các pinout cũ 5/4, 17/18, 35/36, 40/41.
 - I2C dùng chung 8/9; thư viện MAX30100lib `MAX30100::begin()` gọi `Wire.begin()` mặc định của variant S3 = 8/9. Nếu đổi pin I2C, phải chỉnh wrapper/patch thư viện.
 - Module thực tế là **MAX30100** (part ID **0x11**); firmware dùng MAX30100lib, sampling 100 Hz, BeatDetector/SpO2Calculator. Nếu thay module MAX30102/30105 (0x15) thì phải đổi driver SparkFun.
 - MAX30100lib `begin()` đặt I2C **400 kHz**; luôn gọi lại `Wire.setClock(100000)` sau khi cấu hình. Không bỏ đoạn này.
 - FIFO MAX30100 có thể kẹt đầy với `wr==rd`; giữ nguyên cơ chế phát hiện + xả 16 mẫu + `resetFifo()` trong `src/sensors.cpp`.
 - LED current chốt **11 mA / 11 mA**; 50 mA/27 mA bão hòa trên module hiện tại.
-- Buzzer là **active**, điều khiển bằng `digitalWrite(HIGH/LOW)`, không dùng `tone()`.
-- Nút nhấn active-low; GPIO1 và GPIO2 nối song song; code đọc GPIO1, GPIO2 để INPUT.
+- Buzzer là **active**, GPIO3, điều khiển bằng `digitalWrite(HIGH/LOW)`, không dùng `tone()`.
+- Nút nhấn active-low **GPIO2**; nút **BOOT GPIO0** là fallback; GPIO1 hiện để trống.
 - Công tắc MSK-12D19 là công tắc nguồn; không có GPIO.
 - Không có motor; `motor` trong JSON luôn `false`.
 - Ngưỡng cảnh báo chốt 25 m/s².
@@ -351,7 +352,7 @@ Build hiện tại: RAM **49,068 / 327,680** (15.0%), flash **949,737 / 1,310,72
 2. Xác nhận I2C: `[I2C] 0x3C OK`, `0x68 OK`, `0x57 OK`; `[MPU6050] ready` và `[MAX30100] ready`. Nếu thiếu `0x57`, power-cycle board/module rồi thử lại.
 3. WiFi: nếu `vtt` phát 2.4 GHz và có Internet, log có `[NET] STA IP ...`; nếu không, log `[NET] AP IP 192.168.4.1`. OLED hiện cột WiFi (bars) hoặc `AP`.
 4. OLED: boot screen → `LEAD-OFF` khi chưa đặt tay → màn chính HR/SpO2 + giờ/ngày + steps/voltage khi đặt tay. Không có MAX → `MAX30100 NOT FOUND`.
-5. Nút: nhấn ngắn trong countdown/alarm → snooze; giữ 3 giây → panic SOS. Ở IDLE, nhấn ngắn → OLED `BUTTON OK`. Nếu GPIO1/2 kẹt LOW, dùng nút BOOT onboard (GPIO0) để test; Serial in `[BTN] ... extArmed=0 bootArmed=1`.
+5. Nút: nhấn ngắn trong countdown/alarm → snooze; giữ 3 giây → panic SOS. Ở IDLE, nhấn ngắn → OLED `BUTTON OK`. Nếu `[BTN] GPIO2=0` khi không nhấn, kiểm tra chập GND/đấu chân tactile; dùng nút BOOT onboard (GPIO0) để test.
 6. Buzzer: test 2 s qua web hoặc `/test_hw`; kiểm tra mức kích.
 7. Pin: so `battery_v` với đồng hồ VOM; hiệu chuẩn LUT nếu lệch.
 8. Web: mở `http://<IP>/` (AP `192.168.4.1` hoặc STA IP) thấy dashboard mới; kiểm tra `/api`, `/data`, `/cancel`, `/test_hw`, `/clear_nvs`, `/set_thresh`.

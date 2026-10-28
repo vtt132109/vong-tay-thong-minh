@@ -2,21 +2,19 @@
 
 #include <Arduino.h>
 
-// Hardware map from the EasyEDA "Sheet_1" schematic:
+// Hardware map from the actual build:
 //   I2C SDA=GPIO8, SCL=GPIO9: SSD1306 0x3C + MPU6050 0x68 + MAX30100 0x57
-//   Battery divider 100k/100k -> GPIO3 (ADC1_CH2), ratio 1:2
-//   Push button (GPIO1 tied to GPIO2) -> GND, active low
-//   Active buzzer -> GPIO7 (HIGH = sound)
+//   Battery divider: not assigned yet (battery not soldered); set PIN_BATTERY_ADC when wired
+//   Push button GPIO2 -> GND, active low; BOOT GPIO0 is a fallback input
+//   Active buzzer -> GPIO3 (HIGH = sound); GPIO3 is a strapping pin
 //   MSK-12D19 is the main power switch, not a GPIO.
 static constexpr uint8_t PIN_I2C_SDA = 8;
 static constexpr uint8_t PIN_I2C_SCL = 9;
-static constexpr uint8_t PIN_BATTERY_ADC = 3;
-static constexpr uint8_t PIN_BUTTON = 1;
-static constexpr uint8_t PIN_BUTTON_MIRROR = 2;
-// Onboard BOOT button (GPIO0), active-low. Used as a fallback/diagnostic input
-// when the external GPIO1 button is not wired yet.
+static constexpr int8_t PIN_BATTERY_ADC = -1;
+static constexpr uint8_t PIN_BUTTON = 2;
+// Onboard BOOT button (GPIO0), active-low. Used as a fallback/diagnostic input.
 static constexpr uint8_t PIN_BUTTON_ALT = 0;
-static constexpr uint8_t PIN_BUZZER = 7;
+static constexpr uint8_t PIN_BUZZER = 3;
 
 static constexpr uint8_t OLED_ADDRESS = 0x3C;
 static constexpr uint8_t OLED_WIDTH = 128;

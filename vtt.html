@@ -273,7 +273,7 @@
             <div id="buzzer-indicator" class="flex items-center gap-2 p-2 rounded bg-slate-950/60 border border-slate-800 transition">
               <div id="buzzer-led" class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
               <div>
-                <div class="text-slate-300 font-bold">Còi (GPIO 7 · ACTIVE)</div>
+                <div class="text-slate-300 font-bold">Còi (GPIO 3 · ACTIVE)</div>
                 <div id="buzzer-state-text" class="text-[10px] text-slate-500">TẮT (noTone)</div>
               </div>
             </div>
@@ -287,13 +287,13 @@
           </div>
         </div>
 
-        <!-- Nút bấm ngoại vi GPIO 1: Nhấn nhả HỦY / Nhấn giữ 3s SOS -->
+        <!-- Nút bấm ngoại vi GPIO 2: Nhấn nhả HỦY / Nhấn giữ 3s SOS -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
           <div class="flex items-center justify-between mb-2">
             <div>
               <h2 class="text-sm font-bold font-mono text-white flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
-                NÚT BẤM VẬT LÝ NGOẠI VI (GPIO 1)
+                NÚT BẤM VẬT LÝ NGOẠI VI (GPIO 2)
               </h2>
               <p class="text-xs text-slate-400 font-mono">Nhấn nhả: Hủy đếm lùi | <b>Giữ 3s: Kích hoạt SOS khẩn cấp</b></p>
             </div>
@@ -948,7 +948,7 @@
           badge.textContent = 'STATE_COUNTDOWN';
           title.className = 'text-2xl font-black font-mono text-amber-400 tracking-wider animate-pulse';
           title.textContent = 'ĐẾM LÙI CẢNH BÁO';
-          desc.textContent = `${alarmReason}! Nhấn GPIO 1 hoặc nút Web để hủy trước khi hú còi & rung cảnh báo tại chỗ!`;
+          desc.textContent = `${alarmReason}! Nhấn GPIO 2 hoặc nút Web để hủy trước khi hú còi & rung cảnh báo tại chỗ!`;
           card.className = 'bg-amber-950/20 border border-amber-800/80 rounded-xl p-4 shadow-lg transition-colors';
           document.getElementById('step-countdown').className = 'p-1.5 rounded bg-amber-950/80 border border-amber-700 text-amber-300 font-bold animate-pulse';
           webCancelBtn.disabled = false;
@@ -1037,7 +1037,7 @@
       updateCountdownVisuals();
 
       playCountdownBeep(1000, 0.15);
-      logSerial(`[!] FSM: Bắt đầu đếm lùi 10 giây. Lý do: ${alarmReason}. Nhấn GPIO 1 để hủy.`, 'text-amber-400');
+      logSerial(`[!] FSM: Bắt đầu đếm lùi 10 giây. Lý do: ${alarmReason}. Nhấn GPIO 2 để hủy.`, 'text-amber-400');
 
       countdownInterval = setInterval(() => {
         countdownSeconds--;
@@ -1086,7 +1086,7 @@
       }, 1000);
     }
 
-    function cancelFallAlarm(source = 'GPIO 1 PUSHBUTTON') {
+    function cancelFallAlarm(source = 'GPIO 2 PUSHBUTTON') {
       playClickSound();
       if (currentState === FSM_STATES.COUNTDOWN || currentState === FSM_STATES.ALARM || currentState === FSM_STATES.INACTIVITY || currentState === FSM_STATES.PANIC_SOS) {
         logSerial(`[OK] Ngắt hủy nhận được từ ${source}! Chuyển sang SNOOZE 20s.`, 'text-emerald-300');
@@ -1270,7 +1270,7 @@
         oledCtx.font = 'bold 15px monospace';
         oledCtx.fillText(`HUY: ${countdownSeconds}s`, 28, 42);
         oledCtx.font = '7px monospace';
-        oledCtx.fillText('NHAN GPIO 1 DE HUY', 14, 56);
+        oledCtx.fillText('NHAN GPIO 2 DE HUY', 14, 56);
         oledCtx.restore();
         return;
       }
@@ -1501,7 +1501,7 @@
         }, 300);
       });
 
-      // Xử lý nút bấm GPIO 1: Nhấn nhả (Hủy) & Nhấn giữ 3s (SOS)
+      // Xử lý nút bấm GPIO 2: Nhấn nhả (Hủy) & Nhấn giữ 3s (SOS)
       const gpio8Btn = document.getElementById('gpio8-hardware-btn');
       const sosBar = document.getElementById('sos-progress-bar');
       let pressStartTime = 0;
@@ -1518,7 +1518,7 @@
             clearInterval(holdTimer);
             holdTimer = null;
             sosBar.style.width = '0%';
-            logSerial(`[SOS] Người dùng đã giữ nút GPIO 1 quá 3 giây! KÍCH HOẠT PANIC SOS!`, 'text-rose-400');
+            logSerial(`[SOS] Người dùng đã giữ nút GPIO 2 quá 3 giây! KÍCH HOẠT PANIC SOS!`, 'text-rose-400');
             setFSMState(FSM_STATES.PANIC_SOS, 'SOS Khẩn cấp (Nhấn giữ 3s)');
           }
         }, 50);
@@ -1533,7 +1533,7 @@
         sosBar.style.width = '0%';
 
         if (elapsed < 3000) {
-          cancelFallAlarm('GPIO 1 HARDWARE BUTTON');
+          cancelFallAlarm('GPIO 2 HARDWARE BUTTON');
         }
       }
 

@@ -6,30 +6,27 @@
 static bool externalArmed = false;
 static bool bootArmed = false;
 static bool warnedExternal = false;
-static int lastGpio1 = -1;
-static int lastGpio2 = -1;
-static int lastGpio0 = -1;
+static int lastButton = -1;
+static int lastBoot = -1;
 
 void updateButton(uint32_t now) {
-  int g1 = digitalRead(PIN_BUTTON);
-  int g2 = digitalRead(PIN_BUTTON_MIRROR);
+  int g2 = digitalRead(PIN_BUTTON);
   int g0 = digitalRead(PIN_BUTTON_ALT);
 
-  bool externalDown = (g1 == LOW || g2 == LOW);
+  bool externalDown = (g2 == LOW);
   bool bootDown = (g0 == LOW);
   if (!externalArmed && !externalDown) externalArmed = true;
   if (!bootArmed && !bootDown) bootArmed = true;
   if (!externalArmed && !warnedExternal && now > 3000) {
     warnedExternal = true;
-    Serial.println("[BTN] external GPIO1/2 stuck LOW; check wiring; BOOT works");
+    Serial.println("[BTN] external GPIO2 stuck LOW; check wiring; BOOT works");
   }
 
-  if (g1 != lastGpio1 || g2 != lastGpio2 || g0 != lastGpio0) {
-    Serial.printf("[BTN] GPIO1=%d GPIO2=%d BOOT=%d extArmed=%d bootArmed=%d\n",
-                  g1, g2, g0, externalArmed ? 1 : 0, bootArmed ? 1 : 0);
-    lastGpio1 = g1;
-    lastGpio2 = g2;
-    lastGpio0 = g0;
+  if (g2 != lastButton || g0 != lastBoot) {
+    Serial.printf("[BTN] GPIO2=%d BOOT=%d extArmed=%d bootArmed=%d\n",
+                  g2, g0, externalArmed ? 1 : 0, bootArmed ? 1 : 0);
+    lastButton = g2;
+    lastBoot = g0;
   }
 
   // A stuck-low external line must not block the onboard BOOT fallback.
