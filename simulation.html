@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bio-Band Hardware Simulation</title>
+  <style>
+    :root {
+      --bg: #101820;
+      --panel: #182733;
+      --line: #2d4352;
+      --ink: #e8f1f2;
+      --muted: #8da4aa;
+      --cyan: #55d6be;
+      --amber: #f4b860;
+      --red: #ee6c4d;
+      --blue: #6cb4ee;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 20% 0%, #203b46 0, var(--bg) 45%); color: var(--ink); font: 15px/1.45 "Trebuchet MS", sans-serif; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 42px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: clamp(1.8rem, 4vw, 3.2rem); letter-spacing: .02em; }
+    header p { color: var(--muted); max-width: 520px; }
+    .layout { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; }
+    .panel { background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 10px; padding: 18px; box-shadow: 0 18px 45px #07101666; }
+    .wide { grid-column: 1 / -1; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 16px; }
+    h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: .08em; }
+    .badge { border: 1px solid var(--cyan); color: var(--cyan); border-radius: 999px; padding: 4px 9px; font-size: .76rem; }
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .metric { background: #0d1820; border: 1px solid var(--line); padding: 12px; border-radius: 7px; }
+    .metric small { color: var(--muted); display: block; }
+    .metric strong { display: block; font-size: 1.7rem; margin-top: 5px; }
+    .cyan { color: var(--cyan); } .amber { color: var(--amber); } .red { color: var(--red); }
+    .controls { display: grid; gap: 13px; }
+    label { display: grid; grid-template-columns: 150px 1fr 64px; align-items: center; gap: 10px; color: var(--muted); }
+    input[type=range] { width: 100%; accent-color: var(--cyan); }
+    output { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+    button { border: 1px solid var(--line); border-radius: 6px; background: #213541; color: var(--ink); padding: 10px 13px; cursor: pointer; font: inherit; }
+    button:hover { border-color: var(--cyan); color: var(--cyan); }
+    button.danger { background: #492b2a; border-color: #9b4b42; }
+    .hardware { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .device { min-height: 115px; display: grid; place-items: center; align-content: center; gap: 8px; background: #0d1820; border: 1px solid var(--line); border-radius: 8px; }
+    .led { width: 32px; height: 32px; border-radius: 50%; background: #35434a; border: 3px solid #52646a; }
+    .device.active .led { background: var(--red); border-color: #ffb19b; box-shadow: 0 0 26px var(--red); animation: blink .35s infinite alternate; }
+    .device.motor.active .led { background: var(--amber); border-color: #ffe2a8; box-shadow: 0 0 25px var(--amber); }
+    #sensor.active .led { background: var(--cyan); border-color: #a9fff1; box-shadow: 0 0 20px var(--cyan); animation: none; }
+    @keyframes blink { to { opacity: .38; } }
+    .fsm { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    .state { min-height: 58px; padding: 8px 5px; text-align: center; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: .78rem; }
+    .state.active { color: #061014; background: var(--cyan); border-color: #a9fff1; font-weight: bold; }
+    canvas { width: 100%; height: 210px; display: block; background: #081219; border: 1px solid var(--line); border-radius: 7px; }
+    .log { height: 130px; overflow: auto; background: #091117; border: 1px solid var(--line); padding: 10px; color: var(--muted); font: 12px/1.6 Consolas, monospace; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } .wide { grid-column: auto; } label { grid-template-columns: 125px 1fr 55px; } }
+    @media (max-width: 480px) { .metrics, .hardware { grid-template-columns: 1fr; } .fsm { grid-template-columns: repeat(3, 1fr); } header { display: block; } header p { margin-top: 8px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><h1>Bio-Band Lab</h1><p>Hardware and fall-state simulation for ESP32-S3 dual-core firmware.</p></div>
+      <span class="badge" id="mode">NORMAL · WRIST ON SENSOR</span>
+    </header>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-head"><h2>Sensor inputs</h2><span class="badge">Core 1 · 50 Hz</span></div>
+        <div class="metrics">
+          <div class="metric"><small>Total acceleration</small><strong class="amber"><span id="accValue">9.8</span> <small>m/s²</small></strong></div>
+          <div class="metric"><small>Heart rate</small><strong class="red"><span id="hrValue">75</span> <small>BPM</small></strong></div>
+          <div class="metric"><small>Oxygen</small><strong class="cyan"><span id="spo2Value">98</span><small>% SpO2</small></strong></div>
+        </div>
+        <div class="controls" style="margin-top:16px">
+          <label>Acceleration <input id="acc" type="range" min="0" max="50" step="0.1" value="9.8"><output id="accOut">9.8</output></label>
+          <label>Heart rate <input id="hr" type="range" min="35" max="160" value="75"><output id="hrOut">75 BPM</output></label>
+          <label>SpO2 <input id="spo2" type="range" min="75" max="100" value="98"><output id="spo2Out">98%</output></label>
+          <label>Battery <input id="battery" type="range" min="3" max="4.2" step=".01" value="3.94"><output id="batteryOut">3.94 V</output></label>
+        </div>
+        <div class="buttons">
+          <button data-preset="normal">Normal</button>
+          <button data-preset="freefall">Free-fall</button>
+          <button data-preset="impact">Impact</button>
+          <button data-preset="still">Inactivity</button>
+          <button data-preset="shake">Movement</button>
+          <button id="wear" class="danger">Simulate lead-off</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Actuators</h2><span class="badge" id="stateLabel">NORMAL</span></div>
+        <div class="hardware">
+          <div class="device" id="buzzer"><div class="led"></div><strong>Buzzer</strong><small>GPIO 7 · ACTIVE</small></div>
+          <div class="device motor" id="motor"><div class="led"></div><strong>Vibration</strong><small>N/A</small></div>
+          <div class="device active" id="sensor"><div class="led"></div><strong>MAX30100</strong><small id="sensorText">Wrist contact · normal</small></div>
+        </div>
+        <div class="buttons"><button id="test">Test buzzer + motor</button><button id="cancel">Cancel / Snooze 20s</button><button id="panic" class="danger">Hold SOS 3s</button></div>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head"><h2>Fall FSM</h2><span class="badge" id="timer">READY</span></div>
+        <div class="fsm">
+          <div class="state active" data-state="NORMAL">1 · NORMAL</div><div class="state" data-state="FREE_FALL">2 · FREE-FALL</div><div class="state" data-state="INACTIVITY">3 · INACTIVITY</div><div class="state" data-state="COUNTDOWN">4 · COUNTDOWN</div><div class="state" data-state="ALARM">5 · ALARM</div><div class="state" data-state="SNOOZE">6 · SNOOZE</div>
+        </div>
+        <div class="buttons"><button id="fall">Run fall scenario</button><button id="reset">Reset FSM</button></div>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head"><h2>IR-PULSE / RED-AC</h2><span class="badge">OLED preview</span></div>
+        <canvas id="wave" width="1100" height="210"></canvas>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head"><h2>Event log</h2><span class="badge">Core 0 mirror</span></div>
+        <div class="log" id="log"></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const stateNames = ['NORMAL', 'FREE_FALL', 'INACTIVITY', 'COUNTDOWN', 'ALARM', 'SNOOZE'];
+    let state = 'NORMAL';
+    // Baseline assumption: the band is worn correctly and all readings are normal.
+    let leadOff = false;
+    let phase = 0;
+    let timer = null;
+    let scenario = null;
+    const ctx = $('wave').getContext('2d');
+
+    function log(message) {
+      const line = document.createElement('div');
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      $('log').prepend(line);
+    }
+    function setState(next) {
+      state = next;
+      document.querySelectorAll('.state').forEach((el) => el.classList.toggle('active', el.dataset.state === next));
+      $('stateLabel').textContent = next;
+      $('mode').textContent = next === 'NORMAL' ? 'NORMAL · WRIST ON SENSOR' : `FSM · ${next}`;
+      const active = next === 'COUNTDOWN' || next === 'ALARM';
+      $('buzzer').classList.toggle('active', active);
+      $('motor').classList.toggle('active', active);
+      log(`FSM -> ${next}`);
+    }
+    function setSensor() {
+      $('sensor').classList.toggle('active', !leadOff);
+      $('sensorText').textContent = leadOff ? 'LEAD-OFF' : 'Wrist contact · normal';
+    }
+    function pulseShape(value) {
+      const p = ((value % 1) + 1) % 1;
+      return Math.exp(-Math.pow((p - .18) / .055, 2)) - .18 * Math.exp(-Math.pow((p - .42) / .035, 2)) + .28 * Math.exp(-Math.pow((p - .52) / .075, 2));
+    }
+    function drawWave() {
+      const width = $('wave').width, height = $('wave').height;
+      ctx.fillStyle = '#081219'; ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = '#1b3440'; ctx.lineWidth = 1;
+      for (let x = 0; x < width; x += 55) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+      for (let y = 20; y < height; y += 35) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+      const hr = Number($('hr').value), spo2 = Number($('spo2').value);
+      ctx.lineWidth = 2;
+      [['#55d6be', 62, 4.8, 'IR-PULSE'], ['#f4b860', 148, 2.5 + Math.max(0, 98 - spo2) * .06, 'RED-AC']].forEach(([color, center, amp, label], channel) => {
+        ctx.strokeStyle = leadOff ? '#52646a' : color; ctx.beginPath();
+        for (let x = 0; x < width; x++) {
+          const y = leadOff ? center : center - pulseShape(phase * Math.max(.65, hr / 75) + x / 170) * amp;
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke(); ctx.fillStyle = color; ctx.font = '12px Consolas'; ctx.fillText(label, 12, center - 18);
+      });
+      phase += .018;
+    }
+    function setPreset(name) {
+      const values = { normal: 9.8, freefall: 2.2, impact: 32, still: 9.8, shake: 18 };
+      $('acc').value = values[name]; updateInputs();
+      if (name === 'freefall') setState('FREE_FALL');
+      if (name === 'impact') setState('INACTIVITY');
+      if (name === 'still') setState('COUNTDOWN');
+      if (name === 'shake') setState('NORMAL');
+      log(`Preset: ${name}`);
+    }
+    function updateInputs() {
+      $('accValue').textContent = Number($('acc').value).toFixed(1); $('accOut').textContent = Number($('acc').value).toFixed(1);
+      $('hrValue').textContent = $('hr').value; $('hrOut').textContent = `${$('hr').value} BPM`;
+      $('spo2Value').textContent = $('spo2').value; $('spo2Out').textContent = `${$('spo2').value}%`;
+      $('batteryOut').textContent = `${Number($('battery').value).toFixed(2)} V`;
+    }
+    document.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateInputs));
+    document.querySelectorAll('[data-preset]').forEach((button) => button.addEventListener('click', () => setPreset(button.dataset.preset)));
+    $('wear').addEventListener('click', () => { leadOff = !leadOff; $('wear').textContent = leadOff ? 'Restore sensor contact' : 'Simulate lead-off'; setSensor(); log(leadOff ? 'MAX30100 lead-off: biometric processing disabled' : 'MAX30100 contact restored'); });
+    $('test').addEventListener('click', () => { $('buzzer').classList.add('active'); $('motor').classList.add('active'); log('Actuator test started (2s)'); setTimeout(() => { if (state === 'NORMAL') { $('buzzer').classList.remove('active'); $('motor').classList.remove('active'); } }, 2000); });
+    $('cancel').addEventListener('click', () => { clearInterval(timer); setState('SNOOZE'); $('timer').textContent = '20s'; let left = 20; timer = setInterval(() => { $('timer').textContent = `${--left}s`; if (left <= 0) { clearInterval(timer); setState('NORMAL'); } }, 1000); });
+    $('panic').addEventListener('click', () => { setState('ALARM'); $('timer').textContent = 'SOS'; log('Manual panic SOS triggered'); });
+    $('fall').addEventListener('click', () => { clearInterval(timer); setState('FREE_FALL'); scenario = ['INACTIVITY', 'COUNTDOWN', 'ALARM']; let index = 0; timer = setInterval(() => { setState(scenario[index++]); if (index === scenario.length) clearInterval(timer); }, 1500); });
+    $('reset').addEventListener('click', () => { clearInterval(timer); setState('NORMAL'); $('timer').textContent = 'READY'; $('buzzer').classList.remove('active'); $('motor').classList.remove('active'); });
+    updateInputs(); setSensor(); log('Simulation initialized'); setInterval(drawWave, 40);
+  </script>
+</body>
+</html>

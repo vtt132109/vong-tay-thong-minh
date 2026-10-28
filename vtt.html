@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32-S3 Bio-Band Smart Wristband Simulation & Dashboard</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            oled: '#080e14',
+            oledBlue: '#38bdf8',
+            oledAmber: '#fbbf24',
+            cyberDark: '#090d16',
+            panelBg: '#0f172a',
+            panelBorder: '#1e293b'
+          },
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .oled-screen {
+      background-color: #030712;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.95), 0 0 15px rgba(56, 189, 248, 0.15);
+    }
+    /* Chống mờ tuyệt đối cho Canvas OLED bằng cơ chế khóa nội suy Nearest-Neighbor */
+    #oled-canvas {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .oled-bezel {
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border: 3px solid #334155;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+    }
+    .crt-scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.12) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+    .tactile-btn {
+      transition: all 0.08s ease-in-out;
+      box-shadow: 0 6px 0 #991b1b, 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    }
+    .tactile-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #991b1b, 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+    }
+    .tactile-sub-btn {
+      transition: all 0.08s ease;
+      box-shadow: 0 4px 0 #1e293b;
+    }
+    .tactile-sub-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #1e293b;
+    }
+    @keyframes rumble {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(-2px, 2px); }
+      50% { transform: translate(2px, -1px); }
+      75% { transform: translate(-1px, -2px); }
+      100% { transform: translate(0, 0); }
+    }
+    .rumble-active {
+      animation: rumble 0.08s infinite;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-cyan-500 selection:text-black">
+
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <div class="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-ping absolute"></div>
+          <div class="w-3.5 h-3.5 rounded-full bg-emerald-400 relative"></div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
+              <span class="text-cyan-400 font-mono font-black">BIO-BAND</span> ESP32-S3 HEALTH & EDGE AI
+            </h1>
+            <span class="bg-cyan-950 text-cyan-400 border border-cyan-700/50 text-[10px] font-mono px-1.5 py-0.5 rounded font-semibold uppercase">
+              Dual-Core 240MHz/80MHz
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-mono">Firmware: v3.0 Bio-Band (ESP32-S3 Super Mini) | MAX30100 + MPU6050</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 font-mono text-xs">
+        <div id="connection-badge" class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-emerald-400 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>Wi-Fi: 192.168.1.105</span>
+        </div>
+
+        <button id="dfs-toggle-btn" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 flex items-center gap-1.5 transition">
+          <span>⚡ CPU: <b id="dfs-text">240MHz</b></span>
+        </button>
+
+        <button id="audio-toggle-btn" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center gap-1.5 transition">
+          <span id="audio-icon">🔊</span>
+          <span id="audio-text">Audio: BẬT</span>
+        </button>
+
+        <button id="reset-nvs-top-btn" class="px-2.5 py-1 rounded bg-red-950/60 hover:bg-red-900/70 border border-red-800/60 text-red-300 flex items-center gap-1 transition">
+          <span>🗑️ Reset NVS</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+    <!-- Benchmark Hiệu năng & Khối FSM -->
+    <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 relative overflow-hidden shadow-lg">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">FreeRTOS Cores</span>
+          <span id="clock-badge" class="text-[10px] font-mono text-cyan-400 bg-cyan-950 px-1.5 py-0.5 rounded border border-cyan-800">240 MHz</span>
+        </div>
+        <div class="space-y-3 font-mono text-xs">
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-300">Core 0 (WiFi / HTTP)</span>
+              <span id="core0-load-text" class="text-cyan-400 font-bold">18%</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div id="core0-bar" class="bg-cyan-500 h-full rounded-full transition-all duration-300" style="width: 18%"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-300">Core 1 (Sensors / DSP / OLED)</span>
+              <span id="core1-load-text" class="text-emerald-400 font-bold">46%</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div id="core1-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-300" style="width: 46%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">Bộ nhớ SRAM / Flash</span>
+          <span id="fps-badge" class="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">52 Hz FPS</span>
+        </div>
+        <div class="flex items-baseline gap-2 mb-1">
+          <span id="free-heap-val" class="text-2xl font-bold font-mono text-white tracking-tight">312.4</span>
+          <span class="text-xs font-mono text-slate-400">KB khả dụng / 512 KB</span>
+        </div>
+        <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800 mb-2">
+          <div id="heap-bar" class="bg-indigo-500 h-full rounded-full transition-all duration-300" style="width: 61%"></div>
+        </div>
+        <div class="flex justify-between text-[10px] font-mono text-slate-400">
+          <span>Flash NVS: OK</span>
+          <span id="heap-used-text">Đã dùng: 199.6 KB (39%)</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">Công suất động (Li-Po)</span>
+          <span id="power-mode-badge" class="text-[10px] font-mono text-amber-400 bg-amber-950 px-1.5 py-0.5 rounded border border-amber-800">ACTIVE RUN</span>
+        </div>
+        <div class="flex items-baseline gap-2 mb-1">
+          <span id="current-val" class="text-2xl font-bold font-mono text-amber-400">108.8</span>
+          <span class="text-xs font-mono text-slate-300">mA</span>
+          <span class="text-xs text-slate-500 font-mono">≈</span>
+          <span id="power-val" class="text-lg font-mono font-semibold text-white">402.5</span>
+          <span class="text-xs font-mono text-slate-300">mW</span>
+        </div>
+        <div class="text-[11px] font-mono text-slate-400 flex flex-wrap gap-x-2 gap-y-1 mt-2">
+          <span id="p-cpu" class="text-slate-300">CPU: 85mA</span>
+          <span>•</span>
+          <span id="p-oled" class="text-slate-300">OLED: 12mA</span>
+          <span>•</span>
+          <span id="p-max" class="text-slate-300">MAX: 8mA</span>
+          <span>•</span>
+          <span id="p-buzz" class="text-slate-500">BUZZ: 0mA</span>
+          <span>•</span>
+          <span id="p-motor" class="text-slate-500">MTR: 0mA</span>
+        </div>
+      </div>
+
+      <div id="fsm-status-card" class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg transition-colors duration-300">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-xs font-mono text-slate-400 uppercase tracking-wider">FSM Safety State</span>
+          <span id="fsm-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800">
+            STATE_IDLE
+          </span>
+        </div>
+        <div class="mt-2">
+          <div id="fsm-timer-display" class="text-2xl font-black font-mono text-emerald-400 tracking-wider">
+            AN TOÀN
+          </div>
+          <p id="fsm-desc" class="text-xs text-slate-400 mt-1 font-mono">
+            Hệ thống đang quét sinh trắc & gia tốc 6-trục liên tục tại 50Hz.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT COLUMN: OLED 128x64 & Hardware Pushbutton (5 cols) -->
+      <div class="lg:col-span-5 space-y-6">
+        
+        <!-- Virtual Hardware Device Bezel -->
+        <div class="oled-bezel rounded-2xl p-5 relative">
+          <div class="absolute top-2.5 left-2.5 w-2 h-2 rounded-full bg-slate-600 border border-slate-400 shadow-inner"></div>
+          <div class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-slate-600 border border-slate-400 shadow-inner"></div>
+          <div class="absolute bottom-2.5 left-2.5 w-2 h-2 rounded-full bg-slate-600 border border-slate-400 shadow-inner"></div>
+          <div class="absolute bottom-2.5 right-2.5 w-2 h-2 rounded-full bg-slate-600 border border-slate-400 shadow-inner"></div>
+
+          <!-- Header nhãn OLED: Chuyên biệt hiển thị Sinh trắc học & Đếm bước -->
+          <div class="flex justify-between items-center mb-3 px-1">
+            <div class="text-[11px] font-mono font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span class="inline-block w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]"></span>
+              OLED SSD1306 (128x64 I2C: 0x3C)
+            </div>
+            <div class="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+              <span>HR • SpO2 • PEDOMETER</span>
+            </div>
+          </div>
+
+          <!-- Màn hình OLED Canvas 512x256 buffer sắc cạnh tuyệt đối -->
+          <div class="relative rounded-lg overflow-hidden border-2 border-slate-800 oled-screen p-2 aspect-[2/1] flex items-center justify-center">
+            <canvas id="oled-canvas" width="512" height="256" class="w-full h-full block crt-canvas"></canvas>
+            <div class="crt-scanlines absolute inset-0"></div>
+          </div>
+
+          <!-- Công cụ phần cứng phụ trợ -->
+          <div class="mt-4 flex items-center justify-between gap-3">
+            <button id="i2c-recovery-btn" class="tactile-sub-btn flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-mono font-semibold rounded-lg border border-slate-700 flex items-center justify-center gap-1.5">
+              <span>🛠️ I2C Recovery (9-Clock)</span>
+            </button>
+            <button id="test-buzz-motor-btn" class="tactile-sub-btn py-2 px-3 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-mono font-semibold rounded-lg border border-slate-700 flex items-center gap-1.5">
+              <span>⚡ Test Còi/Rung 2s</span>
+            </button>
+          </div>
+
+          <!-- Đèn báo phần cứng -->
+          <div class="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-2 gap-3 text-xs font-mono">
+            <div id="buzzer-indicator" class="flex items-center gap-2 p-2 rounded bg-slate-950/60 border border-slate-800 transition">
+              <div id="buzzer-led" class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
+              <div>
+                <div class="text-slate-300 font-bold">Còi (GPIO 7 · ACTIVE)</div>
+                <div id="buzzer-state-text" class="text-[10px] text-slate-500">TẮT (noTone)</div>
+              </div>
+            </div>
+            <div id="motor-indicator" class="flex items-center gap-2 p-2 rounded bg-slate-950/60 border border-slate-800 transition">
+              <div id="motor-led" class="w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></div>
+              <div>
+                <div class="text-slate-300 font-bold">Motor (không có trên board)</div>
+                <div id="motor-state-text" class="text-[10px] text-slate-500">TẮT (0V S8050)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nút bấm ngoại vi GPIO 1: Nhấn nhả HỦY / Nhấn giữ 3s SOS -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h2 class="text-sm font-bold font-mono text-white flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+                NÚT BẤM VẬT LÝ NGOẠI VI (GPIO 1)
+              </h2>
+              <p class="text-xs text-slate-400 font-mono">Nhấn nhả: Hủy đếm lùi | <b>Giữ 3s: Kích hoạt SOS khẩn cấp</b></p>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">INPUT_PULLUP</span>
+          </div>
+
+          <div class="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden mb-3 border border-slate-800">
+            <div id="sos-progress-bar" class="bg-amber-400 h-full w-0 transition-all duration-75"></div>
+          </div>
+
+          <button id="gpio8-hardware-btn" class="tactile-btn w-full py-4 px-6 bg-red-600 hover:bg-red-500 text-white font-mono font-black text-base rounded-xl flex flex-col items-center justify-center gap-1 active:bg-red-700 uppercase tracking-wider select-none">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">🛑</span>
+              <span id="gpio8-btn-label">BẤM HỦY / GIỮ 3S PHÁT SOS</span>
+            </div>
+            <span id="gpio8-btn-sub" class="text-[10px] text-red-200 font-normal">Giữ chuột hoặc ngón tay liên tục 3 giây</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Health Guard, Sensor DSP, Inactivity & Pedometer (7 cols) -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- NÂNG CẤP BẢO VỆ CẢM BIẾN (DSP) & CẢNH BÁO SỨC KHỎE 10S -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <span>🛡️</span> Sensor Guard (DSP) & Cảnh báo Sức khỏe Đa tầng
+              </h2>
+              <p class="text-xs text-slate-400 font-mono">Phát hiện tháo vòng (Lead-Off) + Xác thực bất thường &gt;10s</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Nút gạt Đeo / Tháo vòng tay -->
+              <button id="wear-toggle-btn" class="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition flex items-center gap-1.5 shadow">
+                <span id="wear-icon">⌚</span> <span id="wear-btn-text">Vòng tay: ĐANG ĐEO</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Thanh tiến trình cảnh báo bất thường sức khỏe (10 giây đếm ngược chuẩn bị) -->
+          <div id="health-check-banner" class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <span class="text-slate-300 flex items-center gap-1.5">
+                <span id="health-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span id="health-check-title">Chỉ số sinh trắc ổn định</span>
+              </span>
+              <span id="health-timer-text" class="text-slate-400 font-bold">0.0s / 10s</span>
+            </div>
+            <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
+              <div id="health-progress-bar" class="bg-rose-500 h-full w-0 transition-all duration-100"></div>
+            </div>
+            <div class="text-[10px] font-mono text-slate-500 flex justify-between">
+              <span>Ngưỡng: HR &lt;50 hoặc &gt;120 BPM</span>
+              <span>SpO2 &lt;90%</span>
+              <span>Duy trì liên tục &gt;10s ➔ COUNTDOWN 10s</span>
+            </div>
+          </div>
+
+          <!-- Điều chỉnh chỉ số sinh trắc thủ công để kiểm thử -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="text-slate-300">Nhịp tim (BPM):</span>
+                <span id="bpm-val-text" class="text-rose-400 font-bold">75 BPM</span>
+              </div>
+              <input id="hr-slider" type="range" min="35" max="160" step="1" value="75" class="w-full accent-rose-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>&lt;50 (Chậm)</span>
+                <span>75 (Chuẩn)</span>
+                <span>&gt;120 (Nhanh)</span>
+              </div>
+            </div>
+
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="text-slate-300">Nồng độ SpO2:</span>
+                <span id="spo2-val-text" class="text-cyan-400 font-bold">98%</span>
+              </div>
+              <input id="spo2-slider" type="range" min="75" max="100" step="1" value="98" class="w-full accent-cyan-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>&lt;90% (Nguy cấp)</span>
+                <span>95%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="text-slate-300">Đếm bước chân (Pedometer):</span>
+                <span id="step-val-text" class="text-amber-400 font-bold">1,420 bước</span>
+              </div>
+              <div class="flex gap-2">
+                <button id="add-step-btn" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono rounded border border-slate-700">
+                  +10 Bước
+                </button>
+                <button id="reset-step-btn" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-mono rounded border border-slate-700">
+                  Reset
+                </button>
+              </div>
+              <div class="text-[10px] font-mono text-slate-500 flex justify-between">
+                <span id="pedometer-dist">Quãng đường: ~0.99 km</span>
+                <span id="pedometer-cal">42.6 kcal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FSM Pipeline Té ngã & Bộ đếm lùi 10s -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <span>⚡</span> Fall FSM + Bộ phát hiện Bất động (Inactivity)
+              </h2>
+              <p class="text-xs text-slate-400 font-mono">Đo phương sai gia tốc σ²_a sau va đập để chống báo động giả</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="trigger-fall-btn" class="py-1.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold shadow transition flex items-center gap-1.5">
+                <span>💥</span> Test Rơi + Va đập
+              </button>
+            </div>
+          </div>
+
+          <!-- 6 Bước trong Pipeline phát hiện ngã -->
+          <div class="grid grid-cols-6 gap-1 text-center font-mono text-[9px]">
+            <div id="step-idle" class="p-1.5 rounded bg-slate-800/80 border border-slate-700 text-slate-300 font-bold transition">
+              1. IDLE<br><span class="font-normal text-[8px] text-slate-400">Giám sát 1g</span>
+            </div>
+            <div id="step-freefall" class="p-1.5 rounded bg-slate-800/40 border border-slate-800 text-slate-500 transition">
+              2. FREE-FALL<br><span class="font-normal text-[8px] text-slate-500">&lt;5.0 m/s²</span>
+            </div>
+            <div id="step-impact" class="p-1.5 rounded bg-slate-800/40 border border-slate-800 text-slate-500 transition">
+              3. IMPACT<br><span class="font-normal text-[8px] text-slate-500">&gt;Ngưỡng va đập</span>
+            </div>
+            <div id="step-inactivity" class="p-1.5 rounded bg-slate-800/40 border border-slate-800 text-slate-500 transition">
+              4. BẤT ĐỘNG<br><span class="font-normal text-[8px] text-slate-500">σ²&lt;0.08 (3s)</span>
+            </div>
+            <div id="step-countdown" class="p-1.5 rounded bg-slate-800/40 border border-slate-800 text-slate-500 transition">
+              5. ĐẾM LÙI<br><span class="font-normal text-[8px] text-slate-500">10s Hủy lệnh</span>
+            </div>
+            <div id="step-alarm" class="p-1.5 rounded bg-slate-800/40 border border-slate-800 text-slate-500 transition">
+              6. ALARM<br><span class="font-normal text-[8px] text-slate-500">Còi + Rung</span>
+            </div>
+          </div>
+
+          <!-- Bộ đếm lùi 10s trực quan -->
+          <div id="countdown-banner" class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <div id="countdown-circle" class="w-16 h-16 rounded-full border-4 border-slate-800 flex items-center justify-center font-mono text-2xl font-black text-slate-400 transition-colors">
+                --
+              </div>
+              <div>
+                <div id="countdown-status-title" class="font-bold text-sm text-slate-200">Hệ thống bình thường</div>
+                <div id="countdown-status-sub" class="text-xs text-slate-400 font-mono">Chưa kích hoạt cảnh báo té ngã hoặc bất thường nhịp tim.</div>
+              </div>
+            </div>
+
+            <button id="web-cancel-btn" disabled class="py-2.5 px-5 rounded-xl bg-slate-800 text-slate-500 font-mono text-xs font-bold uppercase tracking-wider border border-slate-700 transition cursor-not-allowed">
+              Hủy cảnh báo trên Web
+            </button>
+          </div>
+
+          <!-- Sliders: Threshold, Accel & Battery Voltage LUT -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="text-slate-300">Ngưỡng va đập:</span>
+                <span id="threshold-val-text" class="text-amber-400 font-bold">25.0 m/s²</span>
+              </div>
+              <input id="threshold-slider" type="range" min="15.0" max="45.0" step="0.5" value="25.0" class="w-full accent-amber-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>15.0 (Nhạy)</span>
+                <span>Lưu NVS</span>
+                <span>45.0 (Cứng)</span>
+              </div>
+            </div>
+
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="text-slate-300">Gia tốc tổng ($a_{tot}$):</span>
+                <span id="atotal-val-text" class="text-cyan-400 font-bold">9.81 m/s²</span>
+              </div>
+              <input id="accel-slider" type="range" min="0.0" max="50.0" step="0.5" value="9.8" class="w-full accent-cyan-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>0.0 (FreeFall)</span>
+                <span>9.8 (1G)</span>
+                <span>50.0 (Va đập)</span>
+              </div>
+            </div>
+
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex justify-between items-center text-xs font-mono">
+                <span class="text-slate-300">Điện áp Pin Li-Po:</span>
+                <span id="battery-val-text" class="text-emerald-400 font-bold">3.94V (88%)</span>
+              </div>
+              <input id="battery-slider" type="range" min="3.00" max="4.20" step="0.01" value="3.94" class="w-full accent-emerald-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>3.00V (Cạn)</span>
+                <span>LUT OCV</span>
+                <span>4.20V (Đầy)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Oscilloscope Sóng xung MAX30100 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+              <span>📈</span> Sóng Xung Plethysmogram MAX30100 (50Hz Oscilloscope)
+            </h2>
+            <span id="wear-status-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
+              LEAD: ON (ÁP SÁT DA)
+            </span>
+          </div>
+          <div class="relative bg-slate-950 rounded-xl border border-slate-800 p-2 overflow-hidden h-28">
+            <canvas id="ppg-canvas" class="w-full h-full block"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Console Log & Local Serial Console -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-base">
+            🖥️
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+              LOCAL SERIAL CONSOLE (UART0)
+            </h2>
+            <p class="text-xs text-slate-400 font-mono">UART0 @ 115200 baud | Local serial monitor</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 font-mono text-xs">
+          <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
+            <span class="text-slate-400">Tổng số vụ ngã ghi nhận:</span>
+            <span id="nvs-fall-count" class="text-amber-400 font-black text-sm">0</span>
+          </div>
+          <button id="clear-console-btn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+            Xóa màn hình Log
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-black/95 rounded-xl border border-slate-800 p-4 font-mono text-xs h-48 overflow-y-auto space-y-1 select-text" id="serial-terminal">
+        <div class="text-slate-500">[00:00:00.012] [I] ESP32-S3 booting... CPU clock 240MHz, Flash 8MB, PSRAM disabled.</div>
+        <div class="text-slate-500">[00:00:00.084] [I] NVS Preferences init: Loaded fall_threshold = 25.0 m/s², total_falls = 0.</div>
+        <div class="text-slate-500">[00:00:00.320] [I] I2C Wire started at 400kHz (SDA: GPIO 8, SCL: GPIO 9).</div>
+        <div class="text-emerald-400">[00:00:00.350] [I] SSD1306 OLED (0x3C) initialized. Layout: Single-Page Biometrics + Pedometer.</div>
+        <div class="text-emerald-400">[00:00:00.380] [I] Sensor Guard Active: MAX30100 Lead-Off Detection & Health Verification (10s threshold).</div>
+        <div class="text-cyan-400">[00:00:01.120] [I] TaskCore0 pinned to Core 0 (Wi-Fi + HTTPS WebServer).</div>
+        <div class="text-cyan-400">[00:00:01.125] [I] TaskCore1 pinned to Core 1 (Sensor sampling + OLED loop).</div>
+        <div class="text-emerald-400">[00:00:02.400] [I] Wi-Fi Connected: IP 192.168.1.105. Local serial console READY.</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    /* Global Application State */
+    const FSM_STATES = {
+      IDLE: 'STATE_IDLE',
+      FREE_FALL: 'STATE_FREE_FALL',
+      IMPACT: 'STATE_IMPACT',
+      INACTIVITY: 'STATE_INACTIVITY',
+      COUNTDOWN: 'STATE_COUNTDOWN',
+      ALARM: 'STATE_ALARM',
+      SNOOZE: 'STATE_SNOOZE',
+      PANIC_SOS: 'STATE_PANIC_SOS'
+    };
+
+    let currentState = FSM_STATES.IDLE;
+    let alarmReason = 'Té ngã nghiêm trọng';
+    let fallThreshold = 25.0; // m/s²
+    let totalFallEvents = 0;
+    let countdownSeconds = 10;
+    let countdownInterval = null;
+    let snoozeTimer = 0;
+    let snoozeInterval = null;
+
+    // Post-Impact Inactivity Verification
+    let inactivityTimer = 0;
+    let inactivityInterval = null;
+    let accelWindow = [];
+    const INACTIVITY_VARIANCE_THRESHOLD = 0.08;
+    const MOTION_VARIANCE_THRESHOLD = 0.8;
+
+    // Hardware Resilience & CPU Frequency (DFS)
+    let cpuFreq = 240;
+
+    // Li-Po 3.7V Lookup Table (OCV)
+    const LIPO_LUT = [
+      { v: 4.20, p: 100 },
+      { v: 4.10, p: 90 },
+      { v: 4.00, p: 80 },
+      { v: 3.90, p: 70 },
+      { v: 3.82, p: 60 },
+      { v: 3.78, p: 50 },
+      { v: 3.75, p: 40 },
+      { v: 3.72, p: 30 },
+      { v: 3.68, p: 20 },
+      { v: 3.60, p: 10 },
+      { v: 3.40, p: 5 },
+      { v: 3.00, p: 0 }
+    ];
+
+    function calculateLiPoPercentage(v) {
+      if (v >= LIPO_LUT[0].v) return 100;
+      if (v <= LIPO_LUT[LIPO_LUT.length - 1].v) return 0;
+      for (let i = 0; i < LIPO_LUT.length - 1; i++) {
+        const pHigh = LIPO_LUT[i];
+        const pLow = LIPO_LUT[i + 1];
+        if (v <= pHigh.v && v >= pLow.v) {
+          const ratio = (v - pLow.v) / (pHigh.v - pLow.v);
+          return Math.round(pLow.p + ratio * (pHigh.p - pLow.p));
+        }
+      }
+      return 0;
+    }
+
+    let batteryVoltage = 3.94;
+    let batteryLevel = calculateLiPoPercentage(batteryVoltage);
+
+    // IMU 6-axis raw values
+    let imu = {
+      ax: 0.2, ay: 0.4, az: 9.8,
+      gx: 0.5, gy: -0.2, gz: 0.1,
+      totalAccel: 9.81
+    };
+
+    // Sensor Guard (DSP) & Biometrics State
+    let isWearingBand = true; // Trạng thái đeo vòng tay
+    let heartRate = 75;
+    let spo2 = 98;
+    let stepCount = 1420;
+    let ppgPhase = 0;
+    let oledBlink = false;
+
+    // Health Guard Anomaly Timer (10s confirmation)
+    let healthAnomalyDuration = 0; // Đếm số giây bất thường liên tục
+    let healthAnomalyActive = false;
+
+    // Hardware Actuators
+    let buzzerActive = false;
+    let motorActive = false;
+    let audioEnabled = true;
+
+    // Web Audio API
+    let audioCtx = null;
+    let buzzerOsc = null;
+    let buzzerGain = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playClickSound() {
+      if (!audioEnabled) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+      } catch (e) {}
+    }
+
+    function playCountdownBeep(frequency = 1200, duration = 0.12) {
+      if (!audioEnabled) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function startAlarmSiren() {
+      if (!audioEnabled) return;
+      try {
+        initAudio();
+        stopAlarmSiren();
+        buzzerOsc = audioCtx.createOscillator();
+        buzzerGain = audioCtx.createGain();
+        buzzerOsc.type = 'sawtooth';
+        buzzerOsc.frequency.setValueAtTime(3000, audioCtx.currentTime);
+        buzzerGain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        buzzerOsc.connect(buzzerGain);
+        buzzerGain.connect(audioCtx.destination);
+        buzzerOsc.start();
+      } catch (e) {}
+    }
+
+    function stopAlarmSiren() {
+      if (buzzerOsc) {
+        try {
+          buzzerOsc.stop();
+          buzzerOsc.disconnect();
+        } catch (e) {}
+        buzzerOsc = null;
+      }
+    }
+
+    function loadNVS() {
+      const storedThreshold = localStorage.getItem('bioband_fall_threshold');
+      if (storedThreshold !== null) fallThreshold = parseFloat(storedThreshold);
+      const storedFalls = localStorage.getItem('bioband_total_falls');
+      if (storedFalls !== null) totalFallEvents = parseInt(storedFalls, 10);
+      const storedSteps = localStorage.getItem('bioband_steps');
+      if (storedSteps !== null) stepCount = parseInt(storedSteps, 10);
+
+      document.getElementById('threshold-slider').value = fallThreshold;
+      document.getElementById('threshold-val-text').textContent = fallThreshold.toFixed(1) + ' m/s²';
+      document.getElementById('nvs-fall-count').textContent = totalFallEvents;
+      updatePedometerUI();
+    }
+
+    function saveThresholdNVS(val) {
+      fallThreshold = parseFloat(val);
+      localStorage.setItem('bioband_fall_threshold', fallThreshold);
+      document.getElementById('threshold-val-text').textContent = fallThreshold.toFixed(1) + ' m/s²';
+      logSerial(`[I] Preferences: NVS updated fall_threshold = ${fallThreshold.toFixed(1)} m/s²`, 'text-cyan-400');
+    }
+
+    function incrementFallCountNVS() {
+      totalFallEvents++;
+      localStorage.setItem('bioband_total_falls', totalFallEvents);
+      document.getElementById('nvs-fall-count').textContent = totalFallEvents;
+    }
+
+    function clearNVS() {
+      totalFallEvents = 0;
+      fallThreshold = 25.0;
+      stepCount = 0;
+      ['bioband_fall_threshold', 'bioband_total_falls', 'bioband_steps']
+        .forEach((key) => localStorage.removeItem(key));
+      document.getElementById('threshold-slider').value = 25.0;
+      document.getElementById('threshold-val-text').textContent = '25.0 m/s²';
+      document.getElementById('nvs-fall-count').textContent = '0';
+      updatePedometerUI();
+      logSerial(`[W] Preferences: NVS Flash Cleared. Restored defaults.`, 'text-amber-400');
+      showToast('Bộ nhớ Flash NVS đã được đặt lại!', 'warning');
+    }
+
+    function logSerial(msg, colorClass = 'text-slate-400') {
+      const terminal = document.getElementById('serial-terminal');
+      const now = new Date();
+      const timeStr = `[${now.toTimeString().split(' ')[0]}.${String(now.getMilliseconds()).padStart(3, '0')}]`;
+      const line = document.createElement('div');
+      line.className = `${colorClass} font-mono leading-relaxed`;
+      line.textContent = `${timeStr} ${msg}`;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        info: 'bg-cyan-950 border-cyan-800 text-cyan-200',
+        warning: 'bg-amber-950 border-amber-800 text-amber-200',
+        danger: 'bg-rose-950 border-rose-800 text-rose-200',
+        success: 'bg-emerald-950 border-emerald-800 text-emerald-200'
+      };
+      toast.className = `px-4 py-2.5 rounded-lg border text-xs font-mono shadow-xl transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto flex items-center gap-2 ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span>●</span><span>${message}</span>`;
+      container.appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function setBuzzer(state, freq = 3000) {
+      if (buzzerActive === state) return;
+      buzzerActive = state;
+      const led = document.getElementById('buzzer-led');
+      const text = document.getElementById('buzzer-state-text');
+      const pBuzz = document.getElementById('p-buzz');
+
+      if (state) {
+        led.className = 'w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse';
+        text.className = 'text-[10px] text-rose-400 font-bold';
+        text.textContent = `BẬT (${freq}Hz LEDC)`;
+        pBuzz.className = 'text-rose-400 font-bold';
+        pBuzz.textContent = 'BUZZ: 18mA';
+        startAlarmSiren();
+      } else {
+        led.className = 'w-3 h-3 rounded-full bg-slate-700 border border-slate-600';
+        text.className = 'text-[10px] text-slate-500';
+        text.textContent = 'TẮT (noTone)';
+        pBuzz.className = 'text-slate-500';
+        pBuzz.textContent = 'BUZZ: 0mA';
+        stopAlarmSiren();
+      }
+      updatePowerModel();
+    }
+
+    function setMotor(state) {
+      if (motorActive === state) return;
+      motorActive = state;
+      const led = document.getElementById('motor-led');
+      const text = document.getElementById('motor-state-text');
+      const pMotor = document.getElementById('p-motor');
+      const bezel = document.querySelector('.oled-bezel');
+
+      if (state) {
+        led.className = 'w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b] animate-ping';
+        text.className = 'text-[10px] text-amber-400 font-bold';
+        text.textContent = 'RUNG (3.3V S8050 NPN)';
+        pMotor.className = 'text-amber-400 font-bold';
+        pMotor.textContent = 'MTR: 68mA';
+        bezel.classList.add('rumble-active');
+      } else {
+        led.className = 'w-3 h-3 rounded-full bg-slate-700 border border-slate-600';
+        text.className = 'text-[10px] text-slate-500';
+        text.textContent = 'TẮT (0V S8050)';
+        pMotor.className = 'text-slate-500';
+        pMotor.textContent = 'MTR: 0mA';
+        bezel.classList.remove('rumble-active');
+      }
+      updatePowerModel();
+    }
+
+    function updatePowerModel() {
+      let current = (cpuFreq === 240) ? 85 : 28;
+      current += 12;
+      current += isWearingBand ? 8 : 1.5; // Giảm dòng khi tháo vòng
+      current += 3.8;
+
+      if (buzzerActive) current += 18;
+      if (motorActive) current += 68;
+
+      const power = current * batteryVoltage;
+
+      document.getElementById('current-val').textContent = current.toFixed(1);
+      document.getElementById('power-val').textContent = power.toFixed(1);
+      document.getElementById('p-cpu').textContent = `CPU: ${(cpuFreq === 240) ? '85' : '28'}mA`;
+      document.getElementById('p-max').textContent = `MAX: ${isWearingBand ? '8' : '1.5'}mA`;
+    }
+
+    function updatePedometerUI() {
+      document.getElementById('step-val-text').textContent = `${stepCount.toLocaleString()} bước`;
+      const km = (stepCount * 0.0007).toFixed(2);
+      const kcal = (stepCount * 0.03).toFixed(1);
+      document.getElementById('pedometer-dist').textContent = `Quãng đường: ~${km} km`;
+      document.getElementById('pedometer-cal').textContent = `${kcal} kcal`;
+      localStorage.setItem('bioband_steps', stepCount);
+    }
+
+    function setFSMState(newState, reason = null) {
+      if (currentState === newState) return;
+      currentState = newState;
+      if (reason) alarmReason = reason;
+
+      const badge = document.getElementById('fsm-badge');
+      const title = document.getElementById('fsm-timer-display');
+      const desc = document.getElementById('fsm-desc');
+      const card = document.getElementById('fsm-status-card');
+
+      const steps = ['idle', 'freefall', 'impact', 'inactivity', 'countdown', 'alarm'];
+      steps.forEach(s => {
+        const el = document.getElementById(`step-${s}`);
+        if (el) el.className = 'p-1.5 rounded bg-slate-800/40 border border-slate-800 text-slate-500 transition';
+      });
+
+      const webCancelBtn = document.getElementById('web-cancel-btn');
+
+      switch (newState) {
+        case FSM_STATES.IDLE:
+          badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800';
+          badge.textContent = 'STATE_IDLE';
+          title.className = 'text-2xl font-black font-mono text-emerald-400 tracking-wider';
+          title.textContent = 'AN TOÀN';
+          desc.textContent = 'Hệ thống đang quét sinh trắc & gia tốc 6-trục liên tục tại 50Hz.';
+          card.className = 'bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-lg transition-colors';
+          document.getElementById('step-idle').className = 'p-1.5 rounded bg-emerald-950/80 border border-emerald-700 text-emerald-300 font-bold';
+          document.getElementById('countdown-circle').textContent = '--';
+          document.getElementById('countdown-circle').className = 'w-16 h-16 rounded-full border-4 border-slate-800 flex items-center justify-center font-mono text-2xl font-black text-slate-400 transition-colors';
+          document.getElementById('countdown-status-title').textContent = 'Hệ thống bình thường';
+          document.getElementById('countdown-status-sub').textContent = 'Chưa kích hoạt cảnh báo té ngã hoặc nhịp tim.';
+          webCancelBtn.disabled = true;
+          webCancelBtn.className = 'py-2.5 px-5 rounded-xl bg-slate-800 text-slate-500 font-mono text-xs font-bold uppercase tracking-wider border border-slate-700 cursor-not-allowed';
+          setBuzzer(false);
+          setMotor(false);
+          break;
+
+        case FSM_STATES.FREE_FALL:
+          badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-950 text-sky-400 border border-sky-800';
+          badge.textContent = 'STATE_FREE_FALL';
+          title.className = 'text-2xl font-black font-mono text-sky-400 tracking-wider';
+          title.textContent = 'MẤT TRỌNG LƯỢNG!';
+          desc.textContent = 'Phát hiện gia tốc a_tot < 5.0 m/s². Đang mở cửa sổ va đập 800ms...';
+          document.getElementById('step-freefall').className = 'p-1.5 rounded bg-sky-950/80 border border-sky-700 text-sky-300 font-bold';
+          logSerial(`[W] FSM: Giai đoạn 1 - Free-Fall detected! a_tot = ${imu.totalAccel.toFixed(2)} m/s²`, 'text-sky-300');
+          break;
+
+        case FSM_STATES.IMPACT:
+          badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-950 text-rose-400 border border-rose-800';
+          badge.textContent = 'STATE_IMPACT';
+          title.className = 'text-2xl font-black font-mono text-rose-400 tracking-wider';
+          title.textContent = 'VA ĐẬP MẠNH!';
+          desc.textContent = `a_tot = ${imu.totalAccel.toFixed(1)} m/s² vượt ngưỡng. Bắt đầu đo bất động sau va đập...`;
+          document.getElementById('step-impact').className = 'p-1.5 rounded bg-rose-950/80 border border-rose-700 text-rose-300 font-bold';
+          logSerial(`[!] FSM: Giai đoạn 2 - Impact confirmed! Peak = ${imu.totalAccel.toFixed(2)} m/s²`, 'text-rose-400');
+          startInactivityCheck();
+          break;
+
+        case FSM_STATES.INACTIVITY:
+          badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-950 text-purple-400 border border-purple-800';
+          badge.textContent = 'STATE_INACTIVITY';
+          title.className = 'text-2xl font-black font-mono text-purple-400 tracking-wider animate-pulse';
+          title.textContent = 'KIỂM TRA BẤT ĐỘNG';
+          desc.textContent = 'Theo dõi phương sai gia tốc σ²_a trong 3s để xác nhận người dùng bất tỉnh...';
+          document.getElementById('step-inactivity').className = 'p-1.5 rounded bg-purple-950/80 border border-purple-700 text-purple-300 font-bold animate-pulse';
+          break;
+
+        case FSM_STATES.COUNTDOWN:
+          badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-950 text-amber-400 border border-amber-800 animate-pulse';
+          badge.textContent = 'STATE_COUNTDOWN';
+          title.className = 'text-2xl font-black font-mono text-amber-400 tracking-wider animate-pulse';
+          title.textContent = 'ĐẾM LÙI CẢNH BÁO';
+          desc.textContent = `${alarmReason}! Nhấn GPIO 1 hoặc nút Web để hủy trước khi hú còi & rung cảnh báo tại chỗ!`;
+          card.className = 'bg-amber-950/20 border border-amber-800/80 rounded-xl p-4 shadow-lg transition-colors';
+          document.getElementById('step-countdown').className = 'p-1.5 rounded bg-amber-950/80 border border-amber-700 text-amber-300 font-bold animate-pulse';
+          webCancelBtn.disabled = false;
+          webCancelBtn.className = 'py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-black uppercase tracking-wider border border-amber-300 shadow cursor-pointer transition';
+          startCountdownSequence();
+          break;
+
+        case FSM_STATES.ALARM:
+        case FSM_STATES.PANIC_SOS:
+          badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-950 text-rose-400 border border-rose-800 animate-ping';
+          badge.textContent = (newState === FSM_STATES.PANIC_SOS) ? 'STATE_PANIC_SOS' : 'STATE_ALARM';
+          title.className = 'text-2xl font-black font-mono text-rose-500 tracking-wider';
+          title.textContent = (newState === FSM_STATES.PANIC_SOS) ? 'SOS KHẨN CẤP (MANUAL)!' : 'BÁO ĐỘNG KHẨN CẤP!';
+          desc.textContent = `Lý do: ${alarmReason}. Đang hú còi 3000Hz và rung motor S8050 - cảnh báo tại chỗ...`;
+          card.className = 'bg-rose-950/40 border border-rose-700 rounded-xl p-4 shadow-lg transition-colors';
+          document.getElementById('step-alarm').className = 'p-1.5 rounded bg-rose-950/80 border border-rose-700 text-rose-300 font-bold animate-pulse';
+          document.getElementById('countdown-status-title').textContent = 'ĐANG BÁO ĐỘNG TẠI CHỖ!';
+          document.getElementById('countdown-status-sub').textContent = `Lý do: ${alarmReason} | Còi 3000Hz + Rung motor`;
+          webCancelBtn.disabled = false;
+          webCancelBtn.textContent = 'TẮT CÒI KHẨN CẤP';
+          webCancelBtn.className = 'py-2.5 px-5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-black uppercase tracking-wider border border-rose-400 shadow cursor-pointer transition';
+          
+          setBuzzer(true, 3000);
+          setMotor(true);
+          incrementFallCountNVS();
+          break;
+
+        case FSM_STATES.SNOOZE:
+          badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-950 text-purple-400 border border-purple-800';
+          badge.textContent = 'STATE_SNOOZE';
+          title.className = 'text-2xl font-black font-mono text-purple-400 tracking-wider';
+          title.textContent = 'SNOOZE KHÓA NGẮT';
+          desc.textContent = 'Người dùng đã hủy. Khóa phát hiện té ngã & cảnh báo sức khỏe 20s để ổn định.';
+          card.className = 'bg-purple-950/20 border border-purple-900 rounded-xl p-4 shadow-lg transition-colors';
+          document.getElementById('countdown-status-title').textContent = 'Đã hủy cảnh báo (Snooze)';
+          document.getElementById('countdown-status-sub').textContent = 'Tạm khóa quét té ngã & nhịp tim trong 20s.';
+          webCancelBtn.disabled = true;
+          webCancelBtn.textContent = 'Hủy cảnh báo trên Web';
+          webCancelBtn.className = 'py-2.5 px-5 rounded-xl bg-slate-800 text-slate-500 font-mono text-xs font-bold uppercase tracking-wider border border-slate-700 cursor-not-allowed';
+          setBuzzer(false);
+          setMotor(false);
+          startSnoozeSequence();
+          break;
+      }
+    }
+
+    function startInactivityCheck() {
+      setFSMState(FSM_STATES.INACTIVITY);
+      accelWindow = [];
+      inactivityTimer = 3;
+
+      document.getElementById('countdown-status-title').textContent = 'ĐANG ĐO ĐỘ BẤT ĐỘNG (POST-FALL)...';
+      document.getElementById('countdown-status-sub').textContent = 'Nếu người dùng di chuyển lại, cảnh báo sẽ tự động hủy.';
+
+      clearInterval(inactivityInterval);
+      inactivityInterval = setInterval(() => {
+        inactivityTimer--;
+        
+        let mean = accelWindow.reduce((a, b) => a + b, 0) / (accelWindow.length || 1);
+        let variance = accelWindow.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (accelWindow.length || 1);
+
+        logSerial(`[CHECK] Post-Fall Inactivity: T-${inactivityTimer}s, Variance σ² = ${variance.toFixed(3)} m/s²`, 'text-purple-300');
+
+        if (variance > MOTION_VARIANCE_THRESHOLD) {
+          clearInterval(inactivityInterval);
+          logSerial(`[OK] Người dùng tiếp tục vận động (σ² > 0.8 m/s²). Hủy cảnh báo té ngã giả!`, 'text-emerald-400');
+          showToast('Phát hiện có cử động sau va chạm: Hủy cảnh báo giả.', 'success');
+          setFSMState(FSM_STATES.IDLE);
+          return;
+        }
+
+        if (inactivityTimer <= 0 && variance <= INACTIVITY_VARIANCE_THRESHOLD) {
+          clearInterval(inactivityInterval);
+          logSerial(`[!] Xác nhận BẤT ĐỘNG sau va đập (σ² < 0.08). Kích hoạt đếm lùi 10s!`, 'text-amber-400');
+          setFSMState(FSM_STATES.COUNTDOWN, 'Phát hiện Té ngã kèm Bất động');
+        } else if (inactivityTimer <= 0) {
+          inactivityTimer = 3;
+          logSerial(`[CHECK] Phương sai trung gian; tiếp tục xác minh thêm 3 giây.`, 'text-slate-400');
+        }
+      }, 1000);
+    }
+
+    function startCountdownSequence() {
+      clearInterval(countdownInterval);
+      countdownSeconds = 10;
+      updateCountdownVisuals();
+
+      playCountdownBeep(1000, 0.15);
+      logSerial(`[!] FSM: Bắt đầu đếm lùi 10 giây. Lý do: ${alarmReason}. Nhấn GPIO 1 để hủy.`, 'text-amber-400');
+
+      countdownInterval = setInterval(() => {
+        countdownSeconds--;
+        updateCountdownVisuals();
+
+        if (countdownSeconds > 0) {
+          playCountdownBeep(1200 + (10 - countdownSeconds) * 80, 0.15);
+        } else {
+          clearInterval(countdownInterval);
+          setFSMState(FSM_STATES.ALARM, alarmReason);
+        }
+      }, 1000);
+    }
+
+    function updateCountdownVisuals() {
+      const circle = document.getElementById('countdown-circle');
+      circle.textContent = String(countdownSeconds).padStart(2, '0');
+      circle.className = 'w-16 h-16 rounded-full border-4 border-amber-500 bg-amber-950/50 flex items-center justify-center font-mono text-2xl font-black text-amber-300 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)] animate-pulse';
+      document.getElementById('countdown-status-title').textContent = `ĐANG ĐẾM LÙI: ${countdownSeconds} GIÂY`;
+      document.getElementById('countdown-status-sub').textContent = `Nguyên nhân: ${alarmReason}. Nhấn để hủy!`;
+    }
+
+    function startSnoozeSequence() {
+      clearInterval(countdownInterval);
+      clearInterval(snoozeInterval);
+      clearInterval(inactivityInterval);
+      snoozeTimer = 20;
+
+      const circle = document.getElementById('countdown-circle');
+      circle.className = 'w-16 h-16 rounded-full border-4 border-purple-500 bg-purple-950/40 flex items-center justify-center font-mono text-xl font-bold text-purple-300';
+      circle.textContent = `${snoozeTimer}s`;
+
+      logSerial(`[I] FSM: Kích hoạt Snooze Buffer 20s. Tạm khóa ngắt báo động.`, 'text-purple-300');
+      showToast('Đã hủy báo động! Khóa quét trong 20s.', 'info');
+
+      snoozeInterval = setInterval(() => {
+        snoozeTimer--;
+        circle.textContent = `${snoozeTimer}s`;
+        document.getElementById('countdown-status-sub').textContent = `Thời gian khóa còn lại: ${snoozeTimer} giây...`;
+
+        if (snoozeTimer <= 0) {
+          clearInterval(snoozeInterval);
+          logSerial(`[I] FSM: Hết thời gian Snooze. Hệ thống trở lại trạng thái IDLE sẵn sàng.`, 'text-emerald-400');
+          setFSMState(FSM_STATES.IDLE);
+        }
+      }, 1000);
+    }
+
+    function cancelFallAlarm(source = 'GPIO 1 PUSHBUTTON') {
+      playClickSound();
+      if (currentState === FSM_STATES.COUNTDOWN || currentState === FSM_STATES.ALARM || currentState === FSM_STATES.INACTIVITY || currentState === FSM_STATES.PANIC_SOS) {
+        logSerial(`[OK] Ngắt hủy nhận được từ ${source}! Chuyển sang SNOOZE 20s.`, 'text-emerald-300');
+        healthAnomalyDuration = 0;
+        setFSMState(FSM_STATES.SNOOZE);
+      }
+    }
+
+    function triggerFallSequence() {
+      playClickSound();
+      if (currentState === FSM_STATES.SNOOZE) {
+        showToast('Hệ thống đang trong chế độ Snooze Cooldown! Vui lòng chờ.', 'warning');
+        return;
+      }
+      logSerial(`>>> [TEST] Kích hoạt kịch bản mô phỏng té ngã đa tầng...`, 'text-rose-400');
+      
+      setFSMState(FSM_STATES.FREE_FALL);
+      updateAccelValues(0.3, 0.4, 1.8);
+
+      setTimeout(() => {
+        updateAccelValues(12.5, -8.2, 28.5);
+        setFSMState(FSM_STATES.IMPACT, 'Phát hiện Té ngã');
+
+        setTimeout(() => {
+          updateAccelValues(0.2, 0.1, 9.8);
+        }, 400);
+      }, 350);
+    }
+
+    function updateAccelValues(ax, ay, az) {
+      imu.ax = ax; imu.ay = ay; imu.az = az;
+      imu.totalAccel = Math.sqrt(ax * ax + ay * ay + az * az);
+      document.getElementById('accel-slider').value = imu.totalAccel.toFixed(1);
+      document.getElementById('atotal-val-text').textContent = `${imu.totalAccel.toFixed(2)} m/s²`;
+
+      // Cập nhật cửa sổ trượt phương sai
+      accelWindow.push(imu.totalAccel);
+      if (accelWindow.length > 25) accelWindow.shift();
+
+      // Thuật toán Pedometer đơn giản dựa trên dao động gia tốc vượt ngưỡng
+      if (imu.totalAccel > 13.0 && Math.random() < 0.3) {
+        stepCount += 1;
+        updatePedometerUI();
+      }
+
+      if (currentState === FSM_STATES.IDLE) {
+        if (imu.totalAccel < 5.0) {
+          setFSMState(FSM_STATES.FREE_FALL);
+          setTimeout(() => {
+            if (currentState === FSM_STATES.FREE_FALL) setFSMState(FSM_STATES.IDLE);
+          }, 800);
+        } else if (imu.totalAccel >= fallThreshold) {
+          setFSMState(FSM_STATES.IMPACT, 'Phát hiện Té ngã');
+        }
+      }
+    }
+
+    // --- KIỂM TRA BẤT THƯỜNG SỨC KHỎE (10S XÁC THỰC TRƯỚC KHI ĐẾM NGƯỢC) ---
+    function checkHealthAnomalies(deltaSec) {
+      if (!isWearingBand) {
+        healthAnomalyDuration = 0;
+        updateHealthGuardUI('ĐÃ THÁO VÒNG TAY (LEAD-OFF)', 'text-slate-400', 0, 'bg-slate-500');
+        return;
+      }
+
+      if (currentState !== FSM_STATES.IDLE && currentState !== FSM_STATES.SNOOZE) {
+        return;
+      }
+
+      // Điều kiện bất thường: Nhịp tim quá thấp (<50), quá cao (>120), hoặc SpO2 thấp (<90%)
+      let isAbnormal = false;
+      let reasonText = '';
+
+      if (heartRate < 50) {
+        isAbnormal = true;
+        reasonText = `Nhịp tim quá thấp (${heartRate} BPM < 50)`;
+      } else if (heartRate > 120) {
+        isAbnormal = true;
+        reasonText = `Nhịp tim quá cao (${heartRate} BPM > 120)`;
+      } else if (spo2 < 90) {
+        isAbnormal = true;
+        reasonText = `Nồng độ oxy SpO2 nguy cấp (${spo2}% < 90%)`;
+      }
+
+      if (isAbnormal) {
+        healthAnomalyDuration += deltaSec;
+        const progress = Math.min(100, (healthAnomalyDuration / 10.0) * 100);
+        updateHealthGuardUI(`CẢNH BÁO: ${reasonText}`, 'text-rose-400', progress, 'bg-rose-500');
+
+        if (healthAnomalyDuration >= 10.0 && currentState === FSM_STATES.IDLE) {
+          healthAnomalyDuration = 0;
+          logSerial(`[HEALTH GUARD] Bất thường sinh trắc kéo dài > 10s: ${reasonText}! Kích hoạt COUNTDOWN 10s!`, 'text-rose-400');
+          setFSMState(FSM_STATES.COUNTDOWN, reasonText);
+        }
+      } else {
+        if (healthAnomalyDuration > 0) {
+          healthAnomalyDuration = Math.max(0, healthAnomalyDuration - deltaSec * 2); // phục hồi dần
+          const progress = Math.min(100, (healthAnomalyDuration / 10.0) * 100);
+          updateHealthGuardUI('Đang hồi phục chỉ số an toàn...', 'text-amber-400', progress, 'bg-amber-500');
+        } else {
+          updateHealthGuardUI('Chỉ số sinh trắc ổn định', 'text-emerald-400', 0, 'bg-emerald-500');
+        }
+      }
+    }
+
+    function updateHealthGuardUI(title, textClass, pct, barClass) {
+      const titleEl = document.getElementById('health-check-title');
+      const dotEl = document.getElementById('health-dot');
+      const textEl = document.getElementById('health-timer-text');
+      const barEl = document.getElementById('health-progress-bar');
+
+      titleEl.textContent = title;
+      titleEl.className = textClass;
+      dotEl.className = `w-2 h-2 rounded-full ${barClass}`;
+      textEl.textContent = `${healthAnomalyDuration.toFixed(1)}s / 10s`;
+      barEl.style.width = `${pct}%`;
+      barEl.className = `h-full transition-all duration-100 ${barClass}`;
+    }
+
+    function dicroticPulse(phase, amplitude = 1) {
+      const cycle = ((phase % 1) + 1) % 1;
+      const systolic = Math.exp(-Math.pow((cycle - 0.18) / 0.055, 2));
+      const notch = 0.18 * Math.exp(-Math.pow((cycle - 0.42) / 0.035, 2));
+      const diastolic = 0.28 * Math.exp(-Math.pow((cycle - 0.52) / 0.075, 2));
+      return amplitude * (systolic - notch + diastolic);
+    }
+
+    // --- RENDER DUY NHẤT TRÊN MÀN HÌNH OLED 128x64 (HR, SpO2 & BƯỚC CHÂN) ---
+    const oledCanvas = document.getElementById('oled-canvas');
+    const oledCtx = oledCanvas.getContext('2d');
+
+    function renderOled() {
+      oledCtx.save();
+      oledCtx.imageSmoothingEnabled = false;
+      oledCtx.webkitImageSmoothingEnabled = false;
+      oledCtx.mozImageSmoothingEnabled = false;
+
+      // Xóa màn hình với màu nền đen OLED tuyệt đối (512x256 buffer)
+      oledCtx.fillStyle = '#030712';
+      oledCtx.fillRect(0, 0, 512, 256);
+
+      // Scale 4x để map toàn bộ lưới tọa độ 128x64
+      oledCtx.scale(4, 4);
+
+      // --- TOP STATUS BAR: TÊN THIẾT BỊ • ĐẾM BƯỚC CHÂN • PIN ---
+      oledCtx.fillStyle = '#38bdf8';
+      oledCtx.font = '6px monospace';
+      oledCtx.fillText('BIO', 2, 7);
+
+      // Hiển thị bước chân Pedometer trên OLED
+      oledCtx.fillStyle = '#fbbf24';
+      oledCtx.fillText(`[${stepCount}st]`, 34, 7);
+
+      const isLowBatt = batteryLevel <= 15;
+      const battBlink = isLowBatt && (Math.floor(Date.now() / 400) % 2 === 0);
+
+      oledCtx.fillStyle = battBlink ? '#ef4444' : '#38bdf8';
+      oledCtx.fillText(`${batteryLevel}%`, 84, 7);
+
+      oledCtx.strokeStyle = battBlink ? '#ef4444' : '#38bdf8';
+      oledCtx.lineWidth = 1;
+      oledCtx.strokeRect(106, 2, 16, 6);
+      oledCtx.fillRect(122, 3, 1, 4);
+
+      const battFillWidth = Math.max(0, Math.round((batteryLevel / 100) * 12));
+      oledCtx.fillStyle = battBlink ? '#ef4444' : '#38bdf8';
+      if (battFillWidth > 0) oledCtx.fillRect(108, 3, battFillWidth, 4);
+
+      oledCtx.fillStyle = '#38bdf8';
+      oledCtx.fillRect(0, 9, 128, 1);
+
+      // --- TRẠNG THÁI KHẨN CẤP / BÁO ĐỘNG CHIẾM TOÀN MÀN HÌNH ---
+      if (currentState === FSM_STATES.COUNTDOWN) {
+        oledBlink = !oledBlink;
+        oledCtx.fillStyle = oledBlink ? '#fbbf24' : '#030712';
+        oledCtx.fillRect(0, 11, 128, 53);
+
+        oledCtx.fillStyle = oledBlink ? '#030712' : '#fbbf24';
+        oledCtx.font = 'bold 9px monospace';
+        oledCtx.fillText('CANH BAO NGUY HIEM!', 8, 24);
+        oledCtx.font = 'bold 15px monospace';
+        oledCtx.fillText(`HUY: ${countdownSeconds}s`, 28, 42);
+        oledCtx.font = '7px monospace';
+        oledCtx.fillText('NHAN GPIO 1 DE HUY', 14, 56);
+        oledCtx.restore();
+        return;
+      }
+
+      if (currentState === FSM_STATES.ALARM || currentState === FSM_STATES.PANIC_SOS) {
+        oledBlink = !oledBlink;
+        oledCtx.fillStyle = oledBlink ? '#ef4444' : '#030712';
+        oledCtx.fillRect(0, 11, 128, 53);
+
+        oledCtx.fillStyle = oledBlink ? '#ffffff' : '#ef4444';
+        oledCtx.font = 'bold 10px monospace';
+        oledCtx.fillText(currentState === FSM_STATES.PANIC_SOS ? '! SOS PANIC !' : '! ALARM SENT !', 14, 28);
+        oledCtx.font = '7px monospace';
+        oledCtx.fillText('CANH BAO TAI CHO', 12, 42);
+        oledCtx.fillText('HELP IS ON THE WAY', 10, 56);
+        oledCtx.restore();
+        return;
+      }
+
+      if (currentState === FSM_STATES.SNOOZE) {
+        oledCtx.fillStyle = '#a855f7';
+        oledCtx.font = 'bold 9px monospace';
+        oledCtx.fillText('SNOOZE ACTIVE', 24, 28);
+        oledCtx.font = '8px monospace';
+        oledCtx.fillText(`LOCKED: ${snoozeTimer} SEC`, 22, 42);
+        oledCtx.fillText('Tam khoa quet 20s', 14, 54);
+        oledCtx.restore();
+        return;
+      }
+
+      // --- NẾU THÁO VÒNG TAY (LEAD-OFF DETECTION HIỂN THỊ TRÊN OLED) ---
+      if (!isWearingBand) {
+        oledCtx.fillStyle = '#ef4444';
+        oledCtx.font = 'bold 9px monospace';
+        oledCtx.fillText('[!] LEAD-OFF [!]', 18, 25);
+        oledCtx.font = '8px monospace';
+        oledCtx.fillText('CHUA DEO VONG TAY', 12, 40);
+        oledCtx.fillStyle = '#64748b';
+        oledCtx.font = '7px monospace';
+        oledCtx.fillText('Cam bien quang ngat do', 8, 55);
+        oledCtx.restore();
+        return;
+      }
+
+      // --- TRANG HIỂN THỊ CHÍNH DUY NHẤT: HR & SpO2 ĐỒ THỊ KÉP ---
+      oledCtx.fillStyle = '#38bdf8';
+      oledCtx.font = '7px monospace';
+
+      // KÊNH 1: NHỊP TIM
+      const isHrAbnormal = (heartRate < 50 || heartRate > 120);
+      oledCtx.fillStyle = isHrAbnormal ? '#ef4444' : '#38bdf8';
+      oledCtx.fillText(`HR:${heartRate}BPM`, 4, 18);
+      oledCtx.fillText('IR-PULSE', 78, 18);
+
+      oledCtx.strokeStyle = '#1e3a5f';
+      oledCtx.lineWidth = 1;
+      oledCtx.strokeRect(4, 20, 120, 14);
+
+      oledCtx.beginPath();
+      for (let x = 0; x < 116; x++) {
+        const phase = ppgPhase * Math.max(0.65, heartRate / 75) + x / 116;
+        const y = 27 - dicroticPulse(phase, 4.8);
+        if (x === 0) oledCtx.moveTo(6 + x, y);
+        else oledCtx.lineTo(6 + x, y);
+      }
+      oledCtx.strokeStyle = isHrAbnormal ? '#ef4444' : '#38bdf8';
+      oledCtx.stroke();
+
+      // KÊNH 2: SPO2
+      const isSpo2Abnormal = (spo2 < 90);
+      oledCtx.fillStyle = isSpo2Abnormal ? '#ef4444' : '#38bdf8';
+      oledCtx.fillText(`SpO2:${spo2}%`, 4, 43);
+      oledCtx.fillText('RED-AC', 88, 43);
+
+      oledCtx.strokeStyle = '#1e3a5f';
+      oledCtx.lineWidth = 1;
+      oledCtx.strokeRect(4, 45, 120, 14);
+
+      oledCtx.beginPath();
+      const redAmplitude = 2.5 + Math.max(0, 98 - spo2) * 0.06;
+      for (let x = 0; x < 116; x++) {
+        const phase = ppgPhase * Math.max(0.65, heartRate / 75) + x / 116;
+        const y = 52 - dicroticPulse(phase, redAmplitude);
+        if (x === 0) oledCtx.moveTo(6 + x, y);
+        else oledCtx.lineTo(6 + x, y);
+      }
+      oledCtx.strokeStyle = isSpo2Abnormal ? '#ef4444' : '#34d399';
+      oledCtx.stroke();
+
+      oledCtx.restore();
+    }
+
+    // Oscilloscope Sóng PPG Web
+    const ppgCanvas = document.getElementById('ppg-canvas');
+    const ppgCtx = ppgCanvas.getContext('2d');
+    let ppgHistory = [];
+    const maxHistoryPoints = 250;
+
+    function resizeCanvas() {
+      ppgCanvas.width = ppgCanvas.parentElement.clientWidth;
+      ppgCanvas.height = ppgCanvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function updatePPGWave() {
+      if (!isWearingBand) {
+        // Phẳng sóng khi tháo vòng tay
+        ppgHistory.push(0);
+      } else {
+        ppgPhase += 0.08;
+        const t = ppgPhase % (Math.PI * 2);
+        let pulse = (t < Math.PI) ? (Math.sin(t) * 0.85 + Math.sin(t * 2.2) * 0.25) : (-Math.sin(t - Math.PI) * 0.15);
+        pulse += (Math.random() - 0.5) * 0.04;
+        ppgHistory.push(pulse);
+      }
+
+      if (ppgHistory.length > maxHistoryPoints) ppgHistory.shift();
+
+      ppgCtx.fillStyle = '#030712';
+      ppgCtx.fillRect(0, 0, ppgCanvas.width, ppgCanvas.height);
+
+      ppgCtx.strokeStyle = '#1e293b';
+      ppgCtx.lineWidth = 1;
+      ppgCtx.beginPath();
+      for (let x = 0; x < ppgCanvas.width; x += 30) {
+        ppgCtx.moveTo(x, 0); ppgCtx.lineTo(x, ppgCanvas.height);
+      }
+      for (let y = 0; y < ppgCanvas.height; y += 20) {
+        ppgCtx.moveTo(0, y); ppgCtx.lineTo(ppgCanvas.width, y);
+      }
+      ppgCtx.stroke();
+
+      if (ppgHistory.length > 1) {
+        ppgCtx.beginPath();
+        ppgCtx.strokeStyle = isWearingBand ? '#10b981' : '#64748b';
+        ppgCtx.lineWidth = 2.2;
+
+        const stepX = ppgCanvas.width / maxHistoryPoints;
+        const midY = ppgCanvas.height * 0.55;
+
+        for (let i = 0; i < ppgHistory.length; i++) {
+          const x = i * stepX;
+          const y = midY - ppgHistory[i] * 35;
+          if (i === 0) ppgCtx.moveTo(x, y);
+          else ppgCtx.lineTo(x, y);
+        }
+        ppgCtx.stroke();
+      }
+    }
+
+    // --- SETUP SỰ KIỆN TƯƠNG TÁC ---
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNVS();
+      updatePowerModel();
+
+      // Audio Toggle
+      document.getElementById('audio-toggle-btn').addEventListener('click', () => {
+        audioEnabled = !audioEnabled;
+        document.getElementById('audio-icon').textContent = audioEnabled ? '🔊' : '🔇';
+        document.getElementById('audio-text').textContent = `Audio: ${audioEnabled ? 'BẬT' : 'TẮT'}`;
+        if (!audioEnabled) stopAlarmSiren();
+        showToast(`Âm thanh: ${audioEnabled ? 'BẬT' : 'TẮT'}`, 'info');
+      });
+
+      // DFS 240MHz / 80MHz Toggle
+      document.getElementById('dfs-toggle-btn').addEventListener('click', () => {
+        cpuFreq = (cpuFreq === 240) ? 80 : 240;
+        document.getElementById('dfs-text').textContent = `${cpuFreq}MHz`;
+        document.getElementById('clock-badge').textContent = `${cpuFreq} MHz`;
+        logSerial(`[DFS] Điều chỉnh xung nhịp động CPU sang ${cpuFreq}MHz.`, 'text-amber-300');
+        showToast(`Tần số CPU: ${cpuFreq}MHz`, 'info');
+        updatePowerModel();
+      });
+
+      // Công tắc Wear Detection (Tháo / Đeo vòng tay)
+      const wearBtn = document.getElementById('wear-toggle-btn');
+      wearBtn.addEventListener('click', () => {
+        isWearingBand = !isWearingBand;
+        wearBtn.className = `py-1.5 px-3 rounded-lg text-white font-mono text-xs font-bold transition flex items-center gap-1.5 shadow ${isWearingBand ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'}`;
+        document.getElementById('wear-icon').textContent = isWearingBand ? '⌚' : '❌';
+        document.getElementById('wear-btn-text').textContent = isWearingBand ? 'Vòng tay: ĐANG ĐEO' : 'Vòng tay: ĐÃ THÁO';
+        
+        const badge = document.getElementById('wear-status-badge');
+        badge.className = `px-2 py-0.5 rounded text-[10px] font-mono font-bold ${isWearingBand ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}`;
+        badge.textContent = isWearingBand ? 'LEAD: ON (ÁP SÁT DA)' : 'LEAD: OFF (THÁO VÒNG)';
+
+        if (!isWearingBand) {
+          logSerial(`[SENSOR GUARD] Phát hiện tháo vòng tay (IR DC drop < 10000). Ngắt tính toán BPM & SpO2.`, 'text-rose-400');
+          showToast('Đã tháo vòng tay: Ngắt đo sinh trắc.', 'warning');
+        } else {
+          logSerial(`[SENSOR GUARD] Đã đeo lại vòng tay. Khôi phục lọc EMA quang phổ.`, 'text-emerald-400');
+          showToast('Đã đeo vòng tay: Khôi phục đo.', 'success');
+        }
+        updatePowerModel();
+      });
+
+      // Sliders chỉnh HR & SpO2 thủ công
+      const hrSlider = document.getElementById('hr-slider');
+      hrSlider.addEventListener('input', (e) => {
+        heartRate = parseInt(e.target.value, 10);
+        document.getElementById('bpm-val-text').textContent = `${heartRate} BPM`;
+      });
+
+      const spo2Slider = document.getElementById('spo2-slider');
+      spo2Slider.addEventListener('input', (e) => {
+        spo2 = parseInt(e.target.value, 10);
+        document.getElementById('spo2-val-text').textContent = `${spo2}%`;
+      });
+
+      // Pedometer nút thêm & reset
+      document.getElementById('add-step-btn').addEventListener('click', () => {
+        stepCount += 10;
+        updatePedometerUI();
+      });
+      document.getElementById('reset-step-btn').addEventListener('click', () => {
+        stepCount = 0;
+        updatePedometerUI();
+      });
+
+      // I2C Recovery
+      document.getElementById('i2c-recovery-btn').addEventListener('click', () => {
+        playClickSound();
+        logSerial(`[I2C] Bắt đầu chuỗi Bus Recovery: Phát 9 xung Clock trên chân SCL...`, 'text-sky-300');
+        setTimeout(() => {
+          logSerial(`[I2C] Bus I2C đã được phục hồi thành công tại 400kHz.`, 'text-emerald-400');
+          showToast('I2C Recovery: Bus I2C đã được thông!', 'success');
+        }, 300);
+      });
+
+      // Xử lý nút bấm GPIO 1: Nhấn nhả (Hủy) & Nhấn giữ 3s (SOS)
+      const gpio8Btn = document.getElementById('gpio8-hardware-btn');
+      const sosBar = document.getElementById('sos-progress-bar');
+      let pressStartTime = 0;
+      let holdTimer = null;
+
+      function startHold() {
+        pressStartTime = Date.now();
+        holdTimer = setInterval(() => {
+          let elapsed = Date.now() - pressStartTime;
+          let pct = Math.min(100, (elapsed / 3000) * 100);
+          sosBar.style.width = `${pct}%`;
+
+          if (elapsed >= 3000) {
+            clearInterval(holdTimer);
+            holdTimer = null;
+            sosBar.style.width = '0%';
+            logSerial(`[SOS] Người dùng đã giữ nút GPIO 1 quá 3 giây! KÍCH HOẠT PANIC SOS!`, 'text-rose-400');
+            setFSMState(FSM_STATES.PANIC_SOS, 'SOS Khẩn cấp (Nhấn giữ 3s)');
+          }
+        }, 50);
+      }
+
+      function endHold() {
+        if (holdTimer) {
+          clearInterval(holdTimer);
+          holdTimer = null;
+        }
+        let elapsed = Date.now() - pressStartTime;
+        sosBar.style.width = '0%';
+
+        if (elapsed < 3000) {
+          cancelFallAlarm('GPIO 1 HARDWARE BUTTON');
+        }
+      }
+
+      gpio8Btn.addEventListener('mousedown', startHold);
+      gpio8Btn.addEventListener('mouseup', endHold);
+      gpio8Btn.addEventListener('mouseleave', endHold);
+      gpio8Btn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); });
+      gpio8Btn.addEventListener('touchend', (e) => { e.preventDefault(); endHold(); });
+
+      // Web Dashboard Cancel Button
+      document.getElementById('web-cancel-btn').addEventListener('click', () => {
+        cancelFallAlarm('WEB DASHBOARD BUTTON');
+      });
+
+      // Test Buzzer & Motor 2s button
+      document.getElementById('test-buzz-motor-btn').addEventListener('click', () => {
+        playClickSound();
+        logSerial(`[TEST] Kích hoạt kiểm thử Còi 3000Hz và Motor rung S8050 trong 2 giây...`, 'text-amber-300');
+        showToast('Đang test Còi & Motor 2s...', 'info');
+        setBuzzer(true, 3000);
+        setMotor(true);
+        setTimeout(() => {
+          if (currentState !== FSM_STATES.ALARM && currentState !== FSM_STATES.PANIC_SOS) {
+            setBuzzer(false);
+            setMotor(false);
+            logSerial(`[TEST] Hoàn thành test Còi/Motor 2s an toàn.`, 'text-emerald-400');
+          }
+        }, 2000);
+      });
+
+      // Trigger Fall Button
+      document.getElementById('trigger-fall-btn').addEventListener('click', triggerFallSequence);
+
+      // Sliders
+      document.getElementById('threshold-slider').addEventListener('input', (e) => {
+        saveThresholdNVS(e.target.value);
+      });
+
+      document.getElementById('accel-slider').addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        const az = Math.min(val, 35.0);
+        const rem = Math.sqrt(Math.max(0, val * val - az * az));
+        updateAccelValues(rem * 0.7, rem * 0.7, az);
+      });
+
+      const battSlider = document.getElementById('battery-slider');
+      battSlider.addEventListener('input', (e) => {
+        batteryVoltage = parseFloat(e.target.value);
+        batteryLevel = calculateLiPoPercentage(batteryVoltage);
+
+        const battValText = document.getElementById('battery-val-text');
+        battValText.textContent = `${batteryVoltage.toFixed(2)}V (${batteryLevel}%)`;
+        battValText.className = (batteryLevel <= 15) ? 'text-rose-400 font-bold animate-pulse' : 'text-emerald-400 font-bold';
+
+        updatePowerModel();
+      });
+
+      document.getElementById('reset-nvs-top-btn').addEventListener('click', clearNVS);
+      document.getElementById('clear-console-btn').addEventListener('click', () => {
+        document.getElementById('serial-terminal').innerHTML = '';
+        logSerial('[I] Serial terminal buffer cleared.', 'text-slate-500');
+      });
+
+      // Main Loop 50Hz (20ms)
+      setInterval(() => {
+        renderOled();
+        updatePPGWave();
+      }, 20);
+
+      // Health Guard Anomaly Checker Loop (100ms)
+      setInterval(() => {
+        checkHealthAnomalies(0.1);
+      }, 100);
+
+      // Core Load Natural Fluctuations
+      setInterval(() => {
+        if (currentState !== FSM_STATES.ALARM && currentState !== FSM_STATES.PANIC_SOS) {
+          const c1 = Math.floor(42 + Math.random() * 8);
+          document.getElementById('core1-load-text').textContent = `${c1}%`;
+          document.getElementById('core1-bar').style.width = `${c1}%`;
+
+          const c0 = Math.floor(16 + Math.random() * 6);
+          document.getElementById('core0-load-text').textContent = `${c0}%`;
+          document.getElementById('core0-bar').style.width = `${c0}%`;
+        }
+      }, 1500);
+    });
+  </script>
+</body>
+</html>
