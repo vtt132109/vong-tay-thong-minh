@@ -162,10 +162,12 @@ void setup() {
     Serial.println("[MPU6050] not found");
   } else {
     mpuReady = true;
-    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    // Ranges match the HIFD training domain (impacts up to ~12 g, gyro up to
+    // ~2000 deg/s in the dataset).
+    mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
+    mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    Serial.println("[MPU6050] ready, +/-8G");
+    Serial.println("[MPU6050] ready, +/-16G, +/-2000dps, DLPF 21Hz");
   }
 
   Wire.beginTransmission(0x57);

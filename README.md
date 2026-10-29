@@ -2,23 +2,24 @@
 
 > Repo công khai: https://github.com/vtt132109/vong-tay-thong-minh
 > GitHub Pages: https://vtt132109.github.io/vong-tay-thong-minh/
+> Handoff đầy đủ cho Claude: `CLAUDE_HANDOFF.md`
 > File này là nguồn thông tin chính cho session tiếp theo. Đọc hết trước khi sửa code.
 > Cập nhật lần cuối: 2026-10-29.
 
 ## 1. Trạng thái hiện tại
 
-- Firmware đã được viết lại từ đầu theo sơ đồ EasyEDA `Sheet_1`.
-- Build PlatformIO **thành công**:
-  - RAM: `48,700 / 327,680 bytes` (14.9%)
-  - Flash: `939,889 / 1,310,720 bytes` (71.7% của app partition 1.25 MB, đã gồm dashboard nhúng)
-- **Đã flash COM13 và chạy thật.** I2C 100 kHz ổn định; MAX30100 part `0x11` nhận đúng; HR/SpO2 đã đo bằng đầu ngón tay (HR ~68–78 bpm, SpO2 ~97%, IR ~18k–20k, PI ~2.5%).
+- Firmware source hiện tại: **MQTT + TinyML HIFD**; build thành công:
+  - RAM: `51,948 / 327,680 bytes` (15.9%)
+  - Flash: `955,169 / 1,310,720 bytes` (72.9% của app partition 1.25 MB, đã gồm dashboard + MQTT + AI)
+- **Board đang rút USB/nguồn (`COM13` missing), bản AI chưa nạp.** Firmware đang chạy trên board trước khi rút là **MQTT-only 948,909 B**; I2C 100 kHz, MAX30100 part `0x11`, HR/SpO2 đã đo thật (HR ~68–78, SpO2 ~97, IR ~18k–20k, PI ~2.5%).
+- **Trạng thái đầy đủ + việc còn lại:** xem `CLAUDE_HANDOFF.md`.
 - WiFi: `include/secrets.h` đã đặt SSID `vtt`. Khi hotspot 2.4 GHz bật, board vào STA và in `[NET] STA IP ...` (IP DHCP có thể đổi). Nếu STA fail, board vào `AP_STA` fallback `BioBand-Setup` / `bioband123` tại `192.168.4.1`, đồng thời **tự retry STA mỗi 60 giây**. ESP32-S3 chỉ hỗ trợ 2.4 GHz.
 - **Remote MQTT**: firmware publish telemetry/status lên `broker.emqx.io:1883`, topic `bioband/vtt132109/dev01`; `remote.html` trên GitHub Pages subscribe qua WSS và xem được từ mạng khác, không cần cài gì. Broker/topic công khai, **không bảo mật** — chỉ dùng cho prototype, không đưa dữ liệu sức khỏe nhạy cảm lên.
 - Dashboard `realtime.html` mới: tự chứa/không CDN, đã test desktop + mobile bằng `tools/mock_server.py`; các lệnh Test còi, Lưu ngưỡng, HỦY gửi đúng. Firmware nhúng dashboard và phục vụ tại `GET /`.
 - OLED đã thiết kế lại: bỏ dải IR/RED và footer MPU/MAX/F; thêm giờ:phút, giây, ngày/tháng, cột WiFi, số bước, điện áp pin. Giờ lấy từ NTP khi STA có Internet, hoặc được dashboard đồng bộ qua `/set_time` khi mở web; nếu chưa có cả hai thì hiện `--:--`.
 - Pin chưa hàn nên firmware tắt ADC pin (`PIN_BATTERY_ADC=-1`), dashboard/OLED hiện 0%/`--`; khi hàn cầu phân áp, gán lại pin.
 - Nút ngoài **GPIO2** (active-low) đang đọc `0` khi không nhấn → kiểm tra chập GND/đấu chân tactile; nút **BOOT GPIO0** vẫn dùng được. Buzzer active **GPIO3**. `falls=7` lưu NVS (xóa bằng `/clear_nvs`); buzzer/FSM chưa test đầy đủ.
-- Edge AI scaffold + capture mode đã có; mặc định `ENABLE_EDGE_AI=0` để build không cần model.
+- AI: **TinyML HIFD thật** (không synthetic) đã tích hợp source: 42 features → 16 tanh → 1 sigmoid, threshold **0.94**, gravity removal, MPU ±16G/±2000 dps; `ENABLE_TINY_AI=1`, `ENABLE_EDGE_AI=0`, `AI_PROMOTION_ENABLED=0` — AI chỉ telemetry, không kích alarm. Event-level test: 14/15 ca ngã, 1/34 ADL báo nhầm; window P 98,3% / R 91,8% / F1 94,9%. Edge Impulse path vẫn để ngỏ; xem `CLAUDE_HANDOFF.md` mục 4.
 - Có script tạo synthetic data/upload tại `tools/generate_synthetic_imu.py` và `tools/upload_dataset.py` (fake data chỉ để test pipeline).
 - HTML được giữ lại: `realtime.html`, `vtt.html`, `simulation.html`.
 
@@ -274,7 +275,7 @@ JSON `/data` (key khớp `realtime.html`):
 ```
 
 Ghi chú: key `max30102` được giữ để tương thích HTML, dù phần cứng là **MAX30100**.
-`ai_label`/`ai_conf`/`ai_fall` là kết quả Edge Impulse (mặc định `n/a` khi `ENABLE_EDGE_AI=0`).
+`ai_label`/`ai_conf`/`ai_fall` là kết quả TinyML HIFD hiện tại (`ENABLE_TINY_AI=1`, threshold 0.94); nhánh Edge Impulse vẫn có nhưng đang tắt (`ENABLE_EDGE_AI=0`).
 
 ### 7.3 Ghi chú an toàn
 
@@ -335,7 +336,7 @@ Cấu hình trong `platformio.ini`:
   - (tuỳ chọn) Edge Impulse Arduino library export, đặt trong `lib/bioband_inferencing`, bật `-DENABLE_EDGE_AI=1`
 
 Lưu ý: log build vẫn in `8MB Flash` ở dòng HARDWARE do tên board DevKitC-1; partition thực tế là 4 MB (app max 1,310,720 bytes).
-Build hiện tại: RAM **49,524 / 327,680** (15.1%), flash **948,909 / 1,310,720** (72.4%, đã gồm dashboard + MQTT).
+Build hiện tại: RAM **51,948 / 327,680** (15.9%), flash **955,169 / 1,310,720** (72.9%, đã gồm dashboard + MQTT + TinyML).
 
 ## 10. Quyết định quan trọng (không làm lại từ đầu)
 
@@ -378,18 +379,21 @@ Build hiện tại: RAM **49,524 / 327,680** (15.1%), flash **948,909 / 1,310,72
 13. Telegram đã bỏ; kiểm tra không còn log/token Telegram trong firmware/HTML.
 14. Kiểm tra boot khi pin yếu và khi cắm USB + pin (nguồn/backfeed).
 15. Capture: gọi `/capture?seconds=10`, kiểm tra Serial ra đúng 6 cột CSV ở 50 Hz; dừng bằng `/capture?on=0`.
-16. Edge AI: sau khi có model, kiểm tra `/data` có `ai_label`/`ai_conf`; thử với dữ liệu thật và synthetic; xem AI chỉ promote ca mơ hồ, không hủy alarm rule-based.
+16. Edge AI/TinyML: sau khi nạp, kiểm tra `/data` có `ai_label`/`ai_conf`, Serial `[TINY-AI]`; test đứng yên/ADL/ngã trên đệm; AI chỉ telemetry, không kích alarm khi `AI_PROMOTION_ENABLED=0`.
 17. Raw vs filtered: chạy `tools/log_telemetry.py`, giữ yên → lắc tay → giữ yên; kiểm tra raw spike/jitter và filtered `--`/ổn định; so với máy đo tham chiếu.
 
-## 12. Edge AI (Edge Impulse)
+## 12. Edge AI / TinyML
 
 ### 12.1 Trạng thái tích hợp
 
-- `src/ai_model.cpp` đã có wrapper Edge Impulse nhưng nằm sau `#if ENABLE_EDGE_AI`; mặc định `0` trong `platformio.ini`.
-- `aiPushSample()` được gọi mỗi mẫu MPU 50 Hz trong `src/main.cpp`; khi bật, nó đầy buffer cửa sổ, chạy `run_classifier()`, cập nhật `ai_label`, `ai_conf`, `ai_fall`.
-- Kết quả AI đi vào telemetry/`/data` và item **Edge AI** của `realtime.html`.
-- `src/fsm.cpp` chỉ dùng AI để promote ca variance trung gian khi `fall` ≥ 0.8; không dùng AI để hủy alarm đã được rule xác nhận.
-- Chưa có model thật trong repo; cần export từ Edge Impulse.
+- Backend hiện tại: **TinyML HIFD** trong `src/ai_model.cpp` (`ENABLE_TINY_AI=1`, `ENABLE_EDGE_AI=0`).
+- Input 6-axis, 100 mẫu @50 Hz, stride 25; gravity removal low-pass trước khi vào model; MPU ±16G/±2000 dps.
+- Model 42 features → 16 tanh → 1 sigmoid; threshold **0.94**; output `ai_label` (`fall`/`adl`), `ai_conf`, `ai_fall` vào `/data` + MQTT.
+- **AI promotion đang tắt** (`AI_PROMOTION_ENABLED=0`); FSM rule-based vẫn là nguồn alarm duy nhất cho đến khi validate on-device.
+- HIFD test: event-level 14/15 ca ngã, 1/34 ADL báo nhầm; window P 98,3% / R 91,8% / F1 94,9%. Legacy all-window recall thấp vì label event-centered; không dùng metric đó để kết luận model hỏng.
+- Artifacts: `include/tiny_fall_model.h`, `tools/hifd_features.md`, `tools/prepare_hifd.py`, `tools/train_hifd_model.py`, `tools/hifd_model_report.json`, `tools/hifd_feature_test.json`. Dataset/venv gitignored.
+- **Chưa test trên board** vì board đang rút; cần cắm lại, nạp và test ngã/ADL.
+- Edge Impulse branch vẫn còn; project cũ 3-axis/3 samples không dùng. Muốn Edge Impulse thật cần tạo project 6-axis mới, admin key, export `bioband_inferencing`, rồi đổi flags.
 
 ### 12.2 Thiết kế Edge Impulse đề xuất
 

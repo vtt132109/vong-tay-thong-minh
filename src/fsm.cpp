@@ -126,20 +126,28 @@ void updateFallDetection(uint32_t now, float acc) {
           setState(SystemState::Idle);
         } else if (!impactExtended) {
           // AI may only promote an ambiguous rule result; it never cancels a
-          // rule-confirmed fall.
+          // rule-confirmed fall. AI promotion is compiled out unless
+          // AI_PROMOTION_ENABLED=1 (on-device validated model only), so the
+          // rule-based FSM is the sole alarm source in the demo build.
+#if AI_PROMOTION_ENABLED
           if (aiFall && aiConfidence >= AI_FALL_CONFIRM_CONFIDENCE) {
             pendingAlertType = AlertType::Fall;
             setState(SystemState::Countdown, "Te nga (AI)");
-          } else {
+          } else
+#endif
+          {
             impactExtended = true;
             impactStartMs = now;
             impactSampleCount = 0;
           }
         } else {
+#if AI_PROMOTION_ENABLED
           if (aiFall && aiConfidence >= AI_FALL_CONFIRM_CONFIDENCE) {
             pendingAlertType = AlertType::Fall;
             setState(SystemState::Countdown, "Te nga (AI)");
-          } else {
+          } else
+#endif
+          {
             setState(SystemState::Idle);
           }
         }

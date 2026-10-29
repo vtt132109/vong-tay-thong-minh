@@ -1,0 +1,3545 @@
+{
+  "title": "HIFD baseline (recording-level labels) preserved metrics",
+  "purpose": "Frozen copy of the previous baseline artifacts and an independent re-evaluation of its exported 42->16->1 header.",
+  "preserved_from": {
+    "header": "include/tiny_fall_model.h",
+    "report": "tools/hifd_model_report.json",
+    "threshold": 0.5
+  },
+  "original_report": {
+    "title": "HIFD real-data tiny fall classifier",
+    "generated_by": "tools/train_hifd_model.py",
+    "dataset": {
+      "name": "HIFD (Heart Rate & IMU sensor data for fall detection)",
+      "repository": "https://github.com/nhoyh/HR_IMU_falldetection_dataset",
+      "git_commit": "36f7491ca862e9a9a8847619d92d35c465b03a94",
+      "mat_files": 349,
+      "total_samples": 381394,
+      "sampling_hz": 50,
+      "window_samples": 100,
+      "stride_samples": 25,
+      "window_seconds": 2.0,
+      "accel_units": "m/s^2, gravity removed (raw g * 9.80665)",
+      "gyro_units": "rad/s (HIFD raw values are deg/s; converted * pi/180)",
+      "labels": {
+        "adl": 0,
+        "fall": 1,
+        "folder_mapping": {
+          "fall": "fall",
+          "non-fall": "adl"
+        },
+        "near_falls": "not separately identified; kept in adl"
+      },
+      "inventory_counts": {
+        "subject_01": {
+          "fall": 5,
+          "non-fall": 12
+        },
+        "subject_02": {
+          "fall": 5,
+          "non-fall": 11
+        },
+        "subject_03": {
+          "fall": 5,
+          "non-fall": 13
+        },
+        "subject_04": {
+          "fall": 5,
+          "non-fall": 12
+        },
+        "subject_05": {
+          "fall": 4,
+          "non-fall": 11
+        },
+        "subject_06": {
+          "fall": 4,
+          "non-fall": 11
+        },
+        "subject_07": {
+          "fall": 4,
+          "non-fall": 12
+        },
+        "subject_08": {
+          "fall": 4,
+          "non-fall": 12
+        },
+        "subject_09": {
+          "fall": 5,
+          "non-fall": 13
+        },
+        "subject_10": {
+          "fall": 5,
+          "non-fall": 12
+        },
+        "subject_11": {
+          "fall": 5,
+          "non-fall": 13
+        },
+        "subject_12": {
+          "fall": 5,
+          "non-fall": 12
+        },
+        "subject_13": {
+          "fall": 5,
+          "non-fall": 11
+        },
+        "subject_14": {
+          "fall": 6,
+          "non-fall": 10
+        },
+        "subject_15": {
+          "fall": 6,
+          "non-fall": 13
+        },
+        "subject_16": {
+          "fall": 6,
+          "non-fall": 11
+        },
+        "subject_17": {
+          "fall": 5,
+          "non-fall": 9
+        },
+        "subject_18": {
+          "fall": 5,
+          "non-fall": 13
+        },
+        "subject_19": {
+          "fall": 5,
+          "non-fall": 13
+        },
+        "subject_20": {
+          "fall": 5,
+          "non-fall": 9
+        },
+        "subject_21": {
+          "fall": 5,
+          "non-fall": 12
+        }
+      },
+      "missing_scenarios": {
+        "fall": {
+          "fall4": {
+            "missing_subjects": [
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13
+            ],
+            "present_subjects": [
+              1,
+              2,
+              3,
+              4,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21
+            ]
+          },
+          "fall5": {
+            "missing_subjects": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "present_subjects": [
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21
+            ]
+          },
+          "fall6": {
+            "missing_subjects": [
+              17,
+              18,
+              19,
+              20,
+              21
+            ],
+            "present_subjects": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16
+            ]
+          }
+        },
+        "non-fall": {
+          "bed": {
+            "missing_subjects": [
+              1,
+              14
+            ],
+            "present_subjects": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21
+            ]
+          },
+          "eat": {
+            "missing_subjects": [
+              2,
+              6,
+              7,
+              10,
+              12,
+              14,
+              17,
+              20
+            ],
+            "present_subjects": [
+              1,
+              3,
+              4,
+              5,
+              8,
+              9,
+              11,
+              13,
+              15,
+              16,
+              18,
+              19,
+              21
+            ]
+          },
+          "hair": {
+            "missing_subjects": [
+              5,
+              13,
+              16,
+              17,
+              20,
+              21
+            ],
+            "present_subjects": [
+              1,
+              2,
+              3,
+              4,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              14,
+              15,
+              18,
+              19
+            ]
+          },
+          "stair": {
+            "missing_subjects": [
+              17,
+              20
+            ],
+            "present_subjects": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              18,
+              19,
+              21
+            ]
+          },
+          "write": {
+            "missing_subjects": [
+              2,
+              4,
+              5,
+              6,
+              8,
+              13,
+              14,
+              16,
+              17,
+              20
+            ],
+            "present_subjects": [
+              1,
+              3,
+              7,
+              9,
+              10,
+              11,
+              12,
+              15,
+              18,
+              19,
+              21
+            ]
+          }
+        }
+      },
+      "total_windows": {
+        "adl": 10820,
+        "fall": 3208,
+        "total": 14028
+      }
+    },
+    "splits": {
+      "train": {
+        "subjects": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "n_windows": 10103,
+        "n_fall": 2262,
+        "n_adl": 7841
+      },
+      "validation": {
+        "subjects": [
+          16,
+          17,
+          18
+        ],
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496
+      },
+      "test": {
+        "subjects": [
+          19,
+          20,
+          21
+        ],
+        "n_windows": 1942,
+        "n_fall": 459,
+        "n_adl": 1483
+      }
+    },
+    "leakage_check": {
+      "subject_wise": true,
+      "overlap": false,
+      "note": "All windows of a subject belong to exactly one split. Adjacent windows overlap by design (stride 25 of 100), only within a split."
+    },
+    "features": {
+      "count": 42,
+      "order": [
+        "ax_mean",
+        "ax_std",
+        "ax_min",
+        "ax_max",
+        "ax_rms",
+        "ax_mean_abs",
+        "ay_mean",
+        "ay_std",
+        "ay_min",
+        "ay_max",
+        "ay_rms",
+        "ay_mean_abs",
+        "az_mean",
+        "az_std",
+        "az_min",
+        "az_max",
+        "az_rms",
+        "az_mean_abs",
+        "gx_mean",
+        "gx_std",
+        "gx_min",
+        "gx_max",
+        "gx_rms",
+        "gx_mean_abs",
+        "gy_mean",
+        "gy_std",
+        "gy_min",
+        "gy_max",
+        "gy_rms",
+        "gy_mean_abs",
+        "gz_mean",
+        "gz_std",
+        "gz_min",
+        "gz_max",
+        "gz_rms",
+        "gz_mean_abs",
+        "mag_mean",
+        "mag_std",
+        "mag_min",
+        "mag_max",
+        "mag_peak_abs",
+        "mag_post_window_var_25"
+      ],
+      "standardization": {
+        "operation": "z = (x - mean) / max(std, 1e-6)",
+        "mean_from": "training subjects only",
+        "std_ddof": 0
+      },
+      "specification": "tools/hifd_features.md"
+    },
+    "training": {
+      "architecture": "42 -> 16 (tanh) -> 1 (sigmoid)",
+      "loss": "weighted binary cross-entropy",
+      "optimizer": "Adam (beta1=0.9, beta2=0.999, eps=1e-8)",
+      "batch": "full batch",
+      "learning_rate": 0.01,
+      "seed": 20240517,
+      "max_epochs": 2500,
+      "patience": 200,
+      "epochs_run": 452,
+      "best_epoch": 252,
+      "best_validation_loss": 0.32281849050454275,
+      "class_weights": {
+        "adl": 0.6442418058921056,
+        "fall": 2.2332007073386384
+      },
+      "threshold": 0.5,
+      "history_samples": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7350781179113839,
+          "val_loss": 0.7483752575885042
+        },
+        {
+          "epoch": 100,
+          "train_loss": 0.2589484748935329,
+          "val_loss": 0.3403138811194606
+        },
+        {
+          "epoch": 200,
+          "train_loss": 0.22637716500609897,
+          "val_loss": 0.32469832761822714
+        },
+        {
+          "epoch": 300,
+          "train_loss": 0.21186341145863039,
+          "val_loss": 0.32366844095173275
+        },
+        {
+          "epoch": 400,
+          "train_loss": 0.20159743205051833,
+          "val_loss": 0.32581079049220174
+        },
+        {
+          "epoch": 452,
+          "train_loss": 0.19799858601548329,
+          "val_loss": 0.3301932906343204,
+          "early_stop": true
+        }
+      ]
+    },
+    "validation": {
+      "threshold": 0.5,
+      "n_windows": 1983,
+      "n_fall": 487,
+      "n_adl": 1496,
+      "accuracy": 0.8078668683812406,
+      "precision": 0.5627962085308057,
+      "recall": 0.9753593429158111,
+      "f1": 0.7137490608564989,
+      "confusion_matrix": {
+        "labels": [
+          "fall",
+          "adl"
+        ],
+        "rows": "actual",
+        "columns": "predicted",
+        "matrix": [
+          [
+            475,
+            12
+          ],
+          [
+            369,
+            1127
+          ]
+        ]
+      },
+      "mean_probability_fall_windows": 0.8184622832800961,
+      "mean_probability_adl_windows": 0.21965801834131068
+    },
+    "test": {
+      "threshold": 0.5,
+      "n_windows": 1942,
+      "n_fall": 459,
+      "n_adl": 1483,
+      "accuracy": 0.8403707518022657,
+      "precision": 0.6036161335187761,
+      "recall": 0.9455337690631809,
+      "f1": 0.7368421052631579,
+      "confusion_matrix": {
+        "labels": [
+          "fall",
+          "adl"
+        ],
+        "rows": "actual",
+        "columns": "predicted",
+        "matrix": [
+          [
+            434,
+            25
+          ],
+          [
+            285,
+            1198
+          ]
+        ]
+      },
+      "mean_probability_fall_windows": 0.8552662517682882,
+      "mean_probability_adl_windows": 0.20145993726178837
+    },
+    "train": {
+      "threshold": 0.5,
+      "n_windows": 10103,
+      "n_fall": 2262,
+      "n_adl": 7841,
+      "accuracy": 0.8807284964861922,
+      "precision": 0.6574322311587727,
+      "recall": 0.9756852343059239,
+      "f1": 0.7855490300765261,
+      "confusion_matrix": {
+        "labels": [
+          "fall",
+          "adl"
+        ],
+        "rows": "actual",
+        "columns": "predicted",
+        "matrix": [
+          [
+            2207,
+            55
+          ],
+          [
+            1150,
+            6691
+          ]
+        ]
+      },
+      "mean_probability_fall_windows": 0.8686191245890563,
+      "mean_probability_adl_windows": 0.13969086787303162
+    },
+    "artifacts": {
+      "header": "include/tiny_fall_model.h",
+      "test_vector": "tools/hifd_feature_test.json",
+      "report": "tools/hifd_model_report.json",
+      "processed_windows": "dataset/hifd_processed/hifd_windows.npz"
+    },
+    "caveats": [
+      "Trained on real HIFD wrist data only; no synthetic data was used.",
+      "HIFD's droll/dpitch/dyaw are deg/s; they were converted to rad/s. The README does not state the unit.",
+      "Near-falls are not individually identified in HIFD and are treated as ADL.",
+      "HIFD uses a different wrist sensor and placement than Bio-Band; domain gap remains.",
+      "Research demo only, not a medical device or a safety guarantee.",
+      "Threshold fixed at 0.5; probabilities are not calibrated.",
+      "Some HIFD subject/scenario recordings are missing; see missing_scenarios."
+    ]
+  },
+  "evaluation": {
+    "model": "42 -> 16 (tanh) -> 1 (sigmoid), recording-level labels",
+    "threshold": 0.5,
+    "standardization": {
+      "mean_from": "training subjects 01-15",
+      "operation": "z = (x - mean) / max(std, 1e-6)"
+    },
+    "validation_window_original_labels": {
+      "threshold": 0.5,
+      "n_windows": 1983,
+      "n_fall": 487,
+      "n_adl": 1496,
+      "accuracy": 0.8078668683812406,
+      "precision": 0.5627962085308057,
+      "recall": 0.9753593429158111,
+      "f1": 0.7137490608564989,
+      "confusion_matrix": {
+        "labels": [
+          "fall",
+          "adl"
+        ],
+        "rows": "actual",
+        "columns": "predicted",
+        "matrix": [
+          [
+            475,
+            12
+          ],
+          [
+            369,
+            1127
+          ]
+        ]
+      },
+      "mean_probability_fall_windows": 0.8184622834411361,
+      "mean_probability_adl_windows": 0.21965801825167533
+    },
+    "test_window_original_labels": {
+      "threshold": 0.5,
+      "n_windows": 1942,
+      "n_fall": 459,
+      "n_adl": 1483,
+      "accuracy": 0.8403707518022657,
+      "precision": 0.6036161335187761,
+      "recall": 0.9455337690631809,
+      "f1": 0.7368421052631579,
+      "confusion_matrix": {
+        "labels": [
+          "fall",
+          "adl"
+        ],
+        "rows": "actual",
+        "columns": "predicted",
+        "matrix": [
+          [
+            434,
+            25
+          ],
+          [
+            285,
+            1198
+          ]
+        ]
+      },
+      "mean_probability_fall_windows": 0.8552662518315994,
+      "mean_probability_adl_windows": 0.20145993719451186
+    },
+    "validation_event_level": {
+      "definition": "one detection per recording: fall recording is detected if any of its windows has P(fall) >= threshold; ADL recording is a false alarm if any of its windows has P(fall) >= threshold",
+      "threshold": 0.5,
+      "fall_recordings": 16,
+      "detected_fall_recordings": 16,
+      "missed_fall_recordings": 0,
+      "event_recall": 1.0,
+      "adl_recordings": 33,
+      "adl_recordings_with_false_alarm": 18,
+      "adl_false_alarm_recording_rate": 0.5454545454545454,
+      "event_precision": 0.47058823529411764,
+      "false_alarm_recordings_by_scenario": {
+        "non-fall/bed": 3,
+        "non-fall/chair": 3,
+        "non-fall/clap": 3,
+        "non-fall/cloth": 1,
+        "non-fall/shoe": 1,
+        "non-fall/stair": 1,
+        "non-fall/walk": 1,
+        "non-fall/wash": 1,
+        "non-fall/write": 1,
+        "non-fall/zip": 3
+      }
+    },
+    "test_event_level": {
+      "definition": "one detection per recording: fall recording is detected if any of its windows has P(fall) >= threshold; ADL recording is a false alarm if any of its windows has P(fall) >= threshold",
+      "threshold": 0.5,
+      "fall_recordings": 15,
+      "detected_fall_recordings": 15,
+      "missed_fall_recordings": 0,
+      "event_recall": 1.0,
+      "adl_recordings": 34,
+      "adl_recordings_with_false_alarm": 14,
+      "adl_false_alarm_recording_rate": 0.4117647058823529,
+      "event_precision": 0.5172413793103449,
+      "false_alarm_recordings_by_scenario": {
+        "non-fall/bed": 3,
+        "non-fall/chair": 3,
+        "non-fall/clap": 3,
+        "non-fall/cloth": 1,
+        "non-fall/hair": 1,
+        "non-fall/stair": 1,
+        "non-fall/write": 2
+      }
+    },
+    "validation_threshold_sweep": [
+      {
+        "threshold": 0.3,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7861825516893596,
+        "precision": 0.5348066298342542,
+        "recall": 0.9938398357289527,
+        "f1": 0.6954022988505748,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              484,
+              3
+            ],
+            [
+              421,
+              1075
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.31,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7866868381240545,
+        "precision": 0.5354767184035477,
+        "recall": 0.9917864476386037,
+        "f1": 0.695464362850972,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              419,
+              1077
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.32,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7876954109934443,
+        "precision": 0.5366666666666666,
+        "recall": 0.9917864476386037,
+        "f1": 0.6964671953857244,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              417,
+              1079
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.33,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.789208270297529,
+        "precision": 0.5384615384615384,
+        "recall": 0.9917864476386037,
+        "f1": 0.6979768786127166,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              414,
+              1082
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.34,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7907211296016137,
+        "precision": 0.540268456375839,
+        "recall": 0.9917864476386037,
+        "f1": 0.6994931209268647,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              411,
+              1085
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.35,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7917297024710035,
+        "precision": 0.5414798206278026,
+        "recall": 0.9917864476386037,
+        "f1": 0.700507614213198,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              409,
+              1087
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.36,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7927382753403933,
+        "precision": 0.5426966292134832,
+        "recall": 0.9917864476386037,
+        "f1": 0.701525054466231,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              407,
+              1089
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.37,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7927382753403933,
+        "precision": 0.5426966292134832,
+        "recall": 0.9917864476386037,
+        "f1": 0.701525054466231,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              407,
+              1089
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.38,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7932425617750882,
+        "precision": 0.5434047350620068,
+        "recall": 0.9897330595482546,
+        "f1": 0.7016011644832606,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              482,
+              5
+            ],
+            [
+              405,
+              1091
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.39,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.794755421079173,
+        "precision": 0.5452488687782805,
+        "recall": 0.9897330595482546,
+        "f1": 0.7031363967906638,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              482,
+              5
+            ],
+            [
+              402,
+              1094
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.4,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7962682803832577,
+        "precision": 0.547105561861521,
+        "recall": 0.9897330595482546,
+        "f1": 0.7046783625730995,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              482,
+              5
+            ],
+            [
+              399,
+              1097
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.41,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7972768532526475,
+        "precision": 0.5485714285714286,
+        "recall": 0.9856262833675564,
+        "f1": 0.7048458149779737,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              480,
+              7
+            ],
+            [
+              395,
+              1101
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.42,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7972768532526475,
+        "precision": 0.5486827033218786,
+        "recall": 0.9835728952772074,
+        "f1": 0.7044117647058823,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              479,
+              8
+            ],
+            [
+              394,
+              1102
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.43,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7977811396873424,
+        "precision": 0.5494252873563218,
+        "recall": 0.9815195071868583,
+        "f1": 0.7044952100221077,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              478,
+              9
+            ],
+            [
+              392,
+              1104
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.44,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.800302571860817,
+        "precision": 0.5526011560693641,
+        "recall": 0.9815195071868583,
+        "f1": 0.7071005917159763,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              478,
+              9
+            ],
+            [
+              387,
+              1109
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.45,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8013111447302067,
+        "precision": 0.554006968641115,
+        "recall": 0.9794661190965093,
+        "f1": 0.7077151335311573,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              477,
+              10
+            ],
+            [
+              384,
+              1112
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.46,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8023197175995965,
+        "precision": 0.5554259043173863,
+        "recall": 0.9774127310061602,
+        "f1": 0.7083333333333334,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              476,
+              11
+            ],
+            [
+              381,
+              1115
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.47,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8023197175995965,
+        "precision": 0.5554259043173863,
+        "recall": 0.9774127310061602,
+        "f1": 0.7083333333333334,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              476,
+              11
+            ],
+            [
+              381,
+              1115
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.48,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8068582955118507,
+        "precision": 0.5613207547169812,
+        "recall": 0.9774127310061602,
+        "f1": 0.7131086142322098,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              476,
+              11
+            ],
+            [
+              372,
+              1124
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.49,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8073625819465456,
+        "precision": 0.5619834710743802,
+        "recall": 0.9774127310061602,
+        "f1": 0.7136431784107947,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              476,
+              11
+            ],
+            [
+              371,
+              1125
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.5,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8078668683812406,
+        "precision": 0.5627962085308057,
+        "recall": 0.9753593429158111,
+        "f1": 0.7137490608564989,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              475,
+              12
+            ],
+            [
+              369,
+              1127
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.51,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8098840141200202,
+        "precision": 0.5654761904761905,
+        "recall": 0.9753593429158111,
+        "f1": 0.7159005275056518,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              475,
+              12
+            ],
+            [
+              365,
+              1131
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.52,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8119011598587998,
+        "precision": 0.5683453237410072,
+        "recall": 0.973305954825462,
+        "f1": 0.7176381529144586,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              474,
+              13
+            ],
+            [
+              360,
+              1136
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.53,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8119011598587998,
+        "precision": 0.5686746987951807,
+        "recall": 0.9691991786447639,
+        "f1": 0.7167805618830677,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              472,
+              15
+            ],
+            [
+              358,
+              1138
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.54,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8124054462934948,
+        "precision": 0.5698663426488457,
+        "recall": 0.9630390143737166,
+        "f1": 0.716030534351145,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              469,
+              18
+            ],
+            [
+              354,
+              1142
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.55,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8119011598587998,
+        "precision": 0.5698529411764706,
+        "recall": 0.9548254620123203,
+        "f1": 0.713737528779739,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              465,
+              22
+            ],
+            [
+              351,
+              1145
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.56,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8113968734241049,
+        "precision": 0.5696670776818742,
+        "recall": 0.9486652977412731,
+        "f1": 0.711864406779661,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              462,
+              25
+            ],
+            [
+              349,
+              1147
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.57,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8119011598587998,
+        "precision": 0.5707196029776674,
+        "recall": 0.944558521560575,
+        "f1": 0.711523588553751,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              460,
+              27
+            ],
+            [
+              346,
+              1150
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.58,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8113968734241049,
+        "precision": 0.5705368289637952,
+        "recall": 0.9383983572895277,
+        "f1": 0.7096273291925465,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              457,
+              30
+            ],
+            [
+              344,
+              1152
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.59,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8113968734241049,
+        "precision": 0.5708908406524467,
+        "recall": 0.9342915811088296,
+        "f1": 0.7087227414330218,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              455,
+              32
+            ],
+            [
+              342,
+              1154
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.6,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.81089258698941,
+        "precision": 0.5703517587939698,
+        "recall": 0.9322381930184805,
+        "f1": 0.7077162899454403,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              454,
+              33
+            ],
+            [
+              342,
+              1154
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.61,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.81089258698941,
+        "precision": 0.5712468193384224,
+        "recall": 0.9219712525667351,
+        "f1": 0.7054202670856244,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              449,
+              38
+            ],
+            [
+              337,
+              1159
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.62,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8144225920322743,
+        "precision": 0.5765765765765766,
+        "recall": 0.919917864476386,
+        "f1": 0.7088607594936709,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              448,
+              39
+            ],
+            [
+              329,
+              1167
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.63,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8129097327281896,
+        "precision": 0.5751295336787565,
+        "recall": 0.9117043121149897,
+        "f1": 0.7053216838760922,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              444,
+              43
+            ],
+            [
+              328,
+              1168
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.64,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8124054462934948,
+        "precision": 0.5751633986928104,
+        "recall": 0.9034907597535934,
+        "f1": 0.7028753993610224,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              440,
+              47
+            ],
+            [
+              325,
+              1171
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.65,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.81089258698941,
+        "precision": 0.5742705570291777,
+        "recall": 0.8891170431211499,
+        "f1": 0.6978243352135376,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              433,
+              54
+            ],
+            [
+              321,
+              1175
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.66,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8093797276853253,
+        "precision": 0.5731543624161074,
+        "recall": 0.8767967145790554,
+        "f1": 0.6931818181818182,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              427,
+              60
+            ],
+            [
+              318,
+              1178
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.67,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8124054462934948,
+        "precision": 0.579092159559835,
+        "recall": 0.864476386036961,
+        "f1": 0.6935749588138386,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              421,
+              66
+            ],
+            [
+              306,
+              1190
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.68,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8134140191628845,
+        "precision": 0.5834522111269614,
+        "recall": 0.839835728952772,
+        "f1": 0.6885521885521885,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              409,
+              78
+            ],
+            [
+              292,
+              1204
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.69,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8144225920322743,
+        "precision": 0.5861070911722142,
+        "recall": 0.8316221765913757,
+        "f1": 0.6876061120543293,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              405,
+              82
+            ],
+            [
+              286,
+              1210
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.7,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8134140191628845,
+        "precision": 0.5856515373352855,
+        "recall": 0.8213552361396304,
+        "f1": 0.6837606837606838,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              400,
+              87
+            ],
+            [
+              283,
+              1213
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.71,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8174483106404438,
+        "precision": 0.5925925925925926,
+        "recall": 0.8213552361396304,
+        "f1": 0.6884681583476764,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              400,
+              87
+            ],
+            [
+              275,
+              1221
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.72,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8199697428139183,
+        "precision": 0.5990853658536586,
+        "recall": 0.8069815195071869,
+        "f1": 0.6876640419947506,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              393,
+              94
+            ],
+            [
+              263,
+              1233
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.73,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8179525970751387,
+        "precision": 0.5996835443037974,
+        "recall": 0.7782340862422998,
+        "f1": 0.6773905272564791,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              379,
+              108
+            ],
+            [
+              253,
+              1243
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.74,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8260211800302572,
+        "precision": 0.6183333333333333,
+        "recall": 0.7618069815195072,
+        "f1": 0.6826126954921803,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              371,
+              116
+            ],
+            [
+              229,
+              1267
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.75,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8446797781139688,
+        "precision": 0.6612612612612613,
+        "recall": 0.7535934291581109,
+        "f1": 0.7044145873320538,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              367,
+              120
+            ],
+            [
+              188,
+              1308
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.76,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8532526475037822,
+        "precision": 0.6849056603773584,
+        "recall": 0.7453798767967146,
+        "f1": 0.7138643067846607,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              363,
+              124
+            ],
+            [
+              167,
+              1329
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.77,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8557740796772567,
+        "precision": 0.6936416184971098,
+        "recall": 0.7392197125256673,
+        "f1": 0.7157057654075546,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              360,
+              127
+            ],
+            [
+              159,
+              1337
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.78,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.854261220373172,
+        "precision": 0.693359375,
+        "recall": 0.728952772073922,
+        "f1": 0.7107107107107106,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              355,
+              132
+            ],
+            [
+              157,
+              1339
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.79,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8532526475037822,
+        "precision": 0.6983805668016194,
+        "recall": 0.7084188911704312,
+        "f1": 0.7033639143730887,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              345,
+              142
+            ],
+            [
+              149,
+              1347
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.8,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8532526475037822,
+        "precision": 0.7016460905349794,
+        "recall": 0.7002053388090349,
+        "f1": 0.7009249743062693,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              341,
+              146
+            ],
+            [
+              145,
+              1351
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.81,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8547655068078669,
+        "precision": 0.7177242888402626,
+        "recall": 0.6735112936344969,
+        "f1": 0.6949152542372882,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              328,
+              159
+            ],
+            [
+              129,
+              1367
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.82,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8426626323751891,
+        "precision": 0.7088305489260143,
+        "recall": 0.6098562628336756,
+        "f1": 0.6556291390728477,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              297,
+              190
+            ],
+            [
+              122,
+              1374
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.83,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8340897629853757,
+        "precision": 0.7057291666666666,
+        "recall": 0.5564681724845996,
+        "f1": 0.6222732491389208,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              271,
+              216
+            ],
+            [
+              113,
+              1383
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.84,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8350983358547656,
+        "precision": 0.7352941176470589,
+        "recall": 0.5133470225872689,
+        "f1": 0.6045949214026601,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              250,
+              237
+            ],
+            [
+              90,
+              1406
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.85,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8330811901159859,
+        "precision": 0.7392638036809815,
+        "recall": 0.4948665297741273,
+        "f1": 0.5928659286592867,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              241,
+              246
+            ],
+            [
+              85,
+              1411
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.86,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8320726172465961,
+        "precision": 0.7636986301369864,
+        "recall": 0.45790554414784396,
+        "f1": 0.5725288831835688,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              223,
+              264
+            ],
+            [
+              69,
+              1427
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.87,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8451840645486637,
+        "precision": 0.9455445544554455,
+        "recall": 0.3921971252566735,
+        "f1": 0.5544267053701016,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              191,
+              296
+            ],
+            [
+              11,
+              1485
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.88,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8366111951588502,
+        "precision": 0.9405405405405406,
+        "recall": 0.35728952772073924,
+        "f1": 0.5178571428571429,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              174,
+              313
+            ],
+            [
+              11,
+              1485
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.89,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8260211800302572,
+        "precision": 0.9382716049382716,
+        "recall": 0.31211498973305957,
+        "f1": 0.4684129429892142,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              152,
+              335
+            ],
+            [
+              10,
+              1486
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.9,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8229954614220878,
+        "precision": 0.9533333333333334,
+        "recall": 0.2936344969199179,
+        "f1": 0.44897959183673475,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              143,
+              344
+            ],
+            [
+              7,
+              1489
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.91,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8189611699445285,
+        "precision": 0.9637681159420289,
+        "recall": 0.2731006160164271,
+        "f1": 0.4256,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              133,
+              354
+            ],
+            [
+              5,
+              1491
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.92,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7992939989914272,
+        "precision": 0.9587628865979382,
+        "recall": 0.19096509240246407,
+        "f1": 0.3184931506849315,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              93,
+              394
+            ],
+            [
+              4,
+              1492
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.93,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7932425617750882,
+        "precision": 0.9873417721518988,
+        "recall": 0.1601642710472279,
+        "f1": 0.27561837455830385,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              78,
+              409
+            ],
+            [
+              1,
+              1495
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.94,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7887039838628341,
+        "precision": 0.9857142857142858,
+        "recall": 0.14168377823408623,
+        "f1": 0.24775583482944344,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              69,
+              418
+            ],
+            [
+              1,
+              1495
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.95,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.783661119515885,
+        "precision": 0.9833333333333333,
+        "recall": 0.12114989733059549,
+        "f1": 0.2157221206581353,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              59,
+              428
+            ],
+            [
+              1,
+              1495
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      }
+    ],
+    "validation_threshold_sweep_compact": [
+      {
+        "threshold": 0.3,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7861825516893596,
+        "precision": 0.5348066298342542,
+        "recall": 0.9938398357289527,
+        "f1": 0.6954022988505748,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              484,
+              3
+            ],
+            [
+              421,
+              1075
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.35,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7917297024710035,
+        "precision": 0.5414798206278026,
+        "recall": 0.9917864476386037,
+        "f1": 0.700507614213198,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              483,
+              4
+            ],
+            [
+              409,
+              1087
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.4,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.7962682803832577,
+        "precision": 0.547105561861521,
+        "recall": 0.9897330595482546,
+        "f1": 0.7046783625730995,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              482,
+              5
+            ],
+            [
+              399,
+              1097
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.45,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8013111447302067,
+        "precision": 0.554006968641115,
+        "recall": 0.9794661190965093,
+        "f1": 0.7077151335311573,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              477,
+              10
+            ],
+            [
+              384,
+              1112
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.5,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8078668683812406,
+        "precision": 0.5627962085308057,
+        "recall": 0.9753593429158111,
+        "f1": 0.7137490608564989,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              475,
+              12
+            ],
+            [
+              369,
+              1127
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.55,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8119011598587998,
+        "precision": 0.5698529411764706,
+        "recall": 0.9548254620123203,
+        "f1": 0.713737528779739,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              465,
+              22
+            ],
+            [
+              351,
+              1145
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.6,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.81089258698941,
+        "precision": 0.5703517587939698,
+        "recall": 0.9322381930184805,
+        "f1": 0.7077162899454403,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              454,
+              33
+            ],
+            [
+              342,
+              1154
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.65,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.81089258698941,
+        "precision": 0.5742705570291777,
+        "recall": 0.8891170431211499,
+        "f1": 0.6978243352135376,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              433,
+              54
+            ],
+            [
+              321,
+              1175
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.7,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8134140191628845,
+        "precision": 0.5856515373352855,
+        "recall": 0.8213552361396304,
+        "f1": 0.6837606837606838,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              400,
+              87
+            ],
+            [
+              283,
+              1213
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.75,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8446797781139688,
+        "precision": 0.6612612612612613,
+        "recall": 0.7535934291581109,
+        "f1": 0.7044145873320538,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              367,
+              120
+            ],
+            [
+              188,
+              1308
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.8,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8532526475037822,
+        "precision": 0.7016460905349794,
+        "recall": 0.7002053388090349,
+        "f1": 0.7009249743062693,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              341,
+              146
+            ],
+            [
+              145,
+              1351
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.85,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8330811901159859,
+        "precision": 0.7392638036809815,
+        "recall": 0.4948665297741273,
+        "f1": 0.5928659286592867,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              241,
+              246
+            ],
+            [
+              85,
+              1411
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.9,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.8229954614220878,
+        "precision": 0.9533333333333334,
+        "recall": 0.2936344969199179,
+        "f1": 0.44897959183673475,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              143,
+              344
+            ],
+            [
+              7,
+              1489
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      },
+      {
+        "threshold": 0.95,
+        "n_windows": 1983,
+        "n_fall": 487,
+        "n_adl": 1496,
+        "accuracy": 0.783661119515885,
+        "precision": 0.9833333333333333,
+        "recall": 0.12114989733059549,
+        "f1": 0.2157221206581353,
+        "confusion_matrix": {
+          "labels": [
+            "fall",
+            "adl"
+          ],
+          "rows": "actual",
+          "columns": "predicted",
+          "matrix": [
+            [
+              59,
+              428
+            ],
+            [
+              1,
+              1495
+            ]
+          ]
+        },
+        "mean_probability_fall_windows": 0.8184622834411361,
+        "mean_probability_adl_windows": 0.21965801825167533
+      }
+    ],
+    "per_scenario_test": {
+      "fall/fall1": {
+        "n_windows": 91,
+        "n_fall_labels": 91,
+        "n_adl_labels": 0,
+        "predicted_positive": 88,
+        "tp": 88,
+        "fn": 3,
+        "fp": 0,
+        "tn": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "fall/fall2": {
+        "n_windows": 92,
+        "n_fall_labels": 92,
+        "n_adl_labels": 0,
+        "predicted_positive": 79,
+        "tp": 79,
+        "fn": 13,
+        "fp": 0,
+        "tn": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "fall/fall3": {
+        "n_windows": 92,
+        "n_fall_labels": 92,
+        "n_adl_labels": 0,
+        "predicted_positive": 89,
+        "tp": 89,
+        "fn": 3,
+        "fp": 0,
+        "tn": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "fall/fall4": {
+        "n_windows": 92,
+        "n_fall_labels": 92,
+        "n_adl_labels": 0,
+        "predicted_positive": 91,
+        "tp": 91,
+        "fn": 1,
+        "fp": 0,
+        "tn": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "fall/fall5": {
+        "n_windows": 92,
+        "n_fall_labels": 92,
+        "n_adl_labels": 0,
+        "predicted_positive": 87,
+        "tp": 87,
+        "fn": 5,
+        "fp": 0,
+        "tn": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/bed": {
+        "n_windows": 144,
+        "n_fall_labels": 0,
+        "n_adl_labels": 144,
+        "predicted_positive": 34,
+        "tp": 0,
+        "fn": 0,
+        "fp": 34,
+        "tn": 110,
+        "false_positive_rate": 0.2361111111111111,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/chair": {
+        "n_windows": 119,
+        "n_fall_labels": 0,
+        "n_adl_labels": 119,
+        "predicted_positive": 33,
+        "tp": 0,
+        "fn": 0,
+        "fp": 33,
+        "tn": 86,
+        "false_positive_rate": 0.2773109243697479,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/clap": {
+        "n_windows": 209,
+        "n_fall_labels": 0,
+        "n_adl_labels": 209,
+        "predicted_positive": 190,
+        "tp": 0,
+        "fn": 0,
+        "fp": 190,
+        "tn": 19,
+        "false_positive_rate": 0.9090909090909091,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/cloth": {
+        "n_windows": 118,
+        "n_fall_labels": 0,
+        "n_adl_labels": 118,
+        "predicted_positive": 5,
+        "tp": 0,
+        "fn": 0,
+        "fp": 5,
+        "tn": 113,
+        "false_positive_rate": 0.0423728813559322,
+        "recordings": 3,
+        "recordings_with_alert": 1
+      },
+      "non-fall/eat": {
+        "n_windows": 79,
+        "n_fall_labels": 0,
+        "n_adl_labels": 79,
+        "predicted_positive": 0,
+        "tp": 0,
+        "fn": 0,
+        "fp": 0,
+        "tn": 79,
+        "false_positive_rate": 0.0,
+        "recordings": 2,
+        "recordings_with_alert": 0
+      },
+      "non-fall/hair": {
+        "n_windows": 40,
+        "n_fall_labels": 0,
+        "n_adl_labels": 40,
+        "predicted_positive": 2,
+        "tp": 0,
+        "fn": 0,
+        "fp": 2,
+        "tn": 38,
+        "false_positive_rate": 0.05,
+        "recordings": 1,
+        "recordings_with_alert": 1
+      },
+      "non-fall/shoe": {
+        "n_windows": 116,
+        "n_fall_labels": 0,
+        "n_adl_labels": 116,
+        "predicted_positive": 0,
+        "tp": 0,
+        "fn": 0,
+        "fp": 0,
+        "tn": 116,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/stair": {
+        "n_windows": 105,
+        "n_fall_labels": 0,
+        "n_adl_labels": 105,
+        "predicted_positive": 1,
+        "tp": 0,
+        "fn": 0,
+        "fp": 1,
+        "tn": 104,
+        "false_positive_rate": 0.009523809523809525,
+        "recordings": 2,
+        "recordings_with_alert": 1
+      },
+      "non-fall/teeth": {
+        "n_windows": 115,
+        "n_fall_labels": 0,
+        "n_adl_labels": 115,
+        "predicted_positive": 0,
+        "tp": 0,
+        "fn": 0,
+        "fp": 0,
+        "tn": 115,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/walk": {
+        "n_windows": 125,
+        "n_fall_labels": 0,
+        "n_adl_labels": 125,
+        "predicted_positive": 0,
+        "tp": 0,
+        "fn": 0,
+        "fp": 0,
+        "tn": 125,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/wash": {
+        "n_windows": 115,
+        "n_fall_labels": 0,
+        "n_adl_labels": 115,
+        "predicted_positive": 0,
+        "tp": 0,
+        "fn": 0,
+        "fp": 0,
+        "tn": 115,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/write": {
+        "n_windows": 79,
+        "n_fall_labels": 0,
+        "n_adl_labels": 79,
+        "predicted_positive": 20,
+        "tp": 0,
+        "fn": 0,
+        "fp": 20,
+        "tn": 59,
+        "false_positive_rate": 0.25316455696202533,
+        "recordings": 2,
+        "recordings_with_alert": 2
+      },
+      "non-fall/zip": {
+        "n_windows": 119,
+        "n_fall_labels": 0,
+        "n_adl_labels": 119,
+        "predicted_positive": 0,
+        "tp": 0,
+        "fn": 0,
+        "fp": 0,
+        "tn": 119,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      }
+    },
+    "per_scenario_test_false_positives": {
+      "non-fall/bed": {
+        "n_windows": 144,
+        "false_positives": 34,
+        "false_positive_rate": 0.2361111111111111,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/chair": {
+        "n_windows": 119,
+        "false_positives": 33,
+        "false_positive_rate": 0.2773109243697479,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/clap": {
+        "n_windows": 209,
+        "false_positives": 190,
+        "false_positive_rate": 0.9090909090909091,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/cloth": {
+        "n_windows": 118,
+        "false_positives": 5,
+        "false_positive_rate": 0.0423728813559322,
+        "recordings": 3,
+        "recordings_with_alert": 1
+      },
+      "non-fall/eat": {
+        "n_windows": 79,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 2,
+        "recordings_with_alert": 0
+      },
+      "non-fall/hair": {
+        "n_windows": 40,
+        "false_positives": 2,
+        "false_positive_rate": 0.05,
+        "recordings": 1,
+        "recordings_with_alert": 1
+      },
+      "non-fall/shoe": {
+        "n_windows": 116,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/stair": {
+        "n_windows": 105,
+        "false_positives": 1,
+        "false_positive_rate": 0.009523809523809525,
+        "recordings": 2,
+        "recordings_with_alert": 1
+      },
+      "non-fall/teeth": {
+        "n_windows": 115,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/walk": {
+        "n_windows": 125,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/wash": {
+        "n_windows": 115,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/write": {
+        "n_windows": 79,
+        "false_positives": 20,
+        "false_positive_rate": 0.25316455696202533,
+        "recordings": 2,
+        "recordings_with_alert": 2
+      },
+      "non-fall/zip": {
+        "n_windows": 119,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      }
+    },
+    "per_scenario_validation_false_positives": {
+      "non-fall/bed": {
+        "n_windows": 140,
+        "false_positives": 46,
+        "false_positive_rate": 0.32857142857142857,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/chair": {
+        "n_windows": 144,
+        "false_positives": 46,
+        "false_positive_rate": 0.3194444444444444,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/clap": {
+        "n_windows": 255,
+        "false_positives": 239,
+        "false_positive_rate": 0.9372549019607843,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      },
+      "non-fall/cloth": {
+        "n_windows": 119,
+        "false_positives": 1,
+        "false_positive_rate": 0.008403361344537815,
+        "recordings": 3,
+        "recordings_with_alert": 1
+      },
+      "non-fall/eat": {
+        "n_windows": 78,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 2,
+        "recordings_with_alert": 0
+      },
+      "non-fall/hair": {
+        "n_windows": 39,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 1,
+        "recordings_with_alert": 0
+      },
+      "non-fall/shoe": {
+        "n_windows": 116,
+        "false_positives": 1,
+        "false_positive_rate": 0.008620689655172414,
+        "recordings": 3,
+        "recordings_with_alert": 1
+      },
+      "non-fall/stair": {
+        "n_windows": 95,
+        "false_positives": 6,
+        "false_positive_rate": 0.06315789473684211,
+        "recordings": 2,
+        "recordings_with_alert": 1
+      },
+      "non-fall/teeth": {
+        "n_windows": 117,
+        "false_positives": 0,
+        "false_positive_rate": 0.0,
+        "recordings": 3,
+        "recordings_with_alert": 0
+      },
+      "non-fall/walk": {
+        "n_windows": 122,
+        "false_positives": 3,
+        "false_positive_rate": 0.02459016393442623,
+        "recordings": 3,
+        "recordings_with_alert": 1
+      },
+      "non-fall/wash": {
+        "n_windows": 118,
+        "false_positives": 3,
+        "false_positive_rate": 0.025423728813559324,
+        "recordings": 3,
+        "recordings_with_alert": 1
+      },
+      "non-fall/write": {
+        "n_windows": 38,
+        "false_positives": 6,
+        "false_positive_rate": 0.15789473684210525,
+        "recordings": 1,
+        "recordings_with_alert": 1
+      },
+      "non-fall/zip": {
+        "n_windows": 115,
+        "false_positives": 18,
+        "false_positive_rate": 0.1565217391304348,
+        "recordings": 3,
+        "recordings_with_alert": 3
+      }
+    }
+  }
+}
