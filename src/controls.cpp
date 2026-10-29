@@ -8,6 +8,9 @@ static bool bootArmed = false;
 static bool warnedExternal = false;
 static int lastButton = -1;
 static int lastBoot = -1;
+static bool rawDown = false;
+static bool stableDown = false;
+static uint32_t rawChangedMs = 0;
 
 void updateButton(uint32_t now) {
   int g2 = digitalRead(PIN_BUTTON);
@@ -30,7 +33,15 @@ void updateButton(uint32_t now) {
   }
 
   // A stuck-low external line must not block the onboard BOOT fallback.
-  bool down = (externalArmed && externalDown) || (bootArmed && bootDown);
+  bool rawPressed = (externalArmed && externalDown) || (bootArmed && bootDown);
+  if (rawPressed != rawDown) {
+    rawDown = rawPressed;
+    rawChangedMs = now;
+  }
+  if (rawDown != stableDown && now - rawChangedMs >= BUTTON_DEBOUNCE_MS) {
+    stableDown = rawDown;
+  }
+  bool down = stableDown;
   if (down && !buttonDown) {
     buttonDown = true;
     buttonDownMs = now;
@@ -38,7 +49,7 @@ void updateButton(uint32_t now) {
   } else if (down && buttonDown && !buttonLongHandled && (now - buttonDownMs >= BUTTON_LONG_MS)) {
     buttonLongHandled = true;
     Serial.printf("[BTN] long press state=%s\n", stateName(state));
-    if (state != SystemState::Alarm && state != SystemState::PanicSos) {
+    if (state == SystemState::Idle) {
       enterAlarm(AlertType::PanicSos, "SOS khan cap", lastTotalAcc);
     }
   } else if (!down && buttonDown) {

@@ -55,8 +55,10 @@ void enterAlarm(AlertType type, const char *reason, float impact) {
   pendingAlertType = type;
   strncpy(alarmReason, reason, sizeof(alarmReason) - 1);
   alarmReason[sizeof(alarmReason) - 1] = '\0';
-  ++fallCount;
-  saveFalls();
+  if (type == AlertType::Fall) {
+    ++fallCount;
+    saveFalls();
+  }
 
   setState(type == AlertType::PanicSos ? SystemState::PanicSos : SystemState::Alarm, alarmReason);
   Serial.printf("[ALERT] type=%u reason=%s\n", (unsigned)type, alarmReason);

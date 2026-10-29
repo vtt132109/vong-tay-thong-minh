@@ -32,6 +32,7 @@ static constexpr uint32_t COUNTDOWN_MS = 10000;
 static constexpr uint32_t SNOOZE_MS = 20000;
 static constexpr uint32_t HEALTH_CONFIRM_MS = 10000;
 static constexpr uint32_t BUTTON_LONG_MS = 3000;
+static constexpr uint32_t BUTTON_DEBOUNCE_MS = 40;
 static constexpr uint32_t TEST_BUZZER_MS = 2000;
 static constexpr uint32_t DISPLAY_PERIOD_MS = 200;
 static constexpr uint32_t TELEMETRY_PERIOD_MS = 200;
