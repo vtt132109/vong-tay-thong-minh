@@ -1,4 +1,5 @@
 #include "fsm.h"
+#include "ai_model.h"  // AI_PROMOTION_ENABLED guard
 #include "storage.h"
 #include <stdio.h>
 #include <string.h>
