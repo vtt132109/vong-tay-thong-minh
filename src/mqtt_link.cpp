@@ -22,14 +22,17 @@ static const char *MQTT_BASE = "bioband/vtt132109/dev01";
 
 static const uint32_t MQTT_RECONNECT_MS = 5000;   // retry cadence, non-blocking
 static const uint32_t MQTT_TELEMETRY_MS = 1000;   // at most one publish per second
+static const uint32_t MQTT_HISTORY_MS = 5000;     // retained 60 s snapshot cadence
 static const uint32_t MQTT_LOG_MS = 10000;        // heartbeat log
-static const uint16_t MQTT_BUFFER_SIZE = 1024;
+static const uint16_t MQTT_BUFFER_SIZE = 2048;
+static const uint8_t MQTT_HISTORY_SAMPLES = 60;
 
 static WiFiClient mqttNet;
 static PubSubClient mqttClient(mqttNet);
 
 static char topicStatus[80];
 static char topicTelemetry[80];
+static char topicHistory[80];
 static char topicAlert[80];
 static char topicCancel[80];
 static char topicTestHw[80];
@@ -45,6 +48,16 @@ static uint32_t lastLogMs = 0;
 static uint32_t publishCount = 0;
 static bool wasConnected = false;
 static SystemState lastAlertState = SystemState::Idle;
+
+struct HistorySample {
+  uint16_t bpm;
+  uint8_t spo2;
+  float p;
+};
+static HistorySample historyBuf[MQTT_HISTORY_SAMPLES];
+static uint8_t historyHead = 0;
+static uint8_t historyCount = 0;
+static uint32_t lastHistoryPublishMs = 0;
 
 static void buildTopic(char *dst, size_t len, const char *suffix) {
   snprintf(dst, len, "%s/%s", MQTT_BASE, suffix);
@@ -100,6 +113,39 @@ static void onMqttMessage(char *topic, byte *payload, unsigned int length) {
   }
 }
 
+static void historyPush(const TelemetrySnapshot &t) {
+  HistorySample &s = historyBuf[historyHead];
+  s.bpm = (uint16_t)lroundf(t.bpm > 0.0f ? t.bpm : 0.0f);
+  s.spo2 = t.spo2;
+  s.p = t.ai_probability;
+  historyHead = (uint8_t)((historyHead + 1) % MQTT_HISTORY_SAMPLES);
+  if (historyCount < MQTT_HISTORY_SAMPLES) ++historyCount;
+}
+
+// Retained snapshot (newest last, 1 s apart) so a freshly opened dashboard
+// can draw the last minute instead of starting from an empty chart.
+static void publishHistoryJson() {
+  if (!mqttClient.connected() || historyCount == 0) return;
+  DynamicJsonDocument doc(2048);
+  doc["n"] = historyCount;
+  JsonArray bpm = doc.createNestedArray("bpm");
+  JsonArray spo2 = doc.createNestedArray("spo2");
+  JsonArray p = doc.createNestedArray("p");
+  uint8_t start = (uint8_t)((historyHead + MQTT_HISTORY_SAMPLES - historyCount) % MQTT_HISTORY_SAMPLES);
+  for (uint8_t i = 0; i < historyCount; ++i) {
+    const HistorySample &s = historyBuf[(start + i) % MQTT_HISTORY_SAMPLES];
+    bpm.add(s.bpm);
+    spo2.add(s.spo2);
+    p.add((float)(roundf(s.p * 10000.0f) / 10000.0f));
+  }
+  String out;
+  out.reserve(1400);
+  serializeJson(doc, out);
+  if (!mqttClient.publish(topicHistory, out.c_str(), true)) {
+    Serial.printf("[MQTT] history publish failed (len=%u)\n", (unsigned)out.length());
+  }
+}
+
 static void mqttConnect() {
   Serial.printf("[MQTT] connect %s:%u id=%s\n", MQTT_BROKER, (unsigned)MQTT_PORT, mqttClientId);
   // LWT: broker publishes "offline" (retained) if the link drops.
@@ -110,6 +156,8 @@ static void mqttConnect() {
     mqttClient.subscribe(topicClearNvs);
     mqttClient.subscribe(topicSetThresh);
     mqttClient.subscribe(topicSetTime);
+    publishHistoryJson();
+    lastHistoryPublishMs = millis();
     Serial.println("[MQTT] connected");
     Serial.printf("[MQTT] base=%s (public broker - telemetry is NOT private)\n", MQTT_BASE);
   } else {
@@ -186,6 +234,7 @@ static void publishAlertIfNeeded(const TelemetrySnapshot &t) {
 void mqttLinkBegin() {
   buildTopic(topicStatus, sizeof(topicStatus), "status");
   buildTopic(topicTelemetry, sizeof(topicTelemetry), "telemetry");
+  buildTopic(topicHistory, sizeof(topicHistory), "history");
   buildTopic(topicAlert, sizeof(topicAlert), "fall/alert");
   buildTopic(topicCancel, sizeof(topicCancel), "cancel");
   buildTopic(topicTestHw, sizeof(topicTestHw), "test_hw");
@@ -248,6 +297,11 @@ void mqttLinkLoop(uint32_t now) {
     TelemetrySnapshot t;
     if (readTelemetry(t)) {
       publishTelemetryJson(t);
+      historyPush(t);
+      if (now - lastHistoryPublishMs >= MQTT_HISTORY_MS) {
+        lastHistoryPublishMs = now;
+        publishHistoryJson();
+      }
       publishAlertIfNeeded(t);
     }
   }

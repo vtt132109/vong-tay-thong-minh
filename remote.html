@@ -582,6 +582,41 @@
         dom.aiEmpty.style.display = state.aiHistory.length ? "none" : "grid";
         drawSeries(dom.aiChart, state.aiHistory, { key: "p", min: 0, max: 1, color: "#f0b35a", threshold: state.aiThreshold });
       }
+      // Retained 60 s snapshot from the board: lets a fresh visitor see the
+      // last minute instead of waiting for the chart to fill from zero.
+      function applyHistory(text) {
+        if (!state.connected) return;
+        if (state.history.length && Date.now() - state.lastSeen < 15000) return;
+        let doc;
+        try { doc = JSON.parse(text); } catch (_) { return; }
+        const n = Math.max(0, Math.min(60, Number(doc.n) || 0));
+        if (!n) return;
+        const bpmArr = Array.isArray(doc.bpm) ? doc.bpm : [];
+        const spo2Arr = Array.isArray(doc.spo2) ? doc.spo2 : [];
+        const pArr = Array.isArray(doc.p) ? doc.p : [];
+        const now = Date.now();
+        const hist = [];
+        const ai = [];
+        for (let i = 0; i < n; i += 1) {
+          const t = now - (n - 1 - i) * 1000;
+          const b = num(bpmArr[i]);
+          const o = num(spo2Arr[i]);
+          hist.push({ t, bpm: b !== null && b > 0 ? b : null, spo2: o !== null && o > 0 ? o : null });
+          const p = num(pArr[i]);
+          if (p !== null) ai.push({ t, p: Math.max(0, Math.min(1, p)) });
+        }
+        state.history = hist;
+        state.aiHistory = ai;
+        const hrCount = hist.filter((p) => p.bpm !== null).length;
+        const spo2Count = hist.filter((p) => p.spo2 !== null).length;
+        dom.sampleInfo.textContent = `${hrCount} mẫu`;
+        dom.spo2Samples.textContent = `${spo2Count} mẫu`;
+        dom.chartEmpty.style.display = hrCount ? "none" : "grid";
+        dom.spo2Empty.style.display = spo2Count ? "none" : "grid";
+        dom.aiSamples.textContent = `${ai.length} mẫu`;
+        dom.aiEmpty.style.display = ai.length ? "none" : "grid";
+        drawCharts();
+      }
       function chartView(canvas) {
         const rect = canvas.getBoundingClientRect();
         const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
@@ -613,15 +648,21 @@
         }
         const now = Date.now();
         let drawing = false;
+        let last = null;
         ctx.strokeStyle = opts.color; ctx.lineWidth = 1.8; ctx.beginPath();
         points.forEach((p) => {
           const v = p[opts.key];
           if (typeof v !== "number" || !Number.isFinite(v)) { drawing = false; return; }
           const x = w - ((now - p.t) / 60000) * w;
           const y = yOf(v);
+          last = { x, y };
           if (!drawing) { ctx.moveTo(x, y); drawing = true; } else { ctx.lineTo(x, y); }
         });
         ctx.stroke();
+        if (last) {
+          ctx.fillStyle = opts.color;
+          ctx.beginPath(); ctx.arc(last.x, last.y, 2.6, 0, Math.PI * 2); ctx.fill();
+        }
         if (opts.threshold !== undefined) {
           ctx.fillStyle = "#f0715f";
           points.forEach((p) => {
@@ -659,6 +700,7 @@
           client.subscribe(`${state.base}/telemetry`, { qos: 0 });
           client.subscribe(`${state.base}/status`, { qos: 0 });
           client.subscribe(`${state.base}/fall/alert`, { qos: 0 });
+          client.subscribe(`${state.base}/history`, { qos: 0 });
         });
         client.on("reconnect", () => setConn(false, "ĐANG KẾT NỐI LẠI"));
         client.on("close", () => setConn(false, "MẤT KẾT NỐI"));
@@ -667,6 +709,7 @@
           const text = message.toString();
           if (topic === `${state.base}/status`) { if (text === "online") setConn(true, "TRỰC TUYẾN"); else if (text === "offline") setConn(false, "THIẾT BỊ OFFLINE"); return; }
           if (topic === `${state.base}/fall/alert`) { toast(`Cảnh báo: ${text}`); return; }
+          if (topic === `${state.base}/history`) { applyHistory(text); return; }
           try { render(JSON.parse(text)); } catch (_) { /* ignore malformed */ }
         });
       }
