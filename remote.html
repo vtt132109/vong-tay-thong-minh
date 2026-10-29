@@ -130,7 +130,7 @@
     .signal-row b.warn { color: var(--amber); }
     .signal-row b.bad { color: var(--coral); }
     .chart-wrap { position: relative; height: 142px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-top: 4px; overflow: hidden; background: transparent; }
-    .chart canvas { width: 100%; height: 100%; display: block; background: transparent; }
+    .chart-wrap canvas { width: 100%; height: 100%; display: block; background: transparent; }
     .chart-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); font: 500 10px/1.5 var(--mono); text-align: center; padding: 8px; }
     .chart-meta { display: flex; justify-content: space-between; margin-top: 8px; color: var(--faint); font: 500 9px/1.4 var(--mono); }
     .ai { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
@@ -261,7 +261,7 @@
                 <div class="card-head"><h3>Nhịp tim · 60 giây</h3><span>BPM · broker</span></div>
                 <div class="chart-wrap">
                   <canvas id="hrChart" aria-label="Đồ thị nhịp tim 60 giây"></canvas>
-                  <div class="chart-empty" id="chartEmpty">Chưa có dữ liệu MQTT</div>
+                  <div class="chart-empty" id="chartEmpty">Áp ngón tay lên cảm biến</div>
                 </div>
                 <div class="chart-meta"><span>Thời gian thực từ vòng tay</span><span id="sampleInfo">0 mẫu</span></div>
               </div>
@@ -269,7 +269,7 @@
                 <div class="card-head"><h3>SpO2 · 60 giây</h3><span>% · broker</span></div>
                 <div class="chart-wrap">
                   <canvas id="spo2Chart" aria-label="Đồ thị SpO2 60 giây"></canvas>
-                  <div class="chart-empty" id="spo2Empty">Chưa có dữ liệu MQTT</div>
+                  <div class="chart-empty" id="spo2Empty">Áp ngón tay lên cảm biến</div>
                 </div>
                 <div class="chart-meta"><span>PPG · chỉ khi áp tay</span><span id="spo2Samples">0 mẫu</span></div>
               </div>
@@ -333,7 +333,7 @@
           </div>
           <div class="chart-wrap ai-chart">
             <canvas id="aiChart" aria-label="Đồ thị xác suất ngã 60 giây"></canvas>
-            <div class="chart-empty" id="aiEmpty">Chưa có dữ liệu AI</div>
+            <div class="chart-empty" id="aiEmpty">Đang chờ mẫu AI</div>
           </div>
           <div class="chart-meta"><span>p(ngã) · 60 giây · nét đứt = ngưỡng <i id="aiThrMeta">0.94</i></span><span id="aiSamples">0 mẫu</span></div>
           <p class="ai-note">AI chỉ suy luận và gửi telemetry; còi/báo động do rule-based FSM quyết định. AI chạy mỗi 0.5 giây trên cửa sổ 2 giây (6 trục), telemetry gửi 1 giây/lần.</p>
@@ -647,18 +647,29 @@
           ctx.restore();
         }
         const now = Date.now();
+        const oldest = points.length ? points[0].t : now;
+        const spanMs = Math.max(5000, Math.min(60000, now - oldest + 1000));
+        const xOf = (t) => w - ((now - t) / spanMs) * w;
         let drawing = false;
         let last = null;
+        const valid = [];
         ctx.strokeStyle = opts.color; ctx.lineWidth = 1.8; ctx.beginPath();
         points.forEach((p) => {
           const v = p[opts.key];
           if (typeof v !== "number" || !Number.isFinite(v)) { drawing = false; return; }
-          const x = w - ((now - p.t) / 60000) * w;
+          const x = xOf(p.t);
           const y = yOf(v);
           last = { x, y };
+          valid.push(last);
           if (!drawing) { ctx.moveTo(x, y); drawing = true; } else { ctx.lineTo(x, y); }
         });
         ctx.stroke();
+        if (valid.length <= 10) {
+          ctx.fillStyle = opts.color;
+          valid.forEach((pt) => {
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, 1.8, 0, Math.PI * 2); ctx.fill();
+          });
+        }
         if (last) {
           ctx.fillStyle = opts.color;
           ctx.beginPath(); ctx.arc(last.x, last.y, 2.6, 0, Math.PI * 2); ctx.fill();
@@ -669,7 +680,7 @@
             const v = p[opts.key];
             if (typeof v !== "number" || v < opts.threshold) return;
             ctx.beginPath();
-            ctx.arc(w - ((now - p.t) / 60000) * w, yOf(v), 2.2, 0, Math.PI * 2);
+            ctx.arc(xOf(p.t), yOf(v), 2.2, 0, Math.PI * 2);
             ctx.fill();
           });
         }

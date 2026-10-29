@@ -298,7 +298,8 @@ void mqttLinkLoop(uint32_t now) {
     if (readTelemetry(t)) {
       publishTelemetryJson(t);
       historyPush(t);
-      if (now - lastHistoryPublishMs >= MQTT_HISTORY_MS) {
+      const uint32_t historyCadence = historyCount < 20 ? 2000 : MQTT_HISTORY_MS;
+      if (now - lastHistoryPublishMs >= historyCadence) {
         lastHistoryPublishMs = now;
         publishHistoryJson();
       }
