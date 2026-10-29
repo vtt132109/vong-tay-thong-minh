@@ -10,7 +10,7 @@
 - Firmware đã được viết lại từ đầu theo sơ đồ EasyEDA `Sheet_1`.
 - Build PlatformIO **thành công**:
   - RAM: `48,700 / 327,680 bytes` (14.9%)
-  - Flash: `943,473 / 1,310,720 bytes` (72.0% của app partition 1.25 MB, đã gồm dashboard nhúng)
+  - Flash: `939,889 / 1,310,720 bytes` (71.7% của app partition 1.25 MB, đã gồm dashboard nhúng)
 - **Đã flash COM13 và chạy thật.** I2C 100 kHz ổn định; MAX30100 part `0x11` nhận đúng; HR/SpO2 đã đo bằng đầu ngón tay (HR ~68–78 bpm, SpO2 ~97%, IR ~18k–20k, PI ~2.5%).
 - WiFi: `include/secrets.h` đã đặt SSID `vtt`. Khi hotspot 2.4 GHz bật, board vào STA và in `[NET] STA IP ...` (IP DHCP có thể đổi). Máy tính đang ở mạng 5 GHz khác nên có thể không truy cập được subnet của hotspot; dùng điện thoại cùng `vtt` hoặc chuyển PC sang `vtt`. Nếu STA fail, board fallback AP `BioBand-Setup` / `bioband123` tại `192.168.4.1` và in scan 2.4 GHz ra Serial. ESP32-S3 chỉ hỗ trợ 2.4 GHz.
 - Dashboard `realtime.html` mới: tự chứa/không CDN, đã test desktop + mobile bằng `tools/mock_server.py`; các lệnh Test còi, Lưu ngưỡng, HỦY gửi đúng. Firmware nhúng dashboard và phục vụ tại `GET /`.
@@ -289,7 +289,8 @@ Ghi chú: key `max30102` được giữ để tương thích HTML, dù phần c�
 - `vtt.html`: testbench mô phỏng OLED/FSM/countdown/lead-off/battery; vẫn dùng Tailwind CDN nên cần Internet để hiển thị đầy đủ.
 - `simulation.html`: bản mô phỏng cũ, trùng chức năng với `vtt.html`; hiện vẫn giữ, có thể xóa nếu không cần.
 - Dashboard tự gửi `/set_time?epoch=...` khi mở (và mỗi 10 phút) để đồng bộ giờ cho OLED, kể cả khi board ở AP không có Internet.
-- `index.html`: trang chủ GitHub Pages (giới thiệu dự án, ảnh dashboard PC/điện thoại, pinout, trạng thái). `realtime.html?demo=1` chạy dashboard với dữ liệu mô phỏng, không cần board.
+- `index.html`: trang chủ GitHub Pages (giới thiệu dự án, ảnh minh họa dashboard PC/điện thoại, pinout, trạng thái). **Không còn chế độ demo** trong `realtime.html`.
+- Dashboard live chạy trên board: mở `http://<STA-IP>/` (IP in ở Serial `[NET] STA IP`; cần cùng WiFi `vtt`) hoặc `http://192.168.4.1/` khi AP fallback. GitHub Pages chỉ là trang giới thiệu tĩnh; trình duyệt HTTPS không thể gọi thẳng board HTTP trong mạng riêng.
 - Test UI không cần board: `python tools/mock_server.py --port 8000` rồi mở `http://127.0.0.1:8000/`; mock tự chạy FSM IDLE → COUNTDOWN → ALARM → SNOOZE.
 
 Cách dùng dashboard:
@@ -322,7 +323,7 @@ Cấu hình trong `platformio.ini`:
   - (tuỳ chọn) Edge Impulse Arduino library export, đặt trong `lib/bioband_inferencing`, bật `-DENABLE_EDGE_AI=1`
 
 Lưu ý: log build vẫn in `8MB Flash` ở dòng HARDWARE do tên board DevKitC-1; partition thực tế là 4 MB (app max 1,310,720 bytes).
-Build hiện tại: RAM **49,068 / 327,680** (15.0%), flash **949,737 / 1,310,720** (72.5%, đã gồm dashboard).
+Build hiện tại: RAM **48,700 / 327,680** (14.9%), flash **939,889 / 1,310,720** (71.7%, đã gồm dashboard).
 
 ## 10. Quyết định quan trọng (không làm lại từ đầu)
 
