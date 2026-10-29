@@ -46,6 +46,7 @@ static void runAiClassifier() {
     strncpy(aiLabel, "error", sizeof(aiLabel) - 1);
     aiLabel[sizeof(aiLabel) - 1] = '\0';
     aiConfidence = 0.0f;
+    aiProbability = 0.0f;
     aiFall = false;
     return;
   }
@@ -62,6 +63,7 @@ static void runAiClassifier() {
   strncpy(aiLabel, bestLabel, sizeof(aiLabel) - 1);
   aiLabel[sizeof(aiLabel) - 1] = '\0';
   aiConfidence = bestValue;
+  aiProbability = bestValue;
   aiFall = (strcasecmp(bestLabel, "fall") == 0);
 }
 
@@ -230,27 +232,34 @@ static float tinyInfer(const float *feat) {
 
 static void runTinyAi(uint32_t now) {
   float feat[TINY_AI_FEATURE_COUNT];
+  const uint32_t t0 = micros();
   tinyExtractFeatures(tinyWindow, feat);
   const float p = tinyInfer(feat);
+  aiInferenceUs = micros() - t0;
+  ++aiInferenceCount;
+  aiWindowPeak = feat[TINY_AXES * 6 + 4];
+  aiThreshold = TINY_AI_THRESHOLD;
 
   if (!isfinite(p)) {
     strncpy(aiLabel, "error", sizeof(aiLabel) - 1);
     aiLabel[sizeof(aiLabel) - 1] = '\0';
     aiConfidence = 0.0f;
+    aiProbability = 0.0f;
     aiFall = false;
     return;
   }
 
-  const bool fall = (p >= TINY_AI_THRESHOLD);
+  const bool fall = (p >= aiThreshold);
   strncpy(aiLabel, fall ? "fall" : "adl", sizeof(aiLabel) - 1);
   aiLabel[sizeof(aiLabel) - 1] = '\0';
   aiConfidence = (p >= 0.5f) ? p : (1.0f - p);  // max(p, 1-p)
+  aiProbability = p;
   aiFall = fall;
 
   if (now - tinyLastLogMs >= TINY_LOG_MIN_MS) {
     tinyLastLogMs = now;
     Serial.printf("[TINY-AI] p=%.4f label=%s thr=%.2f\n", (double)p, aiLabel,
-                  (double)TINY_AI_THRESHOLD);
+                  (double)aiThreshold);
   }
 }
 
@@ -276,6 +285,12 @@ void aiPushSample(float ax, float ay, float az, float gx, float gy, float gz) {
   dst[4] = gy;
   dst[5] = gz;
   ++tinyWriteIndex;
+
+  static uint32_t tinySamplesSeen = 0;
+  ++tinySamplesSeen;
+  aiWindowFill = tinySamplesSeen >= TINY_WINDOW_SAMPLES
+                     ? 100
+                     : (uint8_t)((tinySamplesSeen * 100) / TINY_WINDOW_SAMPLES);
 
   if (tinyWriteIndex < TINY_WINDOW_SAMPLES) return;
 

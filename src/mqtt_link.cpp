@@ -145,6 +145,12 @@ static void publishTelemetryJson(const TelemetrySnapshot &t) {
   doc["ppg_motion"] = t.ppg_motion;
   doc["ai_label"] = t.ai_label;
   doc["ai_conf"] = t.ai_confidence;
+  doc["ai_p"] = t.ai_probability;
+  doc["ai_thr"] = t.ai_threshold;
+  doc["ai_peak"] = t.ai_window_peak;
+  doc["ai_fill"] = t.ai_window_fill;
+  doc["ai_n"] = t.ai_inference_count;
+  doc["ai_us"] = t.ai_inference_us;
   doc["ai_fall"] = t.ai_fall;
 
   String out;

@@ -45,6 +45,12 @@ extern volatile bool captureActive;
 extern uint32_t captureEndMs;
 extern char aiLabel[16];
 extern float aiConfidence;
+extern float aiProbability;
+extern float aiThreshold;
+extern uint8_t aiWindowFill;
+extern uint32_t aiInferenceCount;
+extern uint32_t aiInferenceUs;
+extern float aiWindowPeak;
 extern bool aiFall;
 extern bool ppgMotion;
 

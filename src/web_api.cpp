@@ -47,6 +47,12 @@ void publishTelemetry(uint32_t now) {
   strncpy(t.ai_label, aiLabel, sizeof(t.ai_label) - 1);
   t.ai_label[sizeof(t.ai_label) - 1] = '\0';
   t.ai_confidence = aiConfidence;
+  t.ai_probability = aiProbability;
+  t.ai_threshold = aiThreshold;
+  t.ai_window_peak = aiWindowPeak;
+  t.ai_window_fill = aiWindowFill;
+  t.ai_inference_count = aiInferenceCount;
+  t.ai_inference_us = aiInferenceUs;
   t.ai_fall = aiFall;
 
   if (telemetryMutex != nullptr && xSemaphoreTake(telemetryMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
@@ -121,6 +127,12 @@ static void handleData() {
   doc["ppg_motion"] = t.ppg_motion;
   doc["ai_label"] = t.ai_label;
   doc["ai_conf"] = t.ai_confidence;
+  doc["ai_p"] = t.ai_probability;
+  doc["ai_thr"] = t.ai_threshold;
+  doc["ai_peak"] = t.ai_window_peak;
+  doc["ai_fill"] = t.ai_window_fill;
+  doc["ai_n"] = t.ai_inference_count;
+  doc["ai_us"] = t.ai_inference_us;
   doc["ai_fall"] = t.ai_fall;
 
   String out;

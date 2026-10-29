@@ -55,6 +55,12 @@ struct TelemetrySnapshot {
   float ram_pct = 0.0f;
   char ai_label[16] = "n/a";
   float ai_confidence = 0.0f;
+  float ai_probability = 0.0f;
+  float ai_threshold = 0.0f;
+  float ai_window_peak = 0.0f;
+  uint8_t ai_window_fill = 0;
+  uint32_t ai_inference_count = 0;
+  uint32_t ai_inference_us = 0;
   bool ai_fall = false;
 };
 

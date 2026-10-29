@@ -92,8 +92,10 @@
     .card-head span { color: var(--faint); font: 500 9px/1 var(--mono); letter-spacing: .06em; }
     .vitals { grid-column: span 8; display: flex; flex-direction: column; gap: 14px; align-self: start; }
     .vitals-main { display: grid; grid-template-columns: 1.05fr .95fr; gap: 14px; }
-    .vitals-tape { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 168px; max-height: 260px; padding-top: 12px; border-top: 1px solid var(--line); }
-    .vitals-tape .chart-wrap { flex: 0 0 160px; height: 160px; min-height: 160px; max-height: 160px; }
+    .vitals-tape { padding-top: 12px; border-top: 1px solid var(--line); }
+    .tape-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .tape-cell { min-width: 0; }
+    .vitals-tape .chart-wrap { height: 160px; min-height: 160px; max-height: 160px; }
     .vital { position: relative; min-width: 0; padding: 4px 0; }
     .vital + .vital { border-left: 1px solid var(--line); padding-left: 18px; }
     .vital-label { color: var(--muted); font: 600 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
@@ -134,6 +136,26 @@
     .ai { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
     .ai b { color: var(--ink); font: 600 11px/1 var(--mono); }
     .ai .conf { color: var(--cyan); }
+    .ai-card { grid-column: span 12; }
+    .ai-summary { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; }
+    .ai-big { display: flex; align-items: baseline; gap: 10px; }
+    .ai-big b { font: 500 38px/1 var(--mono); letter-spacing: -.04em; color: var(--ok); text-transform: uppercase; }
+    .ai-big b.fall { color: var(--coral); }
+    .ai-big b.muted { color: var(--faint); font-size: 26px; letter-spacing: 0; }
+    .ai-big small { color: var(--cyan); font: 600 12px/1 var(--mono); }
+    .ai-facts { display: flex; flex-wrap: wrap; gap: 20px; margin-left: auto; }
+    .ai-facts span { display: block; color: var(--muted); font: 600 8px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .ai-facts b { color: var(--ink); font: 500 16px/1 var(--mono); }
+    .ai-chart { height: 150px; margin-top: 12px; }
+    .ai-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .ai-step { display: flex; gap: 9px; padding: 10px; border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; min-width: 0; }
+    .ai-step .n { flex: 0 0 auto; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line-2); color: var(--muted); font: 700 8px/1 var(--mono); }
+    .ai-step b { display: block; color: var(--ink-2); font-size: 11px; font-weight: 600; }
+    .ai-step b i, .chart-meta i { font-style: normal; color: var(--amber); }
+    .ai-step span { display: block; margin-top: 4px; color: var(--faint); font: 500 9px/1.4 var(--mono); overflow-wrap: anywhere; }
+    .ai-step .bar { display: block; height: 3px; margin-top: 6px; background: var(--line); }
+    .ai-step .bar em { display: block; width: 0; height: 100%; background: var(--cyan); transition: width .2s linear; }
+    .ai-note { margin: 10px 0 0; color: var(--faint); font-size: 11px; line-height: 1.6; }
     .empty { color: var(--muted); font-size: 13px; line-height: 1.7; }
     .empty code { color: var(--cyan); }
     footer { border-top: 1px solid var(--line); padding: 18px 0 26px; color: var(--faint); font: 500 10px/1.7 var(--mono); }
@@ -169,6 +191,11 @@
       .vitals, .side, .controls, .signal { grid-column: 1 / -1; }
       .side { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
       .side .card:first-child { grid-column: 1 / -1; }
+      .ai-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .tape-grid { grid-template-columns: 1fr; }
+      .ai-facts { margin-left: 0; }
     }
     @media (max-width: 560px) {
       .vitals-main { grid-template-columns: 1fr; }
@@ -228,13 +255,25 @@
               </div>
             </div>
           </div>
-          <div class="vitals-tape" aria-label="Lịch sử nhịp tim">
-            <div class="card-head"><h3>Nhịp tim · 60 giây</h3><span>BPM · dữ liệu broker</span></div>
-            <div class="chart-wrap">
-              <canvas id="hrChart"></canvas>
-              <div class="chart-empty" id="chartEmpty">Chưa có dữ liệu MQTT</div>
+          <div class="vitals-tape">
+            <div class="tape-grid">
+              <div class="tape-cell">
+                <div class="card-head"><h3>Nhịp tim · 60 giây</h3><span>BPM · broker</span></div>
+                <div class="chart-wrap">
+                  <canvas id="hrChart" aria-label="Đồ thị nhịp tim 60 giây"></canvas>
+                  <div class="chart-empty" id="chartEmpty">Chưa có dữ liệu MQTT</div>
+                </div>
+                <div class="chart-meta"><span>Thời gian thực từ vòng tay</span><span id="sampleInfo">0 mẫu</span></div>
+              </div>
+              <div class="tape-cell">
+                <div class="card-head"><h3>SpO2 · 60 giây</h3><span>% · broker</span></div>
+                <div class="chart-wrap">
+                  <canvas id="spo2Chart" aria-label="Đồ thị SpO2 60 giây"></canvas>
+                  <div class="chart-empty" id="spo2Empty">Chưa có dữ liệu MQTT</div>
+                </div>
+                <div class="chart-meta"><span>PPG · chỉ khi áp tay</span><span id="spo2Samples">0 mẫu</span></div>
+              </div>
             </div>
-            <div class="chart-meta"><span>Thời gian thực từ vòng tay</span><span id="sampleInfo">0 mẫu</span></div>
           </div>
         </section>
 
@@ -259,6 +298,46 @@
             </div>
           </section>
         </aside>
+
+        <section class="card ai-card" aria-label="AI TinyML">
+          <div class="card-head"><h3>AI · cửa sổ 2 giây</h3><span id="aiMode">telemetry-only · không kích hoạt còi</span></div>
+          <div class="ai-summary">
+            <div class="ai-big"><b id="aiLabelBig" class="muted">n/a</b><small id="aiConfBig">--</small></div>
+            <div class="ai-facts">
+              <div><span>Xác suất ngã p</span><b id="aiProb">--</b></div>
+              <div><span>Ngưỡng</span><b id="aiThr">0.94</b></div>
+              <div><span>Cập nhật</span><b id="aiAge">--</b></div>
+            </div>
+          </div>
+          <div class="ai-steps">
+            <div class="ai-step">
+              <span class="n">1</span>
+              <div><b>Cửa sổ 2 giây</b><span id="stepWin">--</span><i class="bar"><em id="stepWinBar"></em></i></div>
+            </div>
+            <div class="ai-step">
+              <span class="n">2</span>
+              <div><b>Loại trọng lực</b><span id="stepPeak">--</span></div>
+            </div>
+            <div class="ai-step">
+              <span class="n">3</span>
+              <div><b>42 đặc trưng</b><span>6 trục × 6 + 6 magnitude</span></div>
+            </div>
+            <div class="ai-step">
+              <span class="n">4</span>
+              <div><b>MLP 42→16→1</b><span id="stepInfer">--</span></div>
+            </div>
+            <div class="ai-step">
+              <span class="n">5</span>
+              <div><b>Ngưỡng <i id="aiThrStep">0.94</i></b><span id="stepDecision">--</span></div>
+            </div>
+          </div>
+          <div class="chart-wrap ai-chart">
+            <canvas id="aiChart" aria-label="Đồ thị xác suất ngã 60 giây"></canvas>
+            <div class="chart-empty" id="aiEmpty">Chưa có dữ liệu AI</div>
+          </div>
+          <div class="chart-meta"><span>p(ngã) · 60 giây · nét đứt = ngưỡng <i id="aiThrMeta">0.94</i></span><span id="aiSamples">0 mẫu</span></div>
+          <p class="ai-note">AI chỉ suy luận và gửi telemetry; còi/báo động do rule-based FSM quyết định. AI chạy mỗi 0.5 giây trên cửa sổ 2 giây (6 trục), telemetry gửi 1 giây/lần.</p>
+        </section>
 
         <section class="card controls" aria-label="Điều khiển">
           <div class="card-head"><h3>Điều khiển</h3><span id="threshDevice">Ngưỡng --</span></div>
@@ -335,13 +414,20 @@
         settingsBtn: $("settingsBtn"), closeSettings: $("closeSettings"),
         saveSettings: $("saveSettings"), resetSettings: $("resetSettings"),
         toast: $("toast"), topicLabel: $("topicLabel"), chartEmpty: $("chartEmpty"),
-        sampleInfo: $("sampleInfo"), hrChart: $("hrChart")
+        sampleInfo: $("sampleInfo"), hrChart: $("hrChart"),
+        spo2Chart: $("spo2Chart"), spo2Empty: $("spo2Empty"), spo2Samples: $("spo2Samples"),
+        aiChart: $("aiChart"), aiEmpty: $("aiEmpty"), aiSamples: $("aiSamples"),
+        aiLabelBig: $("aiLabelBig"), aiConfBig: $("aiConfBig"), aiProb: $("aiProb"), aiAge: $("aiAge"),
+        aiThr: $("aiThr"), aiThrMeta: $("aiThrMeta"), aiThrStep: $("aiThrStep"),
+        stepWin: $("stepWin"), stepWinBar: $("stepWinBar"), stepPeak: $("stepPeak"),
+        stepInfer: $("stepInfer"), stepDecision: $("stepDecision")
       };
+      const AI_THRESHOLD = 0.94;
       const state = {
         broker: localStorage.getItem(STORAGE.broker) || DEFAULT_BROKER,
         base: localStorage.getItem(STORAGE.base) || DEFAULT_BASE,
         client: null, connected: false, lastSeen: 0, lastData: null,
-        history: [], chart: null, chartDrawn: false, toastTimer: 0
+        history: [], aiHistory: [], aiThreshold: AI_THRESHOLD, toastTimer: 0
       };
       const STATES = {
         IDLE: { label: "IDLE", tone: "", copy: "Đang theo dõi" },
@@ -372,6 +458,14 @@
       }
       function num(v) { return typeof v === "number" && Number.isFinite(v) ? v : null; }
       function pos(v) { const n = num(v); return n !== null && n > 0 ? n : null; }
+      function aiProbability(data) {
+        const p = num(data.ai_p);
+        if (p !== null) return Math.max(0, Math.min(1, p));
+        const conf = num(data.ai_conf);
+        const label = String(data.ai_label || "").toLowerCase();
+        if (conf === null || !label || label === "n/a" || label === "error") return null;
+        return label === "fall" ? conf : 1 - conf;
+      }
       function fmt(v, digits = 0) { const n = pos(v); return n === null ? "--" : n.toFixed(digits); }
       function stateInfo(raw) {
         return STATES[String(raw || "").toUpperCase()] || { label: raw || "--", tone: "warn", copy: "Trạng thái không xác định" };
@@ -422,8 +516,34 @@
         dom.ram.textContent = num(data.ram_pct) !== null ? `${Math.round(data.ram_pct)}%` : "--";
         dom.buzzer.textContent = data.buzzer ? "KÊU" : "TẮT";
         dom.buzzer.className = data.buzzer ? "bad" : "";
-        dom.aiLabel.textContent = data.ai_label || "n/a";
-        dom.aiConf.textContent = num(data.ai_conf) !== null ? `${(data.ai_conf * 100).toFixed(0)}%` : "--";
+        const aiP = aiProbability(data);
+        const aiRawLabel = String(data.ai_label || "").toLowerCase();
+        const aiKnown = !!aiRawLabel && aiRawLabel !== "n/a" && aiRawLabel !== "error";
+        const aiIsFall = data.ai_fall === true || aiRawLabel === "fall";
+        const aiConf = num(data.ai_conf);
+        dom.aiLabel.textContent = aiKnown ? aiRawLabel : "n/a";
+        dom.aiConf.textContent = aiKnown && aiConf !== null ? `${(aiConf * 100).toFixed(0)}%` : "--";
+        dom.aiLabelBig.textContent = aiKnown ? aiRawLabel.toUpperCase() : "N/A";
+        dom.aiLabelBig.className = aiKnown ? (aiIsFall ? "fall" : "") : "muted";
+        dom.aiConfBig.textContent = aiKnown && aiConf !== null ? `${(aiConf * 100).toFixed(0)}%` : "--";
+        dom.aiProb.textContent = aiP !== null ? aiP.toFixed(3) : "--";
+        dom.aiProb.style.color = aiP !== null && aiP >= state.aiThreshold ? "var(--coral)" : "";
+        dom.aiAge.textContent = aiKnown ? new Date(now).toLocaleTimeString("vi-VN") : "--";
+        const thr = num(data.ai_thr) ?? AI_THRESHOLD;
+        state.aiThreshold = thr;
+        dom.aiThr.textContent = thr.toFixed(2);
+        dom.aiThrMeta.textContent = thr.toFixed(2);
+        dom.aiThrStep.textContent = thr.toFixed(2);
+        const fill = num(data.ai_fill);
+        dom.stepWin.textContent = fill !== null ? `${Math.round(fill)}% · 100 mẫu` : "--";
+        dom.stepWinBar.style.width = `${fill === null ? 0 : Math.max(0, Math.min(100, fill))}%`;
+        const peak = num(data.ai_peak);
+        dom.stepPeak.textContent = peak !== null ? `${peak.toFixed(2)} m/s²` : "--";
+        const aiN = num(data.ai_n);
+        const aiUs = num(data.ai_us);
+        dom.stepInfer.textContent = aiN !== null && aiUs !== null ? `${Math.round(aiUs)} µs · ${Math.round(aiN)} lần` : "--";
+        dom.stepDecision.textContent = aiKnown ? (aiIsFall ? "→ FALL" : "→ ADL") : "--";
+        dom.stepDecision.style.color = aiIsFall ? "var(--coral)" : "";
         dom.threshDevice.textContent = `Ngưỡng ${fmt(data.thresh, 1)} m/s²`;
         const th = num(data.thresh);
         if (th !== null && document.activeElement !== dom.threshold) {
@@ -439,19 +559,30 @@
         } else {
           dom.alertBar.classList.remove("show");
         }
-        pushHistory(bpm, now);
+        pushHistory(bpm, spo2, now);
+        if (aiP !== null) pushAiHistory(aiP, aiIsFall, now);
         setConn(true, "TRỰC TUYẾN");
       }
-      function pushHistory(bpm, now) {
-        if (bpm === null) return;
-        state.history.push({ t: now, v: bpm });
+      function pushHistory(bpm, spo2, now) {
+        state.history.push({ t: now, bpm, spo2 });
         while (state.history.length && state.history[0].t < now - 60000) state.history.shift();
-        dom.sampleInfo.textContent = `${state.history.length} mẫu`;
-        dom.chartEmpty.style.display = state.history.length ? "none" : "grid";
-        drawChart();
+        const hrCount = state.history.filter((p) => p.bpm !== null).length;
+        const spo2Count = state.history.filter((p) => p.spo2 !== null).length;
+        dom.sampleInfo.textContent = `${hrCount} mẫu`;
+        dom.spo2Samples.textContent = `${spo2Count} mẫu`;
+        dom.chartEmpty.style.display = hrCount ? "none" : "grid";
+        dom.spo2Empty.style.display = spo2Count ? "none" : "grid";
+        drawSeries(dom.hrChart, state.history, { key: "bpm", min: 30, max: 180, color: "#f0715f" });
+        drawSeries(dom.spo2Chart, state.history, { key: "spo2", min: 85, max: 100, color: "#74ced2" });
       }
-      function drawChart() {
-        const canvas = dom.hrChart;
+      function pushAiHistory(p, fall, now) {
+        state.aiHistory.push({ t: now, p, fall });
+        while (state.aiHistory.length && state.aiHistory[0].t < now - 60000) state.aiHistory.shift();
+        dom.aiSamples.textContent = `${state.aiHistory.length} mẫu`;
+        dom.aiEmpty.style.display = state.aiHistory.length ? "none" : "grid";
+        drawSeries(dom.aiChart, state.aiHistory, { key: "p", min: 0, max: 1, color: "#f0b35a", threshold: state.aiThreshold });
+      }
+      function chartView(canvas) {
         const rect = canvas.getBoundingClientRect();
         const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
         const w = Math.max(1, Math.min(rect.width, 1600));
@@ -459,20 +590,53 @@
         canvas.width = Math.round(w * dpr);
         canvas.height = Math.round(h * dpr);
         const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+        if (!ctx) return null;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
+        return { ctx, w, h };
+      }
+      function drawSeries(canvas, points, opts) {
+        const view = chartView(canvas);
+        if (!view) return;
+        const { ctx, w, h } = view;
         ctx.strokeStyle = "#2b3029"; ctx.lineWidth = 1;
         [0.25, 0.5, 0.75].forEach((p) => { ctx.beginPath(); ctx.moveTo(0, h * p); ctx.lineTo(w, h * p); ctx.stroke(); });
-        if (!state.history.length) return;
-        const min = 30, max = 180, now = Date.now();
-        ctx.strokeStyle = "#f0715f"; ctx.lineWidth = 1.8; ctx.beginPath();
-        state.history.forEach((p, i) => {
+        const span = opts.max - opts.min;
+        const inset = 2;
+        const yOf = (v) => (h - inset) - ((Math.max(opts.min, Math.min(opts.max, v)) - opts.min) / span) * (h - 2 * inset);
+        if (opts.threshold !== undefined) {
+          ctx.save();
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = "rgba(240,113,95,.75)";
+          ctx.beginPath(); ctx.moveTo(0, yOf(opts.threshold)); ctx.lineTo(w, yOf(opts.threshold)); ctx.stroke();
+          ctx.restore();
+        }
+        const now = Date.now();
+        let drawing = false;
+        ctx.strokeStyle = opts.color; ctx.lineWidth = 1.8; ctx.beginPath();
+        points.forEach((p) => {
+          const v = p[opts.key];
+          if (typeof v !== "number" || !Number.isFinite(v)) { drawing = false; return; }
           const x = w - ((now - p.t) / 60000) * w;
-          const y = h - ((Math.max(min, Math.min(max, p.v)) - min) / (max - min)) * h;
-          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          const y = yOf(v);
+          if (!drawing) { ctx.moveTo(x, y); drawing = true; } else { ctx.lineTo(x, y); }
         });
         ctx.stroke();
+        if (opts.threshold !== undefined) {
+          ctx.fillStyle = "#f0715f";
+          points.forEach((p) => {
+            const v = p[opts.key];
+            if (typeof v !== "number" || v < opts.threshold) return;
+            ctx.beginPath();
+            ctx.arc(w - ((now - p.t) / 60000) * w, yOf(v), 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+      }
+      function drawCharts() {
+        drawSeries(dom.hrChart, state.history, { key: "bpm", min: 30, max: 180, color: "#f0715f" });
+        drawSeries(dom.spo2Chart, state.history, { key: "spo2", min: 85, max: 100, color: "#74ced2" });
+        drawSeries(dom.aiChart, state.aiHistory, { key: "p", min: 0, max: 1, color: "#f0b35a", threshold: state.aiThreshold });
       }
       function publish(suffix, payload) {
         if (!state.client || !state.client.connected) { toast("Chưa kết nối broker MQTT"); return; }
@@ -534,7 +698,7 @@
         publish("set_thresh", value.toFixed(1));
       });
       dom.threshold.addEventListener("input", () => { dom.thresholdValue.textContent = Number(dom.threshold.value).toFixed(1).replace(".", ","); });
-      window.addEventListener("resize", drawChart);
+      window.addEventListener("resize", drawCharts);
       setInterval(() => {
         if (state.lastSeen && Date.now() - state.lastSeen > 10000) {
           if (state.connected) setConn(false, "MẤT DỮ LIỆU");

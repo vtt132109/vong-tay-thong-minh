@@ -34,6 +34,12 @@ volatile bool captureActive = false;
 uint32_t captureEndMs = 0;
 char aiLabel[16] = "n/a";
 float aiConfidence = 0.0f;
+float aiProbability = 0.0f;
+float aiThreshold = 0.94f;
+uint8_t aiWindowFill = 0;
+uint32_t aiInferenceCount = 0;
+uint32_t aiInferenceUs = 0;
+float aiWindowPeak = 0.0f;
 bool aiFall = false;
 bool ppgMotion = false;
 
