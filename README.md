@@ -289,7 +289,7 @@ Ghi chú: key `max30102` được giữ để tương thích HTML, dù phần c�
 - Base topic: `bioband/vtt132109/dev01`.
 - Board publish: `/telemetry` (retained, 1 Hz, đúng schema `/data`), `/status` (`online`/`offline` + LWT, retained), `/fall/alert` khi vào COUNTDOWN/ALARM/PANIC.
 - Dashboard subscribe và gửi lệnh `/cancel`, `/clear_nvs`, `/set_thresh`, `/set_time`.
-- `remote.html` dùng MQTT.js từ unpkg; mở từ mạng nào cũng được, không cần cài. Trang `index.html` trỏ nút Remote tới file này.
+- `remote.html` dùng MQTT.js bundle local `mqtt.min.js`; mở từ mạng nào cũng được, không cần cài. Trang `index.html` trỏ nút Remote tới file này.
 - Board ở AP fallback vẫn giữ AP_STA và retry `vtt` mỗi 60 s; khi STA lên lại, MQTT tự kết nối.
 
 ## 8. HTML
@@ -300,7 +300,7 @@ Ghi chú: key `max30102` được giữ để tương thích HTML, dù phần c�
 - `vtt.html`: testbench mô phỏng OLED/FSM/countdown/lead-off/battery; vẫn dùng Tailwind CDN nên cần Internet để hiển thị đầy đủ.
 - `simulation.html`: bản mô phỏng cũ, trùng chức năng với `vtt.html`; hiện vẫn giữ, có thể xóa nếu không cần.
 - Dashboard tự gửi `/set_time?epoch=...` khi mở (và mỗi 10 phút) để đồng bộ giờ cho OLED, kể cả khi board ở AP không có Internet.
-- `remote.html`: dashboard **xem từ xa** qua MQTT over WebSocket (`broker.emqx.io:8084`, topic `bioband/vtt132109/dev01`), MQTT.js từ unpkg; không cần cài, mở từ mạng khác. Hiển thị dữ liệu thật/online/offline, HR/SpO2, pin, bước, AI, chart 60 s; nút cancel/clear/threshold. Không có nút test còi từ xa.
+- `remote.html`: dashboard **xem từ xa** qua MQTT over WebSocket (`broker.emqx.io:8084`, topic `bioband/vtt132109/dev01`), MQTT.js bundle local `mqtt.min.js`; không cần cài, mở từ mạng khác. Hiển thị dữ liệu thật/online/offline, HR/SpO2, pin, bước, AI, chart 60 s; nút cancel/clear/threshold. Không có nút test còi từ xa.
 - `index.html`: trang chủ GitHub Pages (giới thiệu dự án, ảnh minh họa dashboard PC/điện thoại, pinout, trạng thái). Nút Remote trỏ `remote.html`; không còn demo.
 - Dashboard LAN chạy trên board: mở `http://<STA-IP>/` (IP in ở Serial `[NET] STA IP`; cần cùng WiFi `vtt`) hoặc `http://192.168.4.1/` khi AP fallback. GitHub Pages không gọi thẳng board HTTP trong mạng riêng; remote dùng MQTT.
 - Test UI không cần board: `python tools/mock_server.py --port 8000` rồi mở `http://127.0.0.1:8000/`; mock tự chạy FSM IDLE → COUNTDOWN → ALARM → SNOOZE.
