@@ -586,11 +586,16 @@
       // last minute instead of waiting for the chart to fill from zero.
       function applyHistory(text) {
         if (!state.connected) return;
-        if (state.history.length && Date.now() - state.lastSeen < 15000) return;
         let doc;
         try { doc = JSON.parse(text); } catch (_) { return; }
         const n = Math.max(0, Math.min(60, Number(doc.n) || 0));
         if (!n) return;
+        // Fresh tab (retained telemetry may already be there) or stale link:
+        // take the snapshot. Otherwise keep the live trace and avoid rewinding.
+        const fresh = state.history.length < 5;
+        const stale = !state.lastSeen || Date.now() - state.lastSeen > 15000;
+        if (!fresh && !stale) return;
+        if (state.history.length > n) return;
         const bpmArr = Array.isArray(doc.bpm) ? doc.bpm : [];
         const spo2Arr = Array.isArray(doc.spo2) ? doc.spo2 : [];
         const pArr = Array.isArray(doc.p) ? doc.p : [];
