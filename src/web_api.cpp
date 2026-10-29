@@ -1,4 +1,5 @@
 #include "web_api.h"
+#include "mqtt_link.h"
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
@@ -9,6 +10,9 @@
 
 // Defined in the FSM module (declared in fsm.h).
 const char *stateName(SystemState s);
+
+static bool apFallback = false;
+static uint32_t lastStaRetryMs = 0;
 
 // Embedded by PlatformIO (board_build.embed_txtfiles).
 extern const uint8_t realtime_html_start[] asm("_binary_realtime_html_start");
@@ -231,9 +235,11 @@ void startNetwork() {
     }
     WiFi.scanDelete();
     WiFi.disconnect(true);
-    WiFi.mode(WIFI_AP);
+    WiFi.mode(WIFI_AP_STA);
     WiFi.softAP("BioBand-Setup", "bioband123");
     gWifiConnected = true;
+    apFallback = true;
+    lastStaRetryMs = millis();
     Serial.printf("[NET] AP IP %s\n", WiFi.softAPIP().toString().c_str());
   }
 
@@ -252,13 +258,29 @@ void startNetwork() {
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("[NET] HTTP server port 80");
+
+  // Cloud link (only starts talking once the STA link is up).
+  mqttLinkBegin();
 }
 
 void networkTask(void *arg) {
   (void)arg;
   startNetwork();
   for (;;) {
+    const uint32_t now = millis();
+    if (apFallback && strlen(WIFI_SSID) > 0 && now - lastStaRetryMs >= 60000) {
+      lastStaRetryMs = now;
+      Serial.println("[NET] retry STA");
+      WiFi.begin(WIFI_SSID, WIFI_PASS);
+    }
+    if (apFallback && WiFi.status() == WL_CONNECTED) {
+      apFallback = false;
+      gWifiConnected = true;
+      Serial.printf("[NET] STA reconnected %s\n", WiFi.localIP().toString().c_str());
+      configTime(7 * 3600, 0, "pool.ntp.org", "time.google.com");
+    }
     server.handleClient();
+    mqttLinkLoop(now);
     vTaskDelay(pdMS_TO_TICKS(2));
   }
 }

@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d0f0d">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0f0d'/%3E%3Cpath d='M3 18h6l3-9 5 17 4-13 3 5h5' fill='none' stroke='%23f0715f' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>BIO·BAND — Giám sát từ xa</title>
+  <style>
+    :root {
+      --base: #0d0f0d; --panel: #141714; --panel-2: #191d18;
+      --line: #2b3029; --line-2: #3b4238;
+      --ink: #ede7d7; --ink-2: #cbc5b6; --muted: #989287; --faint: #6e6b62;
+      --coral: #f0715f; --cyan: #74ced2; --amber: #f0b35a; --ok: #88d498;
+      --radius: 6px; --max: 1180px;
+      --font: Bahnschrift, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink);
+      background:
+        linear-gradient(rgba(116,206,210,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(116,206,210,.03) 1px, transparent 1px),
+        var(--base);
+      background-size: 48px 48px, 48px 48px, auto;
+      font-family: var(--font); font-size: 15px; line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .wrap { width: min(calc(100% - 32px), var(--max)); margin-inline: auto; }
+    .top {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 16px 0; border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand svg { width: 30px; height: 30px; }
+    .brand b { display: block; font-size: 20px; line-height: 1; letter-spacing: .01em; }
+    .brand b span { color: var(--coral); }
+    .brand small { display: block; margin-top: 4px; color: var(--muted); font: 600 8px/1 var(--mono); letter-spacing: .18em; }
+    .top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 11px;
+      border: 1px solid var(--line-2); border-radius: 999px; color: var(--muted);
+      font: 600 9px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+    }
+    .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+    .pill.online { color: var(--cyan); border-color: rgba(116,206,210,.35); }
+    .pill.online .dot { background: var(--cyan); box-shadow: 0 0 12px var(--cyan); }
+    .pill.offline { color: var(--coral); border-color: rgba(240,113,95,.35); }
+    .pill.offline .dot { background: var(--coral); }
+    .last { color: var(--faint); font: 500 10px/1 var(--mono); }
+    .icon-btn {
+      min-width: 34px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line-2);
+      border-radius: var(--radius); color: var(--ink-2); background: transparent;
+      font: 600 10px/1 var(--mono); letter-spacing: .08em;
+    }
+    .icon-btn:hover, .icon-btn:focus-visible { border-color: var(--cyan); color: var(--ink); }
+    :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+    .alert-bar {
+      display: none; margin-top: 18px; padding: 16px 18px;
+      border: 1px solid rgba(240,113,95,.55); border-left: 4px solid var(--coral);
+      background: rgba(240,113,95,.08); border-radius: var(--radius);
+    }
+    .alert-bar.show { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+    .alert-kicker { color: var(--coral); font: 700 9px/1.4 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+    .alert-bar h2 { margin: 4px 0 0; font-size: 22px; line-height: 1.1; }
+    .alert-bar p { margin: 6px 0 0; color: var(--ink-2); font-size: 13px; }
+    .alert-bar .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .btn {
+      min-height: 40px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: var(--radius);
+      color: var(--ink); background: transparent; font: 600 10px/1 var(--mono);
+      letter-spacing: .08em; text-transform: uppercase;
+    }
+    .btn:hover, .btn:focus-visible { border-color: var(--cyan); background: rgba(116,206,210,.08); }
+    .btn.primary { color: var(--base); background: var(--coral); border-color: var(--coral); }
+    .btn.primary:hover { background: #ff8b79; border-color: #ff8b79; }
+    .btn:disabled { color: var(--faint); border-color: var(--line); background: transparent; cursor: not-allowed; }
+
+    main { padding: 22px 0 38px; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card {
+      border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius);
+      padding: 16px; min-width: 0;
+    }
+    .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .card-head h3 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-family: var(--mono); font-weight: 600; }
+    .card-head span { color: var(--faint); font: 500 9px/1 var(--mono); letter-spacing: .06em; }
+    .vitals { grid-column: span 8; display: flex; flex-direction: column; gap: 14px; }
+    .vitals-main { display: grid; grid-template-columns: 1.05fr .95fr; gap: 14px; }
+    .vitals-tape { display: flex; flex-direction: column; flex: 1; min-height: 168px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .vitals-tape .chart-wrap { flex: 1; height: auto; min-height: 116px; }
+    .vital { position: relative; min-width: 0; padding: 4px 0; }
+    .vital + .vital { border-left: 1px solid var(--line); padding-left: 18px; }
+    .vital-label { color: var(--muted); font: 600 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+    .vital-value { margin-top: 10px; font: 500 clamp(52px, 7vw, 86px)/.9 var(--mono); letter-spacing: -.06em; color: var(--coral); }
+    .vital-value.empty { color: var(--faint); font-size: clamp(34px, 4vw, 52px); letter-spacing: 0; }
+    .vital.spo2 .vital-value { color: var(--cyan); }
+    .vital-unit { margin-left: 6px; font: 600 11px/1 var(--mono); color: var(--muted); letter-spacing: .05em; }
+    .vital-note { margin-top: 10px; color: var(--muted); font-size: 12px; }
+    .vital-note.alert { color: var(--coral); }
+    .state-line { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .state-badge { padding: 5px 8px; border: 1px solid var(--line-2); color: var(--cyan); font: 700 9px/1 var(--mono); letter-spacing: .1em; }
+    .state-badge.warn { color: var(--amber); border-color: rgba(240,179,90,.4); }
+    .state-badge.alert { color: var(--coral); border-color: rgba(240,113,95,.5); }
+    .state-copy { color: var(--muted); font-size: 12px; }
+
+    .side { grid-column: span 4; display: flex; flex-direction: column; gap: 14px; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+    .mini { padding: 11px 12px; border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; min-width: 0; }
+    .mini dt { margin: 0; color: var(--muted); font: 600 8px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .mini dd { margin: 7px 0 0; color: var(--ink); font: 500 16px/1 var(--mono); }
+    .mini dd small { color: var(--faint); font-size: 9px; margin-left: 3px; }
+    .controls { grid-column: span 6; }
+    .controls-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .threshold { display: flex; align-items: center; gap: 10px; margin-top: 13px; }
+    .threshold input[type=range] { flex: 1; accent-color: var(--amber); min-width: 80px; }
+    .threshold output { min-width: 58px; color: var(--amber); font: 500 13px/1 var(--mono); text-align: right; }
+    .signal { grid-column: span 6; }
+    .signal-list { display: grid; gap: 8px; }
+    .signal-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .signal-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .signal-row b { color: var(--ink-2); font: 600 10px/1 var(--mono); letter-spacing: .04em; text-align: right; }
+    .signal-row b.warn { color: var(--amber); }
+    .signal-row b.bad { color: var(--coral); }
+    .chart-wrap { position: relative; height: 142px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-top: 4px; }
+    .chart canvas { width: 100%; height: 100%; display: block; }
+    .chart-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); font: 500 10px/1.5 var(--mono); text-align: center; padding: 8px; }
+    .chart-meta { display: flex; justify-content: space-between; margin-top: 8px; color: var(--faint); font: 500 9px/1.4 var(--mono); }
+    .ai { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .ai b { color: var(--ink); font: 600 11px/1 var(--mono); }
+    .ai .conf { color: var(--cyan); }
+    .empty { color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .empty code { color: var(--cyan); }
+    footer { border-top: 1px solid var(--line); padding: 18px 0 26px; color: var(--faint); font: 500 10px/1.7 var(--mono); }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--ink); }
+
+    dialog {
+      width: min(520px, calc(100% - 28px)); padding: 0; border: 1px solid var(--line-2);
+      border-radius: 8px; background: var(--panel); color: var(--ink);
+    }
+    dialog::backdrop { background: rgba(0,0,0,.65); }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+    .dialog-head h3 { margin: 0; font-size: 16px; }
+    .dialog-body { padding: 16px 18px 18px; display: grid; gap: 13px; }
+    .dialog-body label { display: grid; gap: 6px; color: var(--muted); font: 600 9px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .dialog-body input {
+      width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--line-2);
+      border-radius: 4px; background: var(--base); color: var(--ink); font: 500 12px/1.4 var(--mono);
+    }
+    .dialog-body input:focus { outline: 2px solid var(--cyan); outline-offset: 1px; }
+    .dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+    .dialog-note { color: var(--faint); font-size: 11px; line-height: 1.6; }
+    .toast {
+      position: fixed; right: 18px; top: 72px; z-index: 50;
+      max-width: min(380px, calc(100% - 32px)); padding: 10px 14px;
+      border: 1px solid var(--line-2); border-radius: 4px; background: var(--panel-2);
+      color: var(--ink); font: 500 11px/1.45 var(--mono); opacity: 0; pointer-events: none;
+      transform: translateY(-8px); transition: opacity .18s ease, transform .18s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 900px) {
+      .vitals, .side, .controls, .signal { grid-column: 1 / -1; }
+      .side { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+      .side .card:first-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 560px) {
+      .vitals-main { grid-template-columns: 1fr; }
+      .vital + .vital { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 16px; }
+      .side { grid-template-columns: 1fr; }
+      .top { align-items: flex-start; }
+      .brand small { font-size: 7px; }
+      .last { display: none; }
+      .card { padding: 13px; }
+      .vital-value { font-size: 58px; }
+      .toast { right: 14px; left: 14px; top: 64px; max-width: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="9" fill="#141714" stroke="#3b4238"/><path d="M5 22h7l4-11 6 21 5-16 3 6h5" fill="none" stroke="#f0715f" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        <span><b>BIO<span>·</span>BAND</b><small>Remote monitoring</small></span>
+      </div>
+      <div class="top-right">
+        <span class="last" id="lastSeen">Chưa có dữ liệu</span>
+        <span class="pill" id="connPill"><span class="dot"></span><span id="connText">ĐANG KẾT NỐI</span></span>
+        <button class="icon-btn" id="settingsBtn" type="button" aria-label="Cấu hình broker MQTT">Cấu hình</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="alert-bar" id="alertBar" aria-live="assertive">
+        <div>
+          <div class="alert-kicker" id="alertKicker">Cảnh báo</div>
+          <h2 id="alertTitle">Cảnh báo an toàn</h2>
+          <p id="alertDetail">Kiểm tra người đeo ngay.</p>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="alertCancel" type="button">HỦY / SNOOZE</button>
+        </div>
+      </section>
+
+      <div class="grid" style="margin-top:18px">
+        <section class="card vitals" aria-label="Sinh hiệu">
+          <div class="vitals-main">
+            <div class="vital">
+              <div class="vital-label">Nhịp tim · PPG</div>
+              <div class="vital-value"><span id="bpm">--</span><span class="vital-unit">BPM</span></div>
+              <div class="vital-note" id="bpmNote">Đang chờ dữ liệu</div>
+            </div>
+            <div class="vital spo2">
+              <div class="vital-label">SpO2 · PPG</div>
+              <div class="vital-value"><span id="spo2">--</span><span class="vital-unit">%</span></div>
+              <div class="vital-note" id="spo2Note">Đang chờ dữ liệu</div>
+              <div class="state-line">
+                <span class="state-badge" id="stateBadge">--</span>
+                <span class="state-copy" id="stateCopy">Chưa nhận telemetry</span>
+              </div>
+            </div>
+          </div>
+          <div class="vitals-tape" aria-label="Lịch sử nhịp tim">
+            <div class="card-head"><h3>Nhịp tim · 60 giây</h3><span>BPM · dữ liệu broker</span></div>
+            <div class="chart-wrap">
+              <canvas id="hrChart"></canvas>
+              <div class="chart-empty" id="chartEmpty">Chưa có dữ liệu MQTT</div>
+            </div>
+            <div class="chart-meta"><span>Thời gian thực từ vòng tay</span><span id="sampleInfo">0 mẫu</span></div>
+          </div>
+        </section>
+
+        <aside class="side">
+          <section class="card">
+            <div class="card-head"><h3>Thiết bị</h3><span id="topicLabel">MQTT</span></div>
+            <dl class="mini-grid">
+              <div class="mini"><dt>Pin</dt><dd id="battery">--</dd></div>
+              <div class="mini"><dt>Bước</dt><dd id="steps">--</dd></div>
+              <div class="mini"><dt>Số lần ngã</dt><dd id="falls">--</dd></div>
+              <div class="mini"><dt>Gia tốc</dt><dd><span id="acc">--</span><small>m/s²</small></dd></div>
+            </dl>
+            <div class="ai"><span>AI</span><b id="aiLabel">n/a</b><span class="conf" id="aiConf">--</span></div>
+          </section>
+          <section class="card">
+            <div class="card-head"><h3>Trạng thái</h3><span id="stateMeta">--</span></div>
+            <div class="signal-list">
+              <div class="signal-row"><span>Ngón tay</span><b id="finger">--</b></div>
+              <div class="signal-row"><span>Lead-off</span><b id="leadOff">--</b></div>
+              <div class="signal-row"><span>PPG</span><b id="motion">--</b></div>
+              <div class="signal-row"><span>Đếm ngược / snooze</span><b id="timer">--</b></div>
+            </div>
+          </section>
+        </aside>
+
+        <section class="card controls" aria-label="Điều khiển">
+          <div class="card-head"><h3>Điều khiển</h3><span id="threshDevice">Ngưỡng --</span></div>
+          <div class="controls-row">
+            <button class="btn primary" id="cancelBtn" type="button" disabled>HỦY / SNOOZE</button>
+            <button class="btn" id="clearBtn" type="button" disabled>Xóa dữ liệu…</button>
+          </div>
+          <div class="threshold">
+            <label for="threshold" class="vital-label">Ngưỡng va đập</label>
+            <input id="threshold" type="range" min="10" max="60" step="0.5" value="25" aria-label="Ngưỡng va đập m/s²">
+            <output id="thresholdValue">25,0</output>
+            <button class="btn" id="saveThreshold" type="button" disabled>Lưu</button>
+          </div>
+          <p class="empty" style="margin:10px 0 0">Điều khiển gửi qua MQTT tới vòng tay. Chỉ bật khi kết nối broker.</p>
+        </section>
+
+        <section class="card signal" aria-label="Cảm biến">
+          <div class="card-head"><h3>Tín hiệu</h3><span>MPU / MAX</span></div>
+          <div class="signal-list">
+            <div class="signal-row"><span>MPU6050</span><b id="mpu">--</b></div>
+            <div class="signal-row"><span>MAX30100</span><b id="max">--</b></div>
+            <div class="signal-row"><span>FPS</span><b id="fps">--</b></div>
+            <div class="signal-row"><span>RAM</span><b id="ram">--</b></div>
+            <div class="signal-row"><span>Còi</span><b id="buzzer">--</b></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>Prototype NCKH · không dùng để chẩn đoán y tế · broker công khai, không bảo mật</span>
+      <span><a href="https://github.com/vtt132109/vong-tay-thong-minh" target="_blank" rel="noopener">GitHub</a> · <a href="index.html">Trang chủ</a></span>
+    </div>
+  </footer>
+
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="dialog-head"><h3 id="settingsTitle">Cấu hình MQTT</h3><button class="icon-btn" id="closeSettings" type="button">Đóng</button></div>
+    <div class="dialog-body">
+      <label>Broker WebSocket<input id="brokerInput" type="text" autocomplete="url" spellcheck="false" placeholder="wss://broker.emqx.io:8084/mqtt"></label>
+      <label>Base topic<input id="baseInput" type="text" autocomplete="off" spellcheck="false" placeholder="bioband/vtt132109/dev01"></label>
+      <p class="dialog-note">Board publish telemetry lên broker; trang này subscribe. Broker/topic công khai — ai biết topic đều xem được dữ liệu sức khỏe. Không dùng làm thiết bị y tế.</p>
+      <div class="dialog-actions">
+        <button class="btn primary" id="saveSettings" type="button">Kết nối lại</button>
+        <button class="btn" id="resetSettings" type="button">Mặc định</button>
+      </div>
+    </div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    (() => {
+      "use strict";
+      const DEFAULT_BROKER = "wss://broker.emqx.io:8084/mqtt";
+      const DEFAULT_BASE = "bioband/vtt132109/dev01";
+      const STORAGE = { broker: "bioband.remote.broker", base: "bioband.remote.base" };
+      const $ = (id) => document.getElementById(id);
+      const dom = {
+        connPill: $("connPill"), connText: $("connText"), lastSeen: $("lastSeen"),
+        bpm: $("bpm"), spo2: $("spo2"), bpmNote: $("bpmNote"), spo2Note: $("spo2Note"),
+        stateBadge: $("stateBadge"), stateCopy: $("stateCopy"), stateMeta: $("stateMeta"),
+        battery: $("battery"), steps: $("steps"), falls: $("falls"), acc: $("acc"),
+        finger: $("finger"), leadOff: $("leadOff"), motion: $("motion"), timer: $("timer"),
+        mpu: $("mpu"), max: $("max"), fps: $("fps"), ram: $("ram"), buzzer: $("buzzer"),
+        aiLabel: $("aiLabel"), aiConf: $("aiConf"), threshDevice: $("threshDevice"),
+        threshold: $("threshold"), thresholdValue: $("thresholdValue"),
+        cancelBtn: $("cancelBtn"), clearBtn: $("clearBtn"),
+        saveThreshold: $("saveThreshold"), alertBar: $("alertBar"),
+        alertKicker: $("alertKicker"), alertTitle: $("alertTitle"), alertDetail: $("alertDetail"),
+        alertCancel: $("alertCancel"),
+        settingsDialog: $("settingsDialog"), brokerInput: $("brokerInput"), baseInput: $("baseInput"),
+        settingsBtn: $("settingsBtn"), closeSettings: $("closeSettings"),
+        saveSettings: $("saveSettings"), resetSettings: $("resetSettings"),
+        toast: $("toast"), topicLabel: $("topicLabel"), chartEmpty: $("chartEmpty"),
+        sampleInfo: $("sampleInfo"), hrChart: $("hrChart")
+      };
+      const state = {
+        broker: localStorage.getItem(STORAGE.broker) || DEFAULT_BROKER,
+        base: localStorage.getItem(STORAGE.base) || DEFAULT_BASE,
+        client: null, connected: false, lastSeen: 0, lastData: null,
+        history: [], chart: null, chartDrawn: false, toastTimer: 0
+      };
+      const STATES = {
+        IDLE: { label: "IDLE", tone: "", copy: "Đang theo dõi" },
+        FREE_FALL: { label: "FREE_FALL", tone: "warn", copy: "Nghi rơi tự do" },
+        IMPACT: { label: "IMPACT", tone: "warn", copy: "Va đập — đang xác minh" },
+        INACTIVITY: { label: "INACTIVITY", tone: "warn", copy: "Bất động sau va đập" },
+        COUNTDOWN: { label: "COUNTDOWN", tone: "alert", copy: "Nguy hiểm — bấm hủy nếu an toàn" },
+        ALARM: { label: "ALARM", tone: "alert", copy: "Báo động đang hoạt động" },
+        SNOOZE: { label: "SNOOZE", tone: "warn", copy: "Tạm hoãn — tự theo dõi lại" },
+        PANIC_SOS: { label: "PANIC_SOS", tone: "alert", copy: "SOS khẩn cấp" }
+      };
+      const ALERT_STATES = new Set(["COUNTDOWN", "ALARM", "PANIC_SOS"]);
+
+      function setConn(connected, text) {
+        state.connected = connected;
+        dom.connPill.classList.toggle("online", connected);
+        dom.connPill.classList.toggle("offline", !connected);
+        dom.connText.textContent = text;
+        [dom.cancelBtn, dom.clearBtn, dom.saveThreshold].forEach((b) => {
+          b.disabled = !connected;
+        });
+      }
+      function toast(message) {
+        dom.toast.textContent = message;
+        dom.toast.classList.add("show");
+        clearTimeout(state.toastTimer);
+        state.toastTimer = setTimeout(() => dom.toast.classList.remove("show"), 2600);
+      }
+      function num(v) { return typeof v === "number" && Number.isFinite(v) ? v : null; }
+      function pos(v) { const n = num(v); return n !== null && n > 0 ? n : null; }
+      function fmt(v, digits = 0) { const n = pos(v); return n === null ? "--" : n.toFixed(digits); }
+      function stateInfo(raw) {
+        return STATES[String(raw || "").toUpperCase()] || { label: raw || "--", tone: "warn", copy: "Trạng thái không xác định" };
+      }
+      function setBadge(el, text, tone) {
+        el.textContent = text;
+        el.classList.toggle("warn", tone === "warn");
+        el.classList.toggle("alert", tone === "alert");
+        el.classList.toggle("bad", tone === "alert");
+      }
+      function render(data) {
+        if (!data || typeof data !== "object") return;
+        const now = Date.now();
+        state.lastData = data;
+        state.lastSeen = now;
+        const info = stateInfo(data.state);
+        const bpm = pos(data.bpm);
+        const spo2 = pos(data.spo2);
+        dom.bpm.textContent = bpm === null ? "—" : String(Math.round(bpm));
+        dom.bpm.parentElement.classList.toggle("empty", bpm === null);
+        dom.spo2.textContent = spo2 === null ? "—" : String(Math.round(spo2));
+        dom.spo2.parentElement.classList.toggle("empty", spo2 === null);
+        dom.bpmNote.textContent = data.lead_off ? "LEAD-OFF · chưa áp tay" : bpm === null ? "Đang chờ mẫu PPG" : `raw ${fmt(data.raw_bpm)} · lọc`;
+        dom.spo2Note.textContent = data.lead_off ? "LEAD-OFF" : spo2 === null ? "Đang chờ mẫu PPG" : `raw ${fmt(data.raw_spo2)} · lọc`;
+        dom.bpmNote.classList.toggle("alert", !!data.lead_off);
+        dom.spo2Note.classList.toggle("alert", !!data.lead_off);
+        dom.stateBadge.textContent = info.label;
+        dom.stateBadge.className = "state-badge" + (info.tone ? " " + info.tone : "");
+        dom.stateCopy.textContent = info.copy;
+        dom.stateMeta.textContent = info.label;
+        const batteryPct = num(data.battery_pct);
+        const batteryV = num(data.battery_v);
+        dom.battery.textContent = batteryV > 0.1 && batteryPct !== null ? `${Math.round(batteryPct)}%` : "--";
+        dom.steps.textContent = fmt(data.steps);
+        dom.falls.textContent = fmt(data.falls);
+        dom.acc.textContent = fmt(data.acc, 2);
+        dom.finger.textContent = data.finger ? "CÓ" : "KHÔNG";
+        dom.leadOff.textContent = data.lead_off ? "LEAD-OFF" : "BÌNH THƯỜNG";
+        dom.leadOff.className = data.lead_off ? "bad" : "";
+        dom.motion.textContent = data.ppg_motion ? "CHUYỂN ĐỘNG" : "ỔN ĐỊNH";
+        dom.motion.className = data.ppg_motion ? "warn" : "";
+        const cd = num(data.cd_sec) || 0;
+        const sn = num(data.snooze_sec) || 0;
+        dom.timer.textContent = cd > 0 ? `${Math.round(cd)}s` : sn > 0 ? `${Math.round(sn)}s` : "--";
+        dom.mpu.textContent = data.mpu ? "OK" : "NO";
+        dom.max.textContent = data.max30102 ? "OK" : "NO";
+        dom.fps.textContent = fmt(data.fps, 1);
+        dom.ram.textContent = num(data.ram_pct) !== null ? `${Math.round(data.ram_pct)}%` : "--";
+        dom.buzzer.textContent = data.buzzer ? "KÊU" : "TẮT";
+        dom.buzzer.className = data.buzzer ? "bad" : "";
+        dom.aiLabel.textContent = data.ai_label || "n/a";
+        dom.aiConf.textContent = num(data.ai_conf) !== null ? `${(data.ai_conf * 100).toFixed(0)}%` : "--";
+        dom.threshDevice.textContent = `Ngưỡng ${fmt(data.thresh, 1)} m/s²`;
+        const th = num(data.thresh);
+        if (th !== null && document.activeElement !== dom.threshold) {
+          dom.threshold.value = String(th);
+          dom.thresholdValue.textContent = th.toFixed(1).replace(".", ",");
+        }
+        dom.lastSeen.textContent = `Cập nhật ${new Date(now).toLocaleTimeString("vi-VN")}`;
+        if (ALERT_STATES.has(String(data.state || "").toUpperCase())) {
+          dom.alertBar.classList.add("show");
+          dom.alertKicker.textContent = String(data.state).toUpperCase();
+          dom.alertTitle.textContent = info.copy;
+          dom.alertDetail.textContent = cd > 0 ? `Còn ${Math.round(cd)} giây để hủy.` : "Bấm HỦY/SNOOZE để tạm dừng còi.";
+        } else {
+          dom.alertBar.classList.remove("show");
+        }
+        pushHistory(bpm, now);
+        setConn(true, "TRỰC TUYẾN");
+      }
+      function pushHistory(bpm, now) {
+        if (bpm === null) return;
+        state.history.push({ t: now, v: bpm });
+        while (state.history.length && state.history[0].t < now - 60000) state.history.shift();
+        dom.sampleInfo.textContent = `${state.history.length} mẫu`;
+        dom.chartEmpty.style.display = state.history.length ? "none" : "grid";
+        drawChart();
+      }
+      function drawChart() {
+        const canvas = dom.hrChart;
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const w = rect.width, h = rect.height;
+        ctx.clearRect(0, 0, w, h);
+        ctx.strokeStyle = "#2b3029"; ctx.lineWidth = 1;
+        [0.25, 0.5, 0.75].forEach((p) => { ctx.beginPath(); ctx.moveTo(0, h * p); ctx.lineTo(w, h * p); ctx.stroke(); });
+        if (!state.history.length) return;
+        const min = 30, max = 180, now = Date.now();
+        ctx.strokeStyle = "#f0715f"; ctx.lineWidth = 1.8; ctx.beginPath();
+        state.history.forEach((p, i) => {
+          const x = w - ((now - p.t) / 60000) * w;
+          const y = h - ((Math.max(min, Math.min(max, p.v)) - min) / (max - min)) * h;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+      function publish(suffix, payload) {
+        if (!state.client || !state.client.connected) { toast("Chưa kết nối broker MQTT"); return; }
+        state.client.publish(`${state.base}/${suffix}`, payload == null ? "" : String(payload), { qos: 0 }, (err) => {
+          toast(err ? `Gửi lỗi: ${err.message}` : `Đã gửi ${suffix}`);
+        });
+      }
+      function connect() {
+        if (typeof mqtt === "undefined") { setConn(false, "THIẾU MQTT.JS"); toast("Không tải được MQTT.js (cần Internet)"); return; }
+        if (state.client) { try { state.client.end(true); } catch (_) {} state.client = null; }
+        setConn(false, "ĐANG KẾT NỐI");
+        dom.topicLabel.textContent = state.base.split("/").slice(-2).join("/");
+        const client = mqtt.connect(state.broker, {
+          clientId: "bioband-remote-" + Math.random().toString(16).slice(2, 10),
+          clean: true, reconnectPeriod: 3000, connectTimeout: 10000, keepalive: 30
+        });
+        state.client = client;
+        client.on("connect", () => {
+          setConn(true, "TRỰC TUYẾN");
+          client.subscribe(`${state.base}/telemetry`, { qos: 0 });
+          client.subscribe(`${state.base}/status`, { qos: 0 });
+          client.subscribe(`${state.base}/fall/alert`, { qos: 0 });
+        });
+        client.on("reconnect", () => setConn(false, "ĐANG KẾT NỐI LẠI"));
+        client.on("close", () => setConn(false, "MẤT KẾT NỐI"));
+        client.on("error", (err) => { setConn(false, "LỖI BROKER"); console.warn("MQTT", err.message); });
+        client.on("message", (topic, message) => {
+          const text = message.toString();
+          if (topic === `${state.base}/status`) { if (text === "online") setConn(true, "TRỰC TUYẾN"); else if (text === "offline") setConn(false, "THIẾT BỊ OFFLINE"); return; }
+          if (topic === `${state.base}/fall/alert`) { toast(`Cảnh báo: ${text}`); return; }
+          try { render(JSON.parse(text)); } catch (_) { /* ignore malformed */ }
+        });
+      }
+      function openSettings() {
+        dom.brokerInput.value = state.broker;
+        dom.baseInput.value = state.base;
+        dom.settingsDialog.showModal();
+      }
+      function saveSettings() {
+        const broker = dom.brokerInput.value.trim();
+        const base = dom.baseInput.value.trim().replace(/\/+$/, "");
+        if (!/^wss?:\/\//i.test(broker) || !base) { toast("Broker phải là ws:// hoặc wss:// và có base topic"); return; }
+        state.broker = broker; state.base = base;
+        localStorage.setItem(STORAGE.broker, broker);
+        localStorage.setItem(STORAGE.base, base);
+        dom.settingsDialog.close();
+        connect();
+      }
+      dom.settingsBtn.addEventListener("click", openSettings);
+      dom.closeSettings.addEventListener("click", () => dom.settingsDialog.close());
+      dom.saveSettings.addEventListener("click", saveSettings);
+      dom.resetSettings.addEventListener("click", () => { dom.brokerInput.value = DEFAULT_BROKER; dom.baseInput.value = DEFAULT_BASE; });
+      dom.cancelBtn.addEventListener("click", () => publish("cancel", "DISMISS"));
+      dom.alertCancel.addEventListener("click", () => publish("cancel", "DISMISS"));
+      dom.clearBtn.addEventListener("click", () => { if (confirm("Xóa dữ liệu ngã/bước trên thiết bị?")) publish("clear_nvs", "CLEAR"); });
+      dom.saveThreshold.addEventListener("click", () => {
+        const value = parseFloat(dom.threshold.value);
+        if (!(value >= 10 && value <= 60)) { toast("Ngưỡng phải 10..60"); return; }
+        publish("set_thresh", value.toFixed(1));
+      });
+      dom.threshold.addEventListener("input", () => { dom.thresholdValue.textContent = Number(dom.threshold.value).toFixed(1).replace(".", ","); });
+      window.addEventListener("resize", drawChart);
+      setInterval(() => {
+        if (state.lastSeen && Date.now() - state.lastSeen > 10000) {
+          if (state.connected) setConn(false, "MẤT DỮ LIỆU");
+          dom.lastSeen.textContent = "Quá 10 giây không có telemetry";
+          dom.alertBar.classList.remove("show");
+        }
+      }, 1000);
+      connect();
+    })();
+  </script>
+</body>
+</html>

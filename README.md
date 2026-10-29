@@ -12,7 +12,8 @@
   - RAM: `48,700 / 327,680 bytes` (14.9%)
   - Flash: `939,889 / 1,310,720 bytes` (71.7% của app partition 1.25 MB, đã gồm dashboard nhúng)
 - **Đã flash COM13 và chạy thật.** I2C 100 kHz ổn định; MAX30100 part `0x11` nhận đúng; HR/SpO2 đã đo bằng đầu ngón tay (HR ~68–78 bpm, SpO2 ~97%, IR ~18k–20k, PI ~2.5%).
-- WiFi: `include/secrets.h` đã đặt SSID `vtt`. Khi hotspot 2.4 GHz bật, board vào STA và in `[NET] STA IP ...` (IP DHCP có thể đổi). Máy tính đang ở mạng 5 GHz khác nên có thể không truy cập được subnet của hotspot; dùng điện thoại cùng `vtt` hoặc chuyển PC sang `vtt`. Nếu STA fail, board fallback AP `BioBand-Setup` / `bioband123` tại `192.168.4.1` và in scan 2.4 GHz ra Serial. ESP32-S3 chỉ hỗ trợ 2.4 GHz.
+- WiFi: `include/secrets.h` đã đặt SSID `vtt`. Khi hotspot 2.4 GHz bật, board vào STA và in `[NET] STA IP ...` (IP DHCP có thể đổi). Nếu STA fail, board vào `AP_STA` fallback `BioBand-Setup` / `bioband123` tại `192.168.4.1`, đồng thời **tự retry STA mỗi 60 giây**. ESP32-S3 chỉ hỗ trợ 2.4 GHz.
+- **Remote MQTT**: firmware publish telemetry/status lên `broker.emqx.io:1883`, topic `bioband/vtt132109/dev01`; `remote.html` trên GitHub Pages subscribe qua WSS và xem được từ mạng khác, không cần cài gì. Broker/topic công khai, **không bảo mật** — chỉ dùng cho prototype, không đưa dữ liệu sức khỏe nhạy cảm lên.
 - Dashboard `realtime.html` mới: tự chứa/không CDN, đã test desktop + mobile bằng `tools/mock_server.py`; các lệnh Test còi, Lưu ngưỡng, HỦY gửi đúng. Firmware nhúng dashboard và phục vụ tại `GET /`.
 - OLED đã thiết kế lại: bỏ dải IR/RED và footer MPU/MAX/F; thêm giờ:phút, giây, ngày/tháng, cột WiFi, số bước, điện áp pin. Giờ lấy từ NTP khi STA có Internet, hoặc được dashboard đồng bộ qua `/set_time` khi mở web; nếu chưa có cả hai thì hiện `--:--`.
 - Pin chưa hàn nên firmware tắt ADC pin (`PIN_BATTERY_ADC=-1`), dashboard/OLED hiện 0%/`--`; khi hàn cầu phân áp, gán lại pin.
@@ -279,7 +280,17 @@ Ghi chú: key `max30102` được giữ để tương thích HTML, dù phần c�
 
 - Telegram đã bị bỏ; không có token/chat ID trong firmware hay HTML.
 - Cảnh báo chỉ tại chỗ (buzzer active + OLED). Không có GPS.
-- Dashboard/API vẫn mở trong LAN; chỉ dùng trong mạng tin cậy.
+- Dashboard/API LAN chỉ dùng trong mạng tin cậy.
+- Remote MQTT dùng **broker công khai**; ai biết topic đều đọc được telemetry. Lệnh `test_hw` **không** được subscribe qua MQTT (không thể làm còi kêu từ xa); local `/test_hw` vẫn dùng được. Các lệnh cancel/clear/threshold/set_time qua MQTT không có auth.
+
+### 7.4 MQTT remote (xem từ xa)
+
+- Broker: `broker.emqx.io:1883` (board), dashboard dùng `wss://broker.emqx.io:8084/mqtt`.
+- Base topic: `bioband/vtt132109/dev01`.
+- Board publish: `/telemetry` (retained, 1 Hz, đúng schema `/data`), `/status` (`online`/`offline` + LWT, retained), `/fall/alert` khi vào COUNTDOWN/ALARM/PANIC.
+- Dashboard subscribe và gửi lệnh `/cancel`, `/clear_nvs`, `/set_thresh`, `/set_time`.
+- `remote.html` dùng MQTT.js từ unpkg; mở từ mạng nào cũng được, không cần cài. Trang `index.html` trỏ nút Remote tới file này.
+- Board ở AP fallback vẫn giữ AP_STA và retry `vtt` mỗi 60 s; khi STA lên lại, MQTT tự kết nối.
 
 ## 8. HTML
 
@@ -289,8 +300,9 @@ Ghi chú: key `max30102` được giữ để tương thích HTML, dù phần c�
 - `vtt.html`: testbench mô phỏng OLED/FSM/countdown/lead-off/battery; vẫn dùng Tailwind CDN nên cần Internet để hiển thị đầy đủ.
 - `simulation.html`: bản mô phỏng cũ, trùng chức năng với `vtt.html`; hiện vẫn giữ, có thể xóa nếu không cần.
 - Dashboard tự gửi `/set_time?epoch=...` khi mở (và mỗi 10 phút) để đồng bộ giờ cho OLED, kể cả khi board ở AP không có Internet.
-- `index.html`: trang chủ GitHub Pages (giới thiệu dự án, ảnh minh họa dashboard PC/điện thoại, pinout, trạng thái). **Không còn chế độ demo** trong `realtime.html`.
-- Dashboard live chạy trên board: mở `http://<STA-IP>/` (IP in ở Serial `[NET] STA IP`; cần cùng WiFi `vtt`) hoặc `http://192.168.4.1/` khi AP fallback. GitHub Pages chỉ là trang giới thiệu tĩnh; trình duyệt HTTPS không thể gọi thẳng board HTTP trong mạng riêng.
+- `remote.html`: dashboard **xem từ xa** qua MQTT over WebSocket (`broker.emqx.io:8084`, topic `bioband/vtt132109/dev01`), MQTT.js từ unpkg; không cần cài, mở từ mạng khác. Hiển thị dữ liệu thật/online/offline, HR/SpO2, pin, bước, AI, chart 60 s; nút cancel/clear/threshold. Không có nút test còi từ xa.
+- `index.html`: trang chủ GitHub Pages (giới thiệu dự án, ảnh minh họa dashboard PC/điện thoại, pinout, trạng thái). Nút Remote trỏ `remote.html`; không còn demo.
+- Dashboard LAN chạy trên board: mở `http://<STA-IP>/` (IP in ở Serial `[NET] STA IP`; cần cùng WiFi `vtt`) hoặc `http://192.168.4.1/` khi AP fallback. GitHub Pages không gọi thẳng board HTTP trong mạng riêng; remote dùng MQTT.
 - Test UI không cần board: `python tools/mock_server.py --port 8000` rồi mở `http://127.0.0.1:8000/`; mock tự chạy FSM IDLE → COUNTDOWN → ALARM → SNOOZE.
 
 Cách dùng dashboard:
@@ -323,7 +335,7 @@ Cấu hình trong `platformio.ini`:
   - (tuỳ chọn) Edge Impulse Arduino library export, đặt trong `lib/bioband_inferencing`, bật `-DENABLE_EDGE_AI=1`
 
 Lưu ý: log build vẫn in `8MB Flash` ở dòng HARDWARE do tên board DevKitC-1; partition thực tế là 4 MB (app max 1,310,720 bytes).
-Build hiện tại: RAM **48,700 / 327,680** (14.9%), flash **939,889 / 1,310,720** (71.7%, đã gồm dashboard).
+Build hiện tại: RAM **49,524 / 327,680** (15.1%), flash **948,909 / 1,310,720** (72.4%, đã gồm dashboard + MQTT).
 
 ## 10. Quyết định quan trọng (không làm lại từ đầu)
 
@@ -341,6 +353,8 @@ Build hiện tại: RAM **48,700 / 327,680** (14.9%), flash **939,889 / 1,310,72
 - Edge AI dùng **Edge Impulse**, mặc định tắt (`ENABLE_EDGE_AI=0`). AI chỉ được phép **promote** một kết quả rule-based mơ hồ (variance trung gian) khi label `fall` đạt confidence ≥ 0.8; AI **không được hủy** một ca đã được rule xác nhận. Rule-based vẫn là lớp an toàn.
 - Capture mode in CSV 50 Hz qua `/capture`; synthetic data chỉ dùng test pipeline, không dùng để đánh giá độ chính xác thật.
 - HTML là nguồn yêu cầu UI; firmware đã khớp các key JSON của `realtime.html`.
+- Remote dùng **MQTT over WSS** qua `broker.emqx.io` (public) + `remote.html`; không cần cài. `test_hw` không subscribe qua MQTT để tránh còi ngoài ý muốn; local vẫn có `/test_hw`. Broker/topic công khai nên không dùng cho dữ liệu nhạy cảm.
+- Khi STA fail, board giữ AP_STA và tự retry `vtt` mỗi 60 s; MQTT tự kết nối lại khi có Internet.
 - Dashboard `realtime.html` được nhúng vào firmware bằng `board_build.embed_txtfiles` và phục vụ tại `/`; HTML tự chứa, không CDN. Sửa HTML phải build lại.
 - OLED bỏ dải IR/RED và footer MPU/MAX/F; giữ HR/SpO2 + icon; thêm giờ/ngày/WiFi/steps/voltage. Giờ lấy từ NTP khi STA có Internet, hoặc dashboard gửi `/set_time` khi mở web; chưa có nguồn giờ thì `--:--`.
 - `/set_time?epoch=...` là endpoint đồng bộ giờ từ dashboard; không cần Internet/NTP. Dashboard gửi lúc mở và mỗi 10 phút.
@@ -356,15 +370,16 @@ Build hiện tại: RAM **48,700 / 327,680** (14.9%), flash **939,889 / 1,310,72
 5. Nút: nhấn ngắn trong countdown/alarm → snooze; giữ 3 giây → panic SOS. Ở IDLE, nhấn ngắn → OLED `BUTTON OK`. Nếu `[BTN] GPIO2=0` khi không nhấn, kiểm tra chập GND/đấu chân tactile; dùng nút BOOT onboard (GPIO0) để test.
 6. Buzzer: test 2 s qua web hoặc `/test_hw`; kiểm tra mức kích.
 7. Pin: so `battery_v` với đồng hồ VOM; hiệu chuẩn LUT nếu lệch.
-8. Web: mở `http://<IP>/` (AP `192.168.4.1` hoặc STA IP) thấy dashboard mới; kiểm tra `/api`, `/data`, `/cancel`, `/test_hw`, `/clear_nvs`, `/set_thresh`.
-9. HR/SpO2 với tay thật: áp đầu ngón tay lên ô chip MAX30100, giữ yên; `finger=1`, IR ~18k–20k, PI ~2–3%, HR/SpO2 hiện trên OLED và dashboard. Bỏ tay → `LEAD-OFF`.
-10. FSM: lắc/thả rơi để test free-fall/impact; kiểm tra countdown và hủy.
-11. PPG noise: lắc tay/đi lại → OLED hiện `MOVING / HOLD STILL / PPG LOCKED`, dashboard PPG = `MOVING`, HR/SpO2 về `--`; giữ yên ~4–5 s → có lại kết quả.
-12. Telegram đã bỏ; kiểm tra không còn log/token Telegram trong firmware/HTML.
-13. Kiểm tra boot khi pin yếu và khi cắm USB + pin (nguồn/backfeed).
-14. Capture: gọi `/capture?seconds=10`, kiểm tra Serial ra đúng 6 cột CSV ở 50 Hz; dừng bằng `/capture?on=0`.
-15. Edge AI: sau khi có model, kiểm tra `/data` có `ai_label`/`ai_conf`; thử với dữ liệu thật và synthetic; xem AI chỉ promote ca mơ hồ, không hủy alarm rule-based.
-16. Raw vs filtered: chạy `tools/log_telemetry.py`, giữ yên → lắc tay → giữ yên; kiểm tra raw spike/jitter và filtered `--`/ổn định; so với máy đo tham chiếu.
+8. Web LAN: mở `http://<IP>/` (AP `192.168.4.1` hoặc STA IP) thấy dashboard mới; kiểm tra `/api`, `/data`, `/cancel`, `/test_hw`, `/clear_nvs`, `/set_thresh`.
+9. Remote: mở `remote.html` từ mạng khác, kiểm tra `TRỰC TUYẾN`, telemetry thật, offline/LWT; không có nút test còi remote.
+10. HR/SpO2 với tay thật: áp đầu ngón tay lên ô chip MAX30100, giữ yên; `finger=1`, IR ~18k–20k, PI ~2–3%, HR/SpO2 hiện trên OLED và dashboard. Bỏ tay → `LEAD-OFF`.
+11. FSM: lắc/thả rơi để test free-fall/impact; kiểm tra countdown và hủy.
+12. PPG noise: lắc tay/đi lại → OLED hiện `MOVING / HOLD STILL / PPG LOCKED`, dashboard PPG = `MOVING`, HR/SpO2 về `--`; giữ yên ~4–5 s → có lại kết quả.
+13. Telegram đã bỏ; kiểm tra không còn log/token Telegram trong firmware/HTML.
+14. Kiểm tra boot khi pin yếu và khi cắm USB + pin (nguồn/backfeed).
+15. Capture: gọi `/capture?seconds=10`, kiểm tra Serial ra đúng 6 cột CSV ở 50 Hz; dừng bằng `/capture?on=0`.
+16. Edge AI: sau khi có model, kiểm tra `/data` có `ai_label`/`ai_conf`; thử với dữ liệu thật và synthetic; xem AI chỉ promote ca mơ hồ, không hủy alarm rule-based.
+17. Raw vs filtered: chạy `tools/log_telemetry.py`, giữ yên → lắc tay → giữ yên; kiểm tra raw spike/jitter và filtered `--`/ổn định; so với máy đo tham chiếu.
 
 ## 12. Edge AI (Edge Impulse)
 

@@ -359,7 +359,7 @@
         <a href="#interface">Giao diện</a>
         <a href="#hardware">Phần cứng</a>
         <a href="https://github.com/vtt132109/vong-tay-thong-minh" target="_blank" rel="noopener">GitHub ↗</a>
-        <a class="nav-cta" href="http://10.102.228.219/">Dashboard live</a>
+        <a class="nav-cta" href="remote.html">Remote dashboard</a>
       </nav>
     </header>
 
@@ -370,7 +370,7 @@
           <h1 id="hero-title">Vòng tay theo dõi an toàn cho người cần được quan tâm.</h1>
           <p class="lede">Phát hiện té ngã, đo nhịp tim/SpO2 và báo động tại chỗ. Dashboard realtime, OLED và còi buzzer — tất cả trên một thiết bị đeo.</p>
           <div class="actions">
-            <a class="btn primary" href="http://10.102.228.219/">Mở dashboard live <span class="ptr" aria-hidden="true">→</span></a>
+            <a class="btn primary" href="remote.html">Mở dashboard từ xa <span class="ptr" aria-hidden="true">→</span></a>
             <a class="btn" href="#features">Xem tính năng</a>
           </div>
           <dl class="stats">
@@ -390,7 +390,7 @@
             <figcaption>Giao diện dashboard · ảnh minh họa</figcaption>
           </div>
           <div class="floating-note"><span class="pulse" aria-hidden="true"></span> Fall FSM · local alarm</div>
-          <p class="hero-note">Dashboard live: kết nối cùng WiFi <b>vtt</b> rồi mở <code>http://10.102.228.219/</code> (IP có thể đổi, xem Serial).</p>
+          <p class="hero-note"><b>Remote:</b> mở <code>remote.html</code> từ mạng nào cũng được khi vòng tay online MQTT. <b>LAN:</b> mở <code>http://&lt;board-IP&gt;/</code> khi máy cùng WiFi <b>vtt</b> (IP in ở Serial).</p>
         </figure>
       </section>
 
@@ -439,7 +439,7 @@
             <figcaption><span>Điện thoại · 390 px</span><span>Xếp dọc</span></figcaption>
           </figure>
         </div>
-        <p class="note">Ảnh minh họa giao diện; dashboard live chạy trên board tại IP trong Serial, cần cùng WiFi vtt hoặc AP của board.</p>
+        <p class="note">Ảnh minh họa giao diện; dashboard từ xa chạy qua MQTT tại <a href="remote.html">remote.html</a>. Bản LAN chỉ mở được khi cùng WiFi vtt hoặc AP của board.</p>
       </section>
 
       <section class="section split" id="hardware" aria-labelledby="hardware-title">
@@ -478,7 +478,7 @@
   <footer>
     <div class="wrap">
       <span>BIO·BAND · Vòng tay theo dõi an toàn · ESP32-S3 Super Mini</span>
-      <span><a href="https://github.com/vtt132109/vong-tay-thong-minh" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/vtt132109/vong-tay-thong-minh/blob/main/README.md" target="_blank" rel="noopener">README</a> · <a href="http://10.102.228.219/">Live</a></span>
+      <span><a href="https://github.com/vtt132109/vong-tay-thong-minh" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/vtt132109/vong-tay-thong-minh/blob/main/README.md" target="_blank" rel="noopener">README</a> · <a href="remote.html">Remote</a></span>
     </div>
   </footer>
 </body>
