@@ -268,6 +268,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="number of trials to capture (default: 10)",
     )
     parser.add_argument(
+        "--start-index",
+        type=int,
+        default=1,
+        help="number of the first trial file (default: 1); use it to append to an existing set",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="overwrite existing trial files (default: refuse, so real recordings are never lost)",
+    )
+    parser.add_argument(
         "--seconds",
         type=_int_between(5, 300, "duration"),
         default=10,
@@ -419,6 +430,12 @@ def open_serial(port: str, baud: int):
         ) from exc
 
     try:
+        # Opening the port asserts DTR/RTS, which resets an ESP32-S3 on its native USB: release them.
+        handle.dtr = False
+        handle.rts = False
+    except (serial.SerialException, OSError, AttributeError):
+        pass
+    try:
         handle.reset_input_buffer()
     except (serial.SerialException, OSError) as exc:
         close_serial(handle)
@@ -482,6 +499,7 @@ def http_get(url: str, timeout: float) -> Tuple[int, str]:
         method="GET",
         headers={
             "User-Agent": "capture_labeled.py",
+            "X-Bioband": "1",  # the firmware rejects state-changing requests without it (CSRF guard)
             "Cache-Control": "no-store",
         },
     )
@@ -805,7 +823,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         / "{}_{}_{:03d}.csv".format(
             args.label_safe, args.subject_safe, number
         )
-        for number in range(1, args.trials + 1)
+        for number in range(args.start_index, args.start_index + args.trials)
     ]
 
     if args.dry_run:
@@ -856,6 +874,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("")
 
     existing = [path for path in trial_paths if path.exists()]
+    if existing and not args.overwrite:
+        print(
+            "error: {} target file(s) already exist (e.g. {}). Use --start-index {} to append, "
+            "or --overwrite to replace them.".format(
+                len(existing), existing[0].name, args.start_index + args.trials
+            ),
+            file=sys.stderr,
+        )
+        return 1
     if existing:
         print(
             "warning: {} target file(s) already exist and will be "

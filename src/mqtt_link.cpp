@@ -15,6 +15,8 @@
 // ---------------------------------------------------------------------------
 // Public broker link (mirrors the old project's approach).
 // NOT private: anyone who knows the topic can read the health telemetry.
+// The link is PUBLISH-ONLY: no command topic is subscribed, so nobody can cancel an alarm,
+// clear data or change thresholds through the public broker.
 // ---------------------------------------------------------------------------
 static const char *MQTT_BROKER = "broker.emqx.io";
 static const uint16_t MQTT_PORT = 1883;
@@ -34,11 +36,6 @@ static char topicStatus[80];
 static char topicTelemetry[80];
 static char topicHistory[80];
 static char topicAlert[80];
-static char topicCancel[80];
-static char topicTestHw[80];
-static char topicClearNvs[80];
-static char topicSetThresh[80];
-static char topicSetTime[80];
 
 static char mqttClientId[32];
 
@@ -61,56 +58,6 @@ static uint32_t lastHistoryPublishMs = 0;
 
 static void buildTopic(char *dst, size_t len, const char *suffix) {
   snprintf(dst, len, "%s/%s", MQTT_BASE, suffix);
-}
-
-static void enqueueCommand(WebCommandType type, float value = 0.0f) {
-  if (commandQueue == nullptr) return;
-  WebCommand cmd;
-  cmd.type = type;
-  cmd.value = value;
-  if (xQueueSend(commandQueue, &cmd, 0) != pdTRUE) {
-    Serial.println("[MQTT] cmd queue full");
-  }
-}
-
-static void handleSetTime(const char *payload) {
-  unsigned long epoch = strtoul(payload, nullptr, 10);
-  if (epoch < 1600000000UL) {
-    Serial.printf("[MQTT] set_time invalid '%s'\n", payload);
-    return;
-  }
-  struct timeval tv;
-  tv.tv_sec = (time_t)epoch;
-  tv.tv_usec = 0;
-  settimeofday(&tv, nullptr);
-  setenv("TZ", "ICT-7", 1);
-  tzset();
-  Serial.printf("[MQTT] time set epoch=%lu\n", epoch);
-}
-
-static void onMqttMessage(char *topic, byte *payload, unsigned int length) {
-  char buf[64];
-  unsigned int n = length < (sizeof(buf) - 1) ? length : (sizeof(buf) - 1);
-  memcpy(buf, payload, n);
-  buf[n] = '\0';
-
-  if (strcmp(topic, topicCancel) == 0) {
-    enqueueCommand(WebCommandType::CancelAlert);
-    Serial.println("[MQTT] cmd cancel");
-  } else if (strcmp(topic, topicClearNvs) == 0) {
-    enqueueCommand(WebCommandType::ClearData);
-    Serial.println("[MQTT] cmd clear_nvs");
-  } else if (strcmp(topic, topicSetThresh) == 0) {
-    float v = atof(buf);
-    if (isnan(v) || v < 10.0f || v > 60.0f) {
-      Serial.printf("[MQTT] set_thresh rejected '%s' (10..60)\n", buf);
-      return;
-    }
-    enqueueCommand(WebCommandType::SetThreshold, v);
-    Serial.printf("[MQTT] cmd set_thresh %.1f\n", v);
-  } else if (strcmp(topic, topicSetTime) == 0) {
-    handleSetTime(buf);
-  }
 }
 
 static void historyPush(const TelemetrySnapshot &t) {
@@ -152,10 +99,6 @@ static void mqttConnect() {
   if (mqttClient.connect(mqttClientId, nullptr, nullptr,
                          topicStatus, 1, true, "offline")) {
     mqttClient.publish(topicStatus, "online", true);
-    mqttClient.subscribe(topicCancel);
-    mqttClient.subscribe(topicClearNvs);
-    mqttClient.subscribe(topicSetThresh);
-    mqttClient.subscribe(topicSetTime);
     publishHistoryJson();
     lastHistoryPublishMs = millis();
     Serial.println("[MQTT] connected");
@@ -166,40 +109,8 @@ static void mqttConnect() {
 }
 
 static void publishTelemetryJson(const TelemetrySnapshot &t) {
-  StaticJsonDocument<1024> doc;
-  doc["state"] = stateName(t.state);
-  doc["bpm"] = t.bpm;
-  doc["spo2"] = t.spo2;
-  doc["raw_bpm"] = t.raw_bpm;
-  doc["raw_spo2"] = t.raw_spo2;
-  doc["acc"] = t.total_acc;
-  doc["thresh"] = t.fall_threshold;
-  doc["max30102"] = t.max_connected;
-  doc["lead_off"] = t.lead_off;
-  doc["falls"] = t.total_fall_events;
-  doc["fps"] = t.loop_fps;
-  doc["steps"] = t.steps;
-  doc["distance_km"] = t.distance_km;
-  doc["calories"] = t.calories;
-  doc["battery_v"] = t.battery_voltage;
-  doc["battery_pct"] = t.battery_percent;
-  doc["ram_pct"] = t.ram_pct;
-  doc["buzzer"] = t.buzzer_active;
-  doc["motor"] = false;
-  doc["snooze_sec"] = t.snooze_remaining_ms / 1000;
-  doc["cd_sec"] = t.countdown_remaining_ms / 1000;
-  doc["mpu"] = t.mpu_connected;
-  doc["finger"] = t.finger_detected;
-  doc["ppg_motion"] = t.ppg_motion;
-  doc["ai_label"] = t.ai_label;
-  doc["ai_conf"] = t.ai_confidence;
-  doc["ai_p"] = t.ai_probability;
-  doc["ai_thr"] = t.ai_threshold;
-  doc["ai_peak"] = t.ai_window_peak;
-  doc["ai_fill"] = t.ai_window_fill;
-  doc["ai_n"] = t.ai_inference_count;
-  doc["ai_us"] = t.ai_inference_us;
-  doc["ai_fall"] = t.ai_fall;
+  StaticJsonDocument<1536> doc;
+  fillTelemetryJson(doc, t);
 
   String out;
   out.reserve(512);
@@ -236,11 +147,6 @@ void mqttLinkBegin() {
   buildTopic(topicTelemetry, sizeof(topicTelemetry), "telemetry");
   buildTopic(topicHistory, sizeof(topicHistory), "history");
   buildTopic(topicAlert, sizeof(topicAlert), "fall/alert");
-  buildTopic(topicCancel, sizeof(topicCancel), "cancel");
-  buildTopic(topicTestHw, sizeof(topicTestHw), "test_hw");
-  buildTopic(topicClearNvs, sizeof(topicClearNvs), "clear_nvs");
-  buildTopic(topicSetThresh, sizeof(topicSetThresh), "set_thresh");
-  buildTopic(topicSetTime, sizeof(topicSetTime), "set_time");
 
   uint8_t mac[6] = {0};
   WiFi.macAddress(mac);
@@ -257,7 +163,6 @@ void mqttLinkBegin() {
   mqttClient.setBufferSize(MQTT_BUFFER_SIZE);
   mqttClient.setKeepAlive(30);
   mqttClient.setSocketTimeout(2);
-  mqttClient.setCallback(onMqttMessage);
 
   lastReconnectMs = millis() - MQTT_RECONNECT_MS;  // try immediately
   lastLogMs = millis();

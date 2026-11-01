@@ -1,4 +1,5 @@
 #include "ai_model.h"
+#include "ai_cnn.h"
 #include "app_state.h"
 #include <math.h>
 #include <string.h>
@@ -112,6 +113,9 @@ static size_t tinyWriteIndex = 0;  // samples written so far (0..100)
 static bool tinyGravityInit = false;
 static float tinyGravity[3] = {0.0f, 0.0f, 0.0f};
 static uint32_t tinyLastLogMs = 0;
+static float tinyProbRing[12] = {0};  // 6 s of ensemble probabilities (one per 0.5 s window)
+static uint8_t tinyProbHead = 0;
+static uint8_t tinyFireHistory = 0;  // last AI_DEBOUNCE_N window decisions, bit0 = newest
 
 static inline float tinyFinite(float v) { return isfinite(v) ? v : 0.0f; }
 
@@ -120,12 +124,11 @@ static inline float tinyFinite(float v) { return isfinite(v) ? v : 0.0f; }
 // then magnitude: mean, population std, min, max, peak_abs, var of last 25.
 static void tinyExtractFeatures(const float *win, float *feat) {
   for (size_t axis = 0; axis < TINY_AXES; ++axis) {
-    const size_t base = axis * TINY_AXES;
     float sum = 0.0f;
     float sumSq = 0.0f;
     float sumAbs = 0.0f;
-    float vMin = win[base];
-    float vMax = win[base];
+    float vMin = win[axis];
+    float vMax = win[axis];
     for (size_t i = 0; i < TINY_WINDOW_SAMPLES; ++i) {
       const float v = win[i * TINY_AXES + axis];
       sum += v;
@@ -234,11 +237,31 @@ static void runTinyAi(uint32_t now) {
   float feat[TINY_AI_FEATURE_COUNT];
   const uint32_t t0 = micros();
   tinyExtractFeatures(tinyWindow, feat);
-  const float p = tinyInfer(feat);
+  const float pMlp = tinyInfer(feat);
   aiInferenceUs = micros() - t0;
   ++aiInferenceCount;
   aiWindowPeak = feat[TINY_AXES * 6 + 4];
-  aiThreshold = TINY_AI_THRESHOLD;
+  aiProbMlp = pMlp;
+
+  float p = pMlp;
+  float thr = TINY_AI_THRESHOLD;
+#if ENABLE_CNN_AI
+  const uint32_t t1 = micros();
+  const float pCnn = cnnInfer(tinyWindow);
+  aiCnnUs = micros() - t1;
+  aiProbCnn = pCnn;
+  // Ensemble = mean of the two probabilities (tools/ai_lab/run_fusion.py chose it).
+  p = isfinite(pCnn) ? 0.5f * (pMlp + pCnn) : pMlp;
+  thr = cnnEnsembleThreshold();
+#endif
+  aiThreshold = thr;
+  tinyProbRing[tinyProbHead] = isfinite(p) ? p : 0.0f;
+  tinyProbHead = (uint8_t)((tinyProbHead + 1) % 12);
+  {
+    float m = 0.0f;
+    for (uint8_t i = 0; i < 12; ++i) if (tinyProbRing[i] > m) m = tinyProbRing[i];
+    aiMax6s = m;
+  }
 
   if (!isfinite(p)) {
     strncpy(aiLabel, "error", sizeof(aiLabel) - 1);
@@ -249,17 +272,22 @@ static void runTinyAi(uint32_t now) {
     return;
   }
 
-  const bool fall = (p >= aiThreshold);
+  // k-of-n debounce over consecutive 0.5 s windows: an isolated spike (clap, door slam)
+  // is one window; a real fall keeps the impact inside several overlapping windows.
+  const bool fire = (p >= thr);
+  tinyFireHistory = (uint8_t)(((tinyFireHistory << 1) | (fire ? 1 : 0)) & ((1u << AI_DEBOUNCE_N) - 1u));
+  const bool fall = __builtin_popcount(tinyFireHistory) >= AI_DEBOUNCE_K;
   strncpy(aiLabel, fall ? "fall" : "adl", sizeof(aiLabel) - 1);
   aiLabel[sizeof(aiLabel) - 1] = '\0';
   aiConfidence = (p >= 0.5f) ? p : (1.0f - p);  // max(p, 1-p)
   aiProbability = p;
   aiFall = fall;
 
-  if (now - tinyLastLogMs >= TINY_LOG_MIN_MS) {
+  if (now - tinyLastLogMs >= TINY_LOG_MIN_MS && (fire || p > 0.2f || now - tinyLastLogMs >= 5000)) {
     tinyLastLogMs = now;
-    Serial.printf("[TINY-AI] p=%.4f label=%s thr=%.2f\n", (double)p, aiLabel,
-                  (double)aiThreshold);
+    Serial.printf("[TINY-AI] p=%.4f (mlp %.3f cnn %.3f) thr=%.2f label=%s us=%lu/%lu\n", (double)p,
+                  (double)aiProbMlp, (double)aiProbCnn, (double)thr, aiLabel,
+                  (unsigned long)aiInferenceUs, (unsigned long)aiCnnUs);
   }
 }
 
@@ -302,7 +330,53 @@ void aiPushSample(float ax, float ay, float az, float gx, float gy, float gz) {
   tinyWriteIndex = TINY_WINDOW_SAMPLES - TINY_STRIDE_SAMPLES;
 }
 
+
+// Boot-time self-test: re-computes the fixture windows from tools/ai_lab/export_final.py and
+// compares with the numpy reference. Catches feature/quantisation/layout mismatches on the
+// actual chip (PLAN.md A8).
+#include "selftest_vectors.h"
+
+bool aiEvalWindow(const float *win, float *pMlp, float *pCnn) {
+  float feat[TINY_AI_FEATURE_COUNT];
+  tinyExtractFeatures(win, feat);
+  *pMlp = tinyInfer(feat);
+#if ENABLE_CNN_AI
+  *pCnn = cnnInfer(win);
 #else
+  *pCnn = -1.0f;
+#endif
+  return true;
+}
+
+bool aiSelfTest() {
+  bool ok = true;
+  float worstMlp = 0.0f, worstCnn = 0.0f;
+  for (int i = 0; i < SELFTEST_N; ++i) {
+    float feat[TINY_AI_FEATURE_COUNT];
+    tinyExtractFeatures(SELFTEST_WIN[i], feat);
+    const float pm = tinyInfer(feat);
+    const float dm = fabsf(pm - SELFTEST_P_MLP[i]);
+    if (dm > worstMlp) worstMlp = dm;
+    float dc = 0.0f, pc = -1.0f;
+#if ENABLE_CNN_AI
+    pc = cnnInfer(SELFTEST_WIN[i]);
+    dc = fabsf(pc - SELFTEST_P_CNN[i]);
+    if (dc > worstCnn) worstCnn = dc;
+#endif
+    Serial.printf("[SELFTEST] %-12s mlp %.4f (ref %.4f)  cnn %.4f (ref %.4f)\n", SELFTEST_NAME[i],
+                  (double)pm, (double)SELFTEST_P_MLP[i], (double)pc, (double)SELFTEST_P_CNN[i]);
+  }
+  ok = worstMlp < 0.02f && worstCnn < 0.03f;
+  Serial.printf("[SELFTEST] %s (max |dp| mlp %.4f cnn %.4f)\n", ok ? "PASS" : "FAIL",
+                (double)worstMlp, (double)worstCnn);
+  aiSelfTestResult = ok ? 1 : 2;
+  return ok;
+}
+
+#else
+
+bool aiSelfTest() { return true; }
+bool aiEvalWindow(const float *, float *pMlp, float *pCnn) { *pMlp = 0.0f; *pCnn = -1.0f; return false; }
 
 void aiPushSample(float ax, float ay, float az, float gx, float gy, float gz) {
   (void)ax;

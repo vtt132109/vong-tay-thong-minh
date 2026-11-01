@@ -119,9 +119,6 @@
     .mini dd small { color: var(--faint); font-size: 9px; margin-left: 3px; }
     .controls { grid-column: span 6; }
     .controls-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    .threshold { display: flex; align-items: center; gap: 10px; margin-top: 13px; }
-    .threshold input[type=range] { flex: 1; accent-color: var(--amber); min-width: 80px; }
-    .threshold output { min-width: 58px; color: var(--amber); font: 500 13px/1 var(--mono); text-align: right; }
     .signal { grid-column: span 6; }
     .signal-list { display: grid; gap: 8px; }
     .signal-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
@@ -232,9 +229,6 @@
           <h2 id="alertTitle">Cảnh báo an toàn</h2>
           <p id="alertDetail">Kiểm tra người đeo ngay.</p>
         </div>
-        <div class="actions">
-          <button class="btn primary" id="alertCancel" type="button">HỦY / SNOOZE</button>
-        </div>
       </section>
 
       <div class="grid" style="margin-top:18px">
@@ -300,12 +294,13 @@
         </aside>
 
         <section class="card ai-card" aria-label="AI TinyML">
-          <div class="card-head"><h3>AI · cửa sổ 2 giây</h3><span id="aiMode">telemetry-only · không kích hoạt còi</span></div>
+          <div class="card-head"><h3>AI · cửa sổ 2 giây</h3><span id="aiMode">MLP + CNN int8 · trung bình xác suất</span></div>
           <div class="ai-summary">
             <div class="ai-big"><b id="aiLabelBig" class="muted">n/a</b><small id="aiConfBig">--</small></div>
             <div class="ai-facts">
               <div><span>Xác suất ngã p</span><b id="aiProb">--</b></div>
-              <div><span>Ngưỡng</span><b id="aiThr">0.94</b></div>
+              <div><span>Ngưỡng</span><b id="aiThr">--</b></div>
+              <div><span>MLP / CNN</span><b id="aiParts">--</b></div>
               <div><span>Cập nhật</span><b id="aiAge">--</b></div>
             </div>
           </div>
@@ -324,34 +319,30 @@
             </div>
             <div class="ai-step">
               <span class="n">4</span>
-              <div><b>MLP 42→16→1</b><span id="stepInfer">--</span></div>
+              <div><b>MLP 42→16→1 + CNN int8</b><span id="stepInfer">--</span></div>
             </div>
             <div class="ai-step">
               <span class="n">5</span>
-              <div><b>Ngưỡng <i id="aiThrStep">0.94</i></b><span id="stepDecision">--</span></div>
+              <div><b>Ngưỡng <i id="aiThrStep">--</i></b><span id="stepDecision">--</span></div>
             </div>
           </div>
           <div class="chart-wrap ai-chart">
             <canvas id="aiChart" aria-label="Đồ thị xác suất ngã 60 giây"></canvas>
             <div class="chart-empty" id="aiEmpty">Đang chờ mẫu AI</div>
           </div>
-          <div class="chart-meta"><span>p(ngã) · 60 giây · nét đứt = ngưỡng <i id="aiThrMeta">0.94</i></span><span id="aiSamples">0 mẫu</span></div>
-          <p class="ai-note">AI chỉ suy luận và gửi telemetry; còi/báo động do rule-based FSM quyết định. AI chạy mỗi 0.5 giây trên cửa sổ 2 giây (6 trục), telemetry gửi 1 giây/lần.</p>
+          <div class="chart-meta"><span>p(ngã) · 60 giây · nét đứt = ngưỡng <i id="aiThrMeta">--</i></span><span id="aiSamples">0 mẫu</span></div>
+          <p class="ai-note">AI chạy mỗi 0,5 giây trên cửa sổ 2 giây (6 trục): MLP 42 đặc trưng và CNN 1D int8, lấy trung bình xác suất. Việc AI có được kích báo động hay không do firmware quyết định; đây là sản phẩm nghiên cứu, không phải thiết bị y tế. Telemetry gửi 1 giây/lần.</p>
         </section>
 
-        <section class="card controls" aria-label="Điều khiển">
-          <div class="card-head"><h3>Điều khiển</h3><span id="threshDevice">Ngưỡng --</span></div>
-          <div class="controls-row">
-            <button class="btn primary" id="cancelBtn" type="button" disabled>HỦY / SNOOZE</button>
-            <button class="btn" id="clearBtn" type="button" disabled>Xóa dữ liệu…</button>
+        <section class="card controls" aria-label="Thiết bị">
+          <div class="card-head"><h3>Thiết bị</h3><span id="threshDevice">Ngưỡng --</span></div>
+          <div class="signal-list">
+            <div class="signal-row"><span>Phần mềm</span><b id="fwVer">--</b></div>
+            <div class="signal-row"><span>Xung CPU</span><b id="cpuMhz">--</b></div>
+            <div class="signal-row"><span>Self-test AI</span><b id="aiSelf">--</b></div>
+            <div class="signal-row"><span>Độ trễ vòng lặp tối đa</span><b id="jit">--</b></div>
           </div>
-          <div class="threshold">
-            <label for="threshold" class="vital-label">Ngưỡng va đập</label>
-            <input id="threshold" type="range" min="10" max="60" step="0.5" value="25" aria-label="Ngưỡng va đập m/s²">
-            <output id="thresholdValue">25,0</output>
-            <button class="btn" id="saveThreshold" type="button" disabled>Lưu</button>
-          </div>
-          <p class="empty" style="margin:10px 0 0">Điều khiển gửi qua MQTT tới vòng tay. Chỉ bật khi kết nối broker.</p>
+          <p class="empty" style="margin:10px 0 0">Chế độ chỉ xem. Hủy báo động, xóa dữ liệu và đổi ngưỡng chỉ làm được tại vòng tay hoặc dashboard LAN, vì broker công khai không có xác thực.</p>
         </section>
 
         <section class="card signal" aria-label="Cảm biến">
@@ -405,11 +396,9 @@
         finger: $("finger"), leadOff: $("leadOff"), motion: $("motion"), timer: $("timer"),
         mpu: $("mpu"), max: $("max"), fps: $("fps"), ram: $("ram"), buzzer: $("buzzer"),
         aiLabel: $("aiLabel"), aiConf: $("aiConf"), threshDevice: $("threshDevice"),
-        threshold: $("threshold"), thresholdValue: $("thresholdValue"),
-        cancelBtn: $("cancelBtn"), clearBtn: $("clearBtn"),
-        saveThreshold: $("saveThreshold"), alertBar: $("alertBar"),
+        fwVer: $("fwVer"), cpuMhz: $("cpuMhz"), aiSelf: $("aiSelf"), jit: $("jit"), aiParts: $("aiParts"),
+        alertBar: $("alertBar"),
         alertKicker: $("alertKicker"), alertTitle: $("alertTitle"), alertDetail: $("alertDetail"),
-        alertCancel: $("alertCancel"),
         settingsDialog: $("settingsDialog"), brokerInput: $("brokerInput"), baseInput: $("baseInput"),
         settingsBtn: $("settingsBtn"), closeSettings: $("closeSettings"),
         saveSettings: $("saveSettings"), resetSettings: $("resetSettings"),
@@ -422,10 +411,12 @@
         stepWin: $("stepWin"), stepWinBar: $("stepWinBar"), stepPeak: $("stepPeak"),
         stepInfer: $("stepInfer"), stepDecision: $("stepDecision")
       };
-      const AI_THRESHOLD = 0.94;
+      const AI_THRESHOLD = 0.82;
+      function storeGet(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+      function storeSet(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* storage blocked */ } }
       const state = {
-        broker: localStorage.getItem(STORAGE.broker) || DEFAULT_BROKER,
-        base: localStorage.getItem(STORAGE.base) || DEFAULT_BASE,
+        broker: storeGet(STORAGE.broker) || DEFAULT_BROKER,
+        base: storeGet(STORAGE.base) || DEFAULT_BASE,
         client: null, connected: false, lastSeen: 0, lastData: null,
         history: [], aiHistory: [], aiThreshold: AI_THRESHOLD, toastTimer: 0
       };
@@ -446,9 +437,6 @@
         dom.connPill.classList.toggle("online", connected);
         dom.connPill.classList.toggle("offline", !connected);
         dom.connText.textContent = text;
-        [dom.cancelBtn, dom.clearBtn, dom.saveThreshold].forEach((b) => {
-          b.disabled = !connected;
-        });
       }
       function toast(message) {
         dom.toast.textContent = message;
@@ -466,7 +454,8 @@
         if (conf === null || !label || label === "n/a" || label === "error") return null;
         return label === "fall" ? conf : 1 - conf;
       }
-      function fmt(v, digits = 0) { const n = pos(v); return n === null ? "--" : n.toFixed(digits); }
+      function fmt(v, digits = 0) { const n = num(v); return n === null ? "--" : n.toFixed(digits); }
+      function fmtPos(v, digits = 0) { const n = pos(v); return n === null ? "--" : n.toFixed(digits); }
       function stateInfo(raw) {
         return STATES[String(raw || "").toUpperCase()] || { label: raw || "--", tone: "warn", copy: "Trạng thái không xác định" };
       }
@@ -476,11 +465,13 @@
         el.classList.toggle("alert", tone === "alert");
         el.classList.toggle("bad", tone === "alert");
       }
-      function render(data) {
+      function render(data, live) {
         if (!data || typeof data !== "object") return;
         const now = Date.now();
         state.lastData = data;
-        state.lastSeen = now;
+        // A retained message is the broker replaying the LAST value: show it, but do not treat it
+        // as proof that the device is online right now.
+        if (live) state.lastSeen = now;
         const info = stateInfo(data.state);
         const bpm = pos(data.bpm);
         const spo2 = pos(data.spo2);
@@ -488,8 +479,8 @@
         dom.bpm.parentElement.classList.toggle("empty", bpm === null);
         dom.spo2.textContent = spo2 === null ? "—" : String(Math.round(spo2));
         dom.spo2.parentElement.classList.toggle("empty", spo2 === null);
-        dom.bpmNote.textContent = data.lead_off ? "LEAD-OFF · chưa áp tay" : bpm === null ? "Đang chờ mẫu PPG" : `raw ${fmt(data.raw_bpm)} · lọc`;
-        dom.spo2Note.textContent = data.lead_off ? "LEAD-OFF" : spo2 === null ? "Đang chờ mẫu PPG" : `raw ${fmt(data.raw_spo2)} · lọc`;
+        dom.bpmNote.textContent = data.lead_off ? "LEAD-OFF · chưa áp tay" : bpm === null ? "Đang chờ mẫu PPG" : `raw ${fmtPos(data.raw_bpm)} · lọc`;
+        dom.spo2Note.textContent = data.lead_off ? "LEAD-OFF" : spo2 === null ? "Đang chờ mẫu PPG" : `raw ${fmtPos(data.raw_spo2)} · lọc`;
         dom.bpmNote.classList.toggle("alert", !!data.lead_off);
         dom.spo2Note.classList.toggle("alert", !!data.lead_off);
         dom.stateBadge.textContent = info.label;
@@ -534,6 +525,15 @@
         dom.aiThr.textContent = thr.toFixed(2);
         dom.aiThrMeta.textContent = thr.toFixed(2);
         dom.aiThrStep.textContent = thr.toFixed(2);
+        const pm = num(data.ai_mlp);
+        const pc = num(data.ai_cnn);
+        dom.aiParts.textContent = pm === null ? "--" : `${pm.toFixed(2)} / ${pc !== null && pc >= 0 ? pc.toFixed(2) : "–"}`;
+        dom.fwVer.textContent = data.fw ? String(data.fw) : "--";
+        dom.cpuMhz.textContent = num(data.cpu_mhz) !== null ? `${Math.round(data.cpu_mhz)} MHz` : "--";
+        const selfTxt = { 1: "ĐẠT", 2: "LỖI" }[data.ai_self];
+        dom.aiSelf.textContent = selfTxt || "chưa chạy";
+        dom.aiSelf.className = data.ai_self === 2 ? "bad" : "";
+        dom.jit.textContent = num(data.jit) !== null ? `${Math.round(data.jit)} ms` : "--";
         const fill = num(data.ai_fill);
         dom.stepWin.textContent = fill !== null ? `${Math.round(fill)}% · 100 mẫu` : "--";
         dom.stepWinBar.style.width = `${fill === null ? 0 : Math.max(0, Math.min(100, fill))}%`;
@@ -541,27 +541,24 @@
         dom.stepPeak.textContent = peak !== null ? `${peak.toFixed(2)} m/s²` : "--";
         const aiN = num(data.ai_n);
         const aiUs = num(data.ai_us);
-        dom.stepInfer.textContent = aiN !== null && aiUs !== null ? `${Math.round(aiUs)} µs · ${Math.round(aiN)} lần` : "--";
+        const cnnUs = num(data.ai_cnn_us);
+        dom.stepInfer.textContent = aiN !== null && aiUs !== null ? `MLP ${Math.round(aiUs)} µs${cnnUs ? " · CNN " + Math.round(cnnUs) + " µs" : ""} · ${Math.round(aiN)} lần` : "--";
         dom.stepDecision.textContent = aiKnown ? (aiIsFall ? "→ FALL" : "→ ADL") : "--";
         dom.stepDecision.style.color = aiIsFall ? "var(--coral)" : "";
         dom.threshDevice.textContent = `Ngưỡng ${fmt(data.thresh, 1)} m/s²`;
-        const th = num(data.thresh);
-        if (th !== null && document.activeElement !== dom.threshold) {
-          dom.threshold.value = String(th);
-          dom.thresholdValue.textContent = th.toFixed(1).replace(".", ",");
-        }
-        dom.lastSeen.textContent = `Cập nhật ${new Date(now).toLocaleTimeString("vi-VN")}`;
+        dom.lastSeen.textContent = live ? `Cập nhật ${new Date(now).toLocaleTimeString("vi-VN")}` : "Dữ liệu lưu lần cuối (chưa nhận bản tin trực tiếp)";
         if (ALERT_STATES.has(String(data.state || "").toUpperCase())) {
           dom.alertBar.classList.add("show");
           dom.alertKicker.textContent = String(data.state).toUpperCase();
           dom.alertTitle.textContent = info.copy;
-          dom.alertDetail.textContent = cd > 0 ? `Còn ${Math.round(cd)} giây để hủy.` : "Bấm HỦY/SNOOZE để tạm dừng còi.";
+          dom.alertDetail.textContent = cd > 0 ? `Còn ${Math.round(cd)} giây để hủy tại vòng tay.` : "Hủy bằng nút trên vòng tay.";
         } else {
           dom.alertBar.classList.remove("show");
         }
         pushHistory(bpm, spo2, now);
         if (aiP !== null) pushAiHistory(aiP, aiIsFall, now);
-        setConn(true, "TRỰC TUYẾN");
+        if (live) setConn(true, "TRỰC TUYẾN");
+        else setConn(false, "DỮ LIỆU CŨ");
       }
       function pushHistory(bpm, spo2, now) {
         state.history.push({ t: now, bpm, spo2 });
@@ -695,14 +692,8 @@
         drawSeries(dom.spo2Chart, state.history, { key: "spo2", min: 85, max: 100, color: "#74ced2" });
         drawSeries(dom.aiChart, state.aiHistory, { key: "p", min: 0, max: 1, color: "#f0b35a", threshold: state.aiThreshold });
       }
-      function publish(suffix, payload) {
-        if (!state.client || !state.client.connected) { toast("Chưa kết nối broker MQTT"); return; }
-        state.client.publish(`${state.base}/${suffix}`, payload == null ? "" : String(payload), { qos: 0 }, (err) => {
-          toast(err ? `Gửi lỗi: ${err.message}` : `Đã gửi ${suffix}`);
-        });
-      }
       function connect() {
-        if (typeof mqtt === "undefined") { setConn(false, "THIẾU MQTT.JS"); toast("Không tải được MQTT.js (cần Internet)"); return; }
+        if (typeof mqtt === "undefined") { setConn(false, "THIẾU MQTT.JS"); toast("Không tải được MQTT.js"); return; }
         if (state.client) { try { state.client.end(true); } catch (_) {} state.client = null; }
         setConn(false, "ĐANG KẾT NỐI");
         dom.topicLabel.textContent = state.base.split("/").slice(-2).join("/");
@@ -721,12 +712,12 @@
         client.on("reconnect", () => setConn(false, "ĐANG KẾT NỐI LẠI"));
         client.on("close", () => setConn(false, "MẤT KẾT NỐI"));
         client.on("error", (err) => { setConn(false, "LỖI BROKER"); console.warn("MQTT", err.message); });
-        client.on("message", (topic, message) => {
+        client.on("message", (topic, message, packet) => {
           const text = message.toString();
-          if (topic === `${state.base}/status`) { if (text === "online") setConn(true, "TRỰC TUYẾN"); else if (text === "offline") setConn(false, "THIẾT BỊ OFFLINE"); return; }
-          if (topic === `${state.base}/fall/alert`) { toast(`Cảnh báo: ${text}`); return; }
+          if (topic === `${state.base}/status`) { if (text === "online") setConn(true, "TRỰC TUYẾN"); else if (text === "offline") { setConn(false, "THIẾT BỊ OFFLINE"); state.lastSeen = 0; } return; }
+          if (topic === `${state.base}/fall/alert`) { toast(`Cảnh báo: ${text.slice(0, 80)}`); return; }
           if (topic === `${state.base}/history`) { applyHistory(text); return; }
-          try { render(JSON.parse(text)); } catch (_) { /* ignore malformed */ }
+          try { render(JSON.parse(text), !(packet && packet.retain)); } catch (_) { /* ignore malformed */ }
         });
       }
       function openSettings() {
@@ -739,8 +730,8 @@
         const base = dom.baseInput.value.trim().replace(/\/+$/, "");
         if (!/^wss?:\/\//i.test(broker) || !base) { toast("Broker phải là ws:// hoặc wss:// và có base topic"); return; }
         state.broker = broker; state.base = base;
-        localStorage.setItem(STORAGE.broker, broker);
-        localStorage.setItem(STORAGE.base, base);
+        storeSet(STORAGE.broker, broker);
+        storeSet(STORAGE.base, base);
         dom.settingsDialog.close();
         connect();
       }
@@ -748,21 +739,19 @@
       dom.closeSettings.addEventListener("click", () => dom.settingsDialog.close());
       dom.saveSettings.addEventListener("click", saveSettings);
       dom.resetSettings.addEventListener("click", () => { dom.brokerInput.value = DEFAULT_BROKER; dom.baseInput.value = DEFAULT_BASE; });
-      dom.cancelBtn.addEventListener("click", () => publish("cancel", "DISMISS"));
-      dom.alertCancel.addEventListener("click", () => publish("cancel", "DISMISS"));
-      dom.clearBtn.addEventListener("click", () => { if (confirm("Xóa dữ liệu ngã/bước trên thiết bị?")) publish("clear_nvs", "CLEAR"); });
-      dom.saveThreshold.addEventListener("click", () => {
-        const value = parseFloat(dom.threshold.value);
-        if (!(value >= 10 && value <= 60)) { toast("Ngưỡng phải 10..60"); return; }
-        publish("set_thresh", value.toFixed(1));
-      });
-      dom.threshold.addEventListener("input", () => { dom.thresholdValue.textContent = Number(dom.threshold.value).toFixed(1).replace(".", ","); });
       window.addEventListener("resize", drawCharts);
       setInterval(() => {
         if (state.lastSeen && Date.now() - state.lastSeen > 10000) {
           if (state.connected) setConn(false, "MẤT DỮ LIỆU");
           dom.lastSeen.textContent = "Quá 10 giây không có telemetry";
-          dom.alertBar.classList.remove("show");
+          const last = state.lastData && String(state.lastData.state || "").toUpperCase();
+          if (last && ALERT_STATES.has(last)) {
+            dom.alertBar.classList.add("show");
+            dom.alertTitle.textContent = "MẤT LIÊN LẠC khi thiết bị đang " + last;
+            dom.alertDetail.textContent = "Không nhận được dữ liệu mới. Hãy kiểm tra trực tiếp người đeo.";
+          } else {
+            dom.alertBar.classList.remove("show");
+          }
         }
       }, 1000);
       connect();

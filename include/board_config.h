@@ -31,10 +31,19 @@ static constexpr uint32_t IMPACT_SETTLE_MS = 200;
 static constexpr uint32_t COUNTDOWN_MS = 10000;
 static constexpr uint32_t SNOOZE_MS = 20000;
 static constexpr uint32_t HEALTH_CONFIRM_MS = 10000;
+static constexpr uint32_t HEALTH_WARMUP_MS = 20000;
 static constexpr uint32_t BUTTON_LONG_MS = 3000;
 static constexpr uint32_t BUTTON_DEBOUNCE_MS = 40;
 static constexpr uint32_t TEST_BUZZER_MS = 2000;
-static constexpr uint32_t DISPLAY_PERIOD_MS = 200;
+static constexpr uint32_t DISPLAY_PERIOD_MS = 200;       // alert / verifying screens (blink)
+static constexpr uint32_t DISPLAY_IDLE_PERIOD_MS = 500;  // normal screen: fewer I2C stalls, less power
+#ifndef FW_VERSION
+#define FW_VERSION "2.0-ai"
+#endif
+#ifndef BIO_CPU_MHZ
+#define BIO_CPU_MHZ 160  // override with -DBIO_CPU_MHZ=80|160|240 (see BAO_CAO.md, power/thermal test)
+#endif
+static constexpr uint32_t CPU_FREQ_MHZ = BIO_CPU_MHZ;            // balance: ~2x faster than 80 MHz, much cooler than 240 MHz
 static constexpr uint32_t TELEMETRY_PERIOD_MS = 200;
 static constexpr uint32_t BATTERY_PERIOD_MS = 1000;
 static constexpr uint32_t STEP_SAVE_PERIOD_MS = 60000;
@@ -56,6 +65,14 @@ static constexpr int32_t PPG_SPO2_MAX = 100;
 
 // Edge AI (Edge Impulse) and data capture.
 static constexpr float AI_FALL_CONFIRM_CONFIDENCE = 0.80f;
+// k-of-n debounce over consecutive 0.5 s AI windows. LOSO showed no benefit (2-of-3 costs 0.5 s of
+// latency for the same recall/false-alert trade-off), so the default is 1-of-1 (tools/ai_lab/run_fusion.py).
+#ifndef AI_DEBOUNCE_N
+#define AI_DEBOUNCE_N 1
+#endif
+#ifndef AI_DEBOUNCE_K
+#define AI_DEBOUNCE_K 1
+#endif
 static constexpr uint32_t CAPTURE_DEFAULT_SECONDS = 60;
 static constexpr uint32_t CAPTURE_MAX_SECONDS = 300;
 

@@ -1,0 +1,719 @@
+[
+ {
+  "name": "s19/fall/fall1",
+  "ai": true,
+  "countdown_s": 1.43,
+  "reason": "Te nga (AI",
+  "peak_p": 1.0,
+  "transitions": [
+   [
+    17.17,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    17.51,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    27.53,
+    "COUNTDOWN",
+    "ALARM"
+   ],
+   [
+    27.97,
+    "ALARM",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/fall/fall4",
+  "ai": true,
+  "countdown_s": 0.03,
+  "reason": "Te nga (AI",
+  "peak_p": 1.0,
+  "transitions": [
+   [
+    16.32,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    16.45,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    26.47,
+    "COUNTDOWN",
+    "ALARM"
+   ],
+   [
+    27.49,
+    "ALARM",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s20/fall/fall2",
+  "ai": true,
+  "countdown_s": 0.4,
+  "reason": "Te nga (AI",
+  "peak_p": 0.9998,
+  "transitions": [
+   [
+    15.98,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    16.39,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    26.4,
+    "COUNTDOWN",
+    "ALARM"
+   ],
+   [
+    27.98,
+    "ALARM",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s20/fall/fall5",
+  "ai": true,
+  "countdown_s": 0.24,
+  "reason": "Te nga (AI",
+  "peak_p": 1.0,
+  "transitions": [
+   [
+    16.07,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    16.32,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    26.34,
+    "COUNTDOWN",
+    "ALARM"
+   ],
+   [
+    27.57,
+    "ALARM",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s21/fall/fall3",
+  "ai": true,
+  "countdown_s": 3.43,
+  "reason": "Te nga + bat dong",
+  "peak_p": 0.7407,
+  "transitions": [
+   [
+    16.61,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    20.11,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    27.37,
+    "COUNTDOWN",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/non-fall/clap",
+  "ai": true,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 0.3895,
+  "transitions": [
+   [
+    20.83,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    24.33,
+    "IMPACT",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s20/non-fall/clap",
+  "ai": true,
+  "countdown_s": 17.0,
+  "reason": "Te nga + bat dong",
+  "peak_p": 0.5502,
+  "transitions": [
+   [
+    21.5,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    25.0,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    35.03,
+    "COUNTDOWN",
+    "ALARM"
+   ],
+   [
+    61.9,
+    "ALARM",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/non-fall/bed",
+  "ai": true,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 0.0017,
+  "transitions": [
+   [
+    19.23,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    20.06,
+    "FREE_FALL",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/non-fall/walk",
+  "ai": true,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 0.0119,
+  "transitions": [
+   [
+    8.6,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    9.42,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    9.48,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    10.31,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    10.94,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    11.76,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    12.16,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    12.98,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    13.12,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    13.95,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    14.74,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    15.57,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    15.62,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    16.44,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    17.12,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    17.95,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    18.42,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    19.25,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    19.52,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    20.36,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    20.6,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    21.43,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    23.18,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    24.01,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    24.06,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    24.88,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    26.42,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    27.24,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    27.3,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    28.13,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    29.0,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    29.83,
+    "FREE_FALL",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/fall/fall1",
+  "ai": false,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 1.0,
+  "transitions": [
+   [
+    15.96,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    19.16,
+    "IMPACT",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/fall/fall4",
+  "ai": false,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 1.0,
+  "transitions": [
+   [
+    16.34,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    19.54,
+    "IMPACT",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s20/fall/fall2",
+  "ai": false,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 0.9998,
+  "transitions": [
+   [
+    15.97,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    19.17,
+    "IMPACT",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s20/fall/fall5",
+  "ai": false,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 1.0,
+  "transitions": [
+   [
+    16.06,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    19.27,
+    "IMPACT",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s21/fall/fall3",
+  "ai": false,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 0.8086,
+  "transitions": [
+   [
+    16.62,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    19.82,
+    "IMPACT",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/non-fall/clap",
+  "ai": false,
+  "countdown_s": 19.24,
+  "reason": "Te nga + bat dong",
+  "peak_p": 0.3991,
+  "transitions": [
+   [
+    20.84,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    27.24,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    37.26,
+    "COUNTDOWN",
+    "ALARM"
+   ],
+   [
+    42.16,
+    "ALARM",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s20/non-fall/clap",
+  "ai": false,
+  "countdown_s": 19.89,
+  "reason": "Te nga + bat dong",
+  "peak_p": 0.3269,
+  "transitions": [
+   [
+    21.49,
+    "IDLE",
+    "IMPACT"
+   ],
+   [
+    27.89,
+    "IMPACT",
+    "COUNTDOWN"
+   ],
+   [
+    37.91,
+    "COUNTDOWN",
+    "ALARM"
+   ],
+   [
+    61.89,
+    "ALARM",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/non-fall/bed",
+  "ai": false,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 0.0017,
+  "transitions": [
+   [
+    19.22,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    20.06,
+    "FREE_FALL",
+    "IDLE"
+   ]
+  ]
+ },
+ {
+  "name": "s19/non-fall/walk",
+  "ai": false,
+  "countdown_s": null,
+  "reason": null,
+  "peak_p": 0.0397,
+  "transitions": [
+   [
+    8.62,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    9.45,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    9.5,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    10.32,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    10.96,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    11.79,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    12.18,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    13.01,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    13.14,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    13.96,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    14.76,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    15.64,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    15.64,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    16.46,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    17.14,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    17.97,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    18.44,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    19.28,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    19.54,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    20.37,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    20.62,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    21.45,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    23.2,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    24.03,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    24.08,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    24.9,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    26.44,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    27.26,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    27.32,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    28.15,
+    "FREE_FALL",
+    "IDLE"
+   ],
+   [
+    29.02,
+    "IDLE",
+    "FREE_FALL"
+   ],
+   [
+    29.85,
+    "FREE_FALL",
+    "IDLE"
+   ]
+  ]
+ }
+]

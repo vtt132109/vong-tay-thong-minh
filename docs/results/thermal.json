@@ -1,0 +1,32 @@
+[
+ {
+  "clock": 160,
+  "samples": 16,
+  "chip_c_last2min": 42.166666666666664,
+  "chip_c_first": 42.5,
+  "ai_us": 425.0,
+  "ai_cnn_us": 4184.0,
+  "jit_max_ms": 35,
+  "fps_min": 50
+ },
+ {
+  "clock": 80,
+  "samples": 16,
+  "chip_c_last2min": 40.666666666666664,
+  "chip_c_first": 40.5,
+  "ai_us": 761.5,
+  "ai_cnn_us": 8423.0,
+  "jit_max_ms": 38,
+  "fps_min": 50
+ },
+ {
+  "clock": 240,
+  "samples": 13,
+  "chip_c_last2min": 57.666666666666664,
+  "chip_c_first": 54.5,
+  "ai_us": 318,
+  "ai_cnn_us": 2786,
+  "jit_max_ms": 34,
+  "fps_min": 50
+ }
+]

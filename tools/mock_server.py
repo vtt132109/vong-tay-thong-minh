@@ -33,6 +33,7 @@ class Sim:
         self.phase_end = self.t0 + DURATION["IDLE"]
         self.test_until = 0.0
         self.falls, self.steps, self.thresh = 3, 1420, 25.0
+        self.ai_arm = False
         self.data = self._build(self.t0)
         self.thread = threading.Thread(target=self._run, name="sim", daemon=True)
         self.thread.start()
@@ -78,7 +79,10 @@ class Sim:
             "buzzer": self.phase == "ALARM" or now < self.test_until,
             "motor": False, "snooze_sec": snooze, "cd_sec": cd,
             "mpu": True, "finger": True, "ppg_motion": False,
-            "ai_label": "n/a", "ai_conf": 0.0, "ai_fall": False,
+            "ai_label": "adl", "ai_conf": 0.99, "ai_fall": False,
+            "ai_p": 0.004, "ai_thr": 0.87, "ai_peak": 1.2, "ai_fill": 100, "ai_n": int(t * 2),
+            "ai_us": 420, "ai_mlp": 0.003, "ai_cnn": 0.005, "ai_cnn_us": 4180, "ai_self": 1,
+            "ai_arm": self.ai_arm, "jit": 34, "cpu_mhz": 160, "fw": "mock", "chip_c": 41.5,
         }
 
     def snapshot(self):
@@ -96,6 +100,8 @@ class Sim:
                 self.falls = self.steps = 0
             elif name == "thresh":
                 self.thresh = value
+            elif name == "ai_mode":
+                self.ai_arm = bool(value)
             self.data = self._build(now)
 
 
@@ -161,6 +167,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._set_thresh(url.query)
         if url.path == "/capture":
             return self._capture(url.query)
+        if post and url.path == "/ai_mode":
+            vals = parse_qs(url.query).get("val", ["0"])
+            self.server.sim.command("ai_mode", vals[0] == "1")
+            return self._send(200, OK, TEXT)
         if post and url.path in ("/cancel", "/test_hw", "/clear_nvs"):
             self.server.sim.command(url.path[1:])
             return self._send(200, OK, TEXT)

@@ -50,6 +50,10 @@ static void drawTopBar() {
   display.print("BIO-BAND");
 
   drawWifiStatus();
+  if (aiAlarmEnabled) {
+    display.setCursor(78, 1);
+    display.print("AI");
+  }
 
   char buf[12];
   if (batteryVoltage > 0.1f) {

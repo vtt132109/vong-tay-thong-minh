@@ -279,6 +279,7 @@ void processMaxSamples(uint32_t now, bool motion) {
 }
 
 void updatePedometer(uint32_t now, float acc) {
+  if (replayActive) return;  // replayed IMU data must not add steps
   if (acc > 13.0f && !stepHigh) {
     stepHigh = true;
     if (now - lastStepMs > 300) {

@@ -52,6 +52,13 @@ extern uint32_t aiInferenceCount;
 extern uint32_t aiInferenceUs;
 extern float aiWindowPeak;
 extern bool aiFall;
+extern float aiProbMlp;
+extern float aiProbCnn;
+extern uint32_t aiCnnUs;
+extern bool aiAlarmEnabled;  // runtime: may the AI start an alarm countdown? (NVS, default off)
+extern float aiMax6s;         // max ensemble probability over the last 6 s
+extern volatile bool replayActive;  // serial replay test mode (virtual MPU, buzzer muted)
+extern uint8_t aiSelfTestResult;  // 0 not run, 1 pass, 2 fail
 extern bool ppgMotion;
 
 extern SystemState state;
@@ -108,3 +115,5 @@ extern uint32_t lastTelemetryMs;
 extern uint32_t lastStepSaveMs;
 extern uint32_t lastDebugMs;
 extern uint32_t lastSavedSteps;
+extern uint32_t loopMaxDtMs;
+extern uint32_t loopMaxDtMsPublished;
