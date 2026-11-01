@@ -1,0 +1,9 @@
+# Python tools for Bio-Band (Python 3.12). Install into a venv:
+#   uv venv --python 3.12 .venv-ds && uv pip install --python .venv-ds/Scripts/python.exe -r tools/requirements.txt
+numpy>=2.0
+scipy>=1.13
+scikit-learn>=1.5      # tools/ai_lab baselines (LR / tree / forest)
+torch>=2.3             # tools/ai_lab MLP + 1D-CNN (CPU wheel is enough: --index-url https://download.pytorch.org/whl/cpu)
+matplotlib>=3.8        # tools/ai_lab/make_figures.py
+pyserial>=3.5          # capture_labeled.py, monitor_serial.py, ai_lab/hil_eval.py
+h5py>=3.10             # only if a HIFD .mat file is MATLAB v7.3 (none are, as of 2026)
