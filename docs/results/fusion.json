@@ -1,0 +1,41 @@
+{
+ "thr_fused": 0.87,
+ "thr_mlp": 0.9,
+ "thr_cnn": 0.9,
+ "k": 1,
+ "n": 1,
+ "fsm": {
+  "settle_ms": 1500,
+  "window_ms": 2000,
+  "var_still": 0.8,
+  "var_motion": 4.0
+ },
+ "tau_low": 0.5,
+ "recall": 0.9519230769230769,
+ "recall_ci": [
+  0.8923565255405173,
+  0.9792922630531236
+ ],
+ "false_alerts": 0,
+ "hours": 1.9455222222222215,
+ "fa_per_h": 0.0,
+ "fa_upper95": 1.8960870310185458,
+ "missed": [
+  "s01/fall/fall1",
+  "s03/fall/fall1",
+  "s14/fall/fall4",
+  "s17/fall/fall4",
+  "s21/fall/fall3"
+ ],
+ "cnn_cfg": [
+  8,
+  16,
+  16
+ ],
+ "cnn_views": [
+  "fw",
+  "fw_aug0",
+  "fw_aug1",
+  "fw_aug2"
+ ]
+}

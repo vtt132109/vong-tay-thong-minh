@@ -1,0 +1,35 @@
+{
+ "windows": 1942,
+ "subjects": [
+  19,
+  20,
+  21
+ ],
+ "threshold": 0.87,
+ "mlp_max_abs_diff": 1.2494850158972781e-06,
+ "mlp_mean_abs_diff": 2.498066530543865e-07,
+ "cnn_max_abs_diff": 0.00016361250567436397,
+ "cnn_mean_abs_diff": 4.2297407089889654e-07,
+ "decision_flips": 0,
+ "event_device": {
+  "detected": 14,
+  "n_fall": 15,
+  "false_alerts": 1,
+  "hours": 0.2688777777777778,
+  "fa_per_h": 3.7191619488408607,
+  "latency_median_s": 0.16000000000000014,
+  "missed": [
+   "s21/fall/fall3"
+  ],
+  "false_by_scenario": {
+   "clap": 1
+  }
+ },
+ "event_reference": {
+  "detected": 14,
+  "n_fall": 15,
+  "false_alerts": 1,
+  "hours": 0.2688777777777778,
+  "fa_per_h": 3.7191619488408607
+ }
+}
