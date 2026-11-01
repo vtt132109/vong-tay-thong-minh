@@ -9,3 +9,4 @@ void startImpact(uint32_t now);
 void updateFallDetection(uint32_t now, float acc);
 void updateHealthGuard(uint32_t now);
 void cancelAlert();
+void fsmReset();

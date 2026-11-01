@@ -1326,7 +1326,7 @@ transition-duration: .001ms !important;
         <input id="hostInput" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="http://192.168.4.1" aria-describedby="hostHelp">
         <button class="btn btn-primary" id="connectBtn" type="button">Kết nối</button>
       </div>
-      <p id="hostHelp">Mở từ tệp cục bộ: nhập IP của ESP32. Khi chạy trên board, dashboard tự dùng cùng địa chỉ.</p>
+      <p id="hostHelp">Hãy mở dashboard từ chính vòng tay (<code>http://&lt;IP&gt;/</code>). Mở tệp cục bộ không còn kết nối được vì API cố ý không bật CORS (chống trang web khác điều khiển thiết bị); chỉ dùng được với <code>tools/mock_server.py</code>.</p>
     </div>
 
     <div class="shell">
@@ -1544,6 +1544,8 @@ transition-duration: .001ms !important;
                     <span class="ai-conf" id="aiConf">--</span>
                     <span class="ai-note" id="aiNote">Edge AI chưa bật trên firmware.</span>
                     <span class="ai-bar" aria-hidden="true"><i id="aiBar"></i></span>
+                    <span class="ai-note" id="aiParts">MLP -- · CNN --</span>
+                    <button class="btn" id="aiModeBtn" type="button" aria-pressed="false" disabled>Báo động bằng AI: TẮT</button>
                   </div>
                   <div class="cluster">
                     <div class="cluster-cell"><span>MPU</span><b id="mpuCluster">--</b></div>
@@ -1673,7 +1675,7 @@ transition-duration: .001ms !important;
         filteredSpo2: $("filteredSpo2"),
         rawSpo2: $("rawSpo2"),
         aiBlock: $("aiBlock"),
-        aiLabel: $("aiLabel"),
+        aiLabel: $("aiLabel"), aiParts: $("aiParts"), aiModeBtn: $("aiModeBtn"),
         aiConf: $("aiConf"),
         aiNote: $("aiNote"),
         aiBar: $("aiBar"),
@@ -2362,7 +2364,7 @@ transition-duration: .001ms !important;
           dom.aiLabel.textContent = "Chưa bật";
           dom.aiLabel.className = "ai-label is-muted";
           dom.aiConf.textContent = "--";
-          dom.aiNote.textContent = "Edge AI chưa bật trên firmware.";
+          dom.aiNote.textContent = "AI chưa có dữ liệu.";
           dom.aiBar.style.width = "0%";
         } else {
           const confRaw = num(data.ai_conf) ?? 0;
@@ -2372,6 +2374,19 @@ transition-duration: .001ms !important;
           dom.aiConf.textContent = Math.round(conf) + "%";
           dom.aiNote.textContent = tri(data.ai_fall) === true ? "AI báo ngã." : "AI không báo ngã.";
           dom.aiBar.style.width = conf.toFixed(0) + "%";
+        }
+        {
+          const pm = data ? num(data.ai_mlp) : null;
+          const pc = data ? num(data.ai_cnn) : null;
+          const us = data ? num(data.ai_us) : null;
+          const cu = data ? num(data.ai_cnn_us) : null;
+          dom.aiParts.textContent = pm === null ? "MLP -- · CNN --"
+            : "MLP " + pm.toFixed(2) + " (" + Math.round(us || 0) + " µs) · CNN " +
+              (pc !== null && pc >= 0 ? pc.toFixed(2) + " (" + Math.round(cu || 0) + " µs)" : "--");
+          const armed = data ? tri(data.ai_arm) === true : false;
+          dom.aiModeBtn.setAttribute("aria-pressed", armed ? "true" : "false");
+          dom.aiModeBtn.textContent = "Báo động bằng AI: " + (armed ? "BẬT" : "TẮT");
+          dom.aiModeBtn.disabled = !(state.mode === "online");
         }
 
         if (mpuOk === null) status(dom.mpuCluster, "--", "");
@@ -2638,7 +2653,7 @@ transition-duration: .001ms !important;
             cache: "no-store",
             credentials: "omit",
             signal: controller.signal,
-            headers: { Accept: "text/plain" },
+            headers: { Accept: "text/plain", "X-Bioband": "1" },
           });
           await response.text();
           if (base !== state.base) return false;
@@ -2900,6 +2915,14 @@ transition-duration: .001ms !important;
         dom.retryBtn.addEventListener("click", restartPolling);
         dom.bannerCancel.addEventListener("click", cancelAlert);
         dom.panelCancel.addEventListener("click", cancelAlert);
+        const aiToggle = dom.aiModeBtn;
+        if (aiToggle) {
+          aiToggle.addEventListener("click", () => {
+            const next = aiToggle.getAttribute("aria-pressed") !== "true";
+            sendCommand("/ai_mode?val=" + (next ? 1 : 0),
+              next ? "Đã BẬT báo động bằng AI." : "Đã TẮT báo động bằng AI (AI chỉ đo).", aiToggle);
+          });
+        }
         dom.testBuzzer.addEventListener("click", () => {
           sendCommand("/test_hw", "Đã gửi lệnh test còi 2 giây.", dom.testBuzzer);
         });
@@ -2989,6 +3012,7 @@ transition-duration: .001ms !important;
         fetch("/set_time?epoch=" + Math.floor(Date.now() / 1000), {
           method: "POST",
           cache: "no-store",
+          headers: { "X-Bioband": "1" },
         }).catch(() => {});
       };
       window.addEventListener("load", () => {

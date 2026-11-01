@@ -66,6 +66,13 @@ void updateButton(uint32_t now) {
 
 void updateBuzzer(uint32_t now) {
   bool on = false;
+  if (replayActive) {  // serial replay test: never sound the buzzer
+    if (buzzerActive) {
+      buzzerActive = false;
+      digitalWrite(PIN_BUZZER, LOW);
+    }
+    return;
+  }
   if (now < testBuzzerUntilMs) {
     on = true;
   } else if (state == SystemState::Countdown) {
@@ -101,6 +108,11 @@ void handleCommands(uint32_t now) {
             Serial.printf("[NVS] threshold=%.1f\n", fallThreshold);
           }
         }
+        break;
+      case WebCommandType::SetAiMode:
+        aiAlarmEnabled = cmd.value >= 0.5f;
+        saveAiMode();
+        Serial.printf("[AI] alarm mode %s\n", aiAlarmEnabled ? "ON" : "OFF");
         break;
       case WebCommandType::StartCapture:
         captureActive = true;

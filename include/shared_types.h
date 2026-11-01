@@ -26,6 +26,7 @@ enum class WebCommandType : uint8_t {
   SetThreshold = 4,
   StartCapture = 5,
   StopCapture = 6,
+  SetAiMode = 7,
 };
 
 struct TelemetrySnapshot {
@@ -62,6 +63,14 @@ struct TelemetrySnapshot {
   uint32_t ai_inference_count = 0;
   uint32_t ai_inference_us = 0;
   bool ai_fall = false;
+  float ai_prob_mlp = 0.0f;
+  float ai_prob_cnn = -1.0f;  // <0 when the CNN is not compiled in
+  uint32_t ai_cnn_us = 0;
+  uint8_t ai_selftest = 0;   // 0 not run, 1 pass, 2 fail
+  uint32_t loop_max_dt_ms = 0;
+  bool ai_armed = false;
+  float chip_c = 0.0f;  // ESP32-S3 internal temperature sensor (relative, +-several degC)
+  float ai_max_6s = 0.0f;
 };
 
 struct WebCommand {

@@ -402,8 +402,8 @@
         <div class="feature-grid">
           <article class="feature">
             <h3>Phát hiện té ngã</h3>
-            <p>Free-fall → impact → inactivity, xác nhận bằng rule-based. Countdown 10 giây để hủy, sau đó báo động tại chỗ.</p>
-            <span class="tag">MPU6050 · 25 m/s²</span>
+            <p>Hai lớp: luật free-fall → impact → bất động, và AI TinyML chạy trên chip (MLP + CNN 1D int8, trung bình xác suất). Countdown 10 giây để hủy, sau đó báo động tại chỗ.</p>
+            <span class="tag">MPU6050 · AI trên chip</span>
           </article>
           <article class="feature">
             <h3>Sinh hiệu</h3>
@@ -412,12 +412,12 @@
           </article>
           <article class="feature">
             <h3>Báo động tại chỗ</h3>
-            <p>Buzzer active và OLED cảnh báo; nút hủy trên thiết bị hoặc web. Không phụ thuộc cloud hay Telegram.</p>
-            <span class="tag">Local · no cloud</span>
+            <p>Buzzer active và OLED cảnh báo; nút hủy trên thiết bị hoặc dashboard LAN. Việc phát hiện và báo động chạy hoàn toàn trên vòng tay; MQTT chỉ để xem từ xa.</p>
+            <span class="tag">Báo động tại chỗ</span>
           </article>
           <article class="feature">
             <h3>Dashboard &amp; dữ liệu</h3>
-            <p>Web tự chứa, responsive cho PC/điện thoại; nhúng trong firmware và phục vụ tại <code>/</code>. Có capture IMU cho Edge AI.</p>
+            <p>Web tự chứa, responsive cho PC/điện thoại; nhúng trong firmware và phục vụ tại <code>/</code>. Có capture IMU có nhãn để thu dữ liệu huấn luyện.</p>
             <span class="tag">ESP32-S3 · WiFi</span>
           </article>
         </div>
@@ -447,7 +447,7 @@
           <p class="eyebrow">03 · Phần cứng</p>
           <h2 id="hardware-title">Đúng linh kiện, đúng chân.</h2>
           <p>ESP32-S3 Super Mini, bus I2C dùng chung 8/9, cảm biến quang MAX30100 và MPU6050. Pin LiPo chưa hàn; ADC pin chưa gán, sẽ cấu hình khi hàn cầu phân áp.</p>
-          <a class="text-link" href="https://github.com/vtt132109/vong-tay-thong-minh/blob/main/README.md" target="_blank" rel="noopener">Đọc handoff đầy đủ ↗</a>
+          <a class="text-link" href="https://github.com/vtt132109/vong-tay-thong-minh/blob/main/BAO_CAO.md" target="_blank" rel="noopener">Đọc báo cáo đầy đủ ↗</a>
         </div>
         <div class="pin-table" role="table" aria-label="Sơ đồ chân">
           <div role="row"><span role="cell">OLED SSD1306</span><code role="cell">0x3C</code></div>
@@ -468,7 +468,7 @@
           <ul class="checks">
             <li><span class="ok">Đã chạy</span><span>HR/SpO2 với đầu ngón tay, OLED, dashboard, WiFi 2.4 GHz và nút BOOT dự phòng.</span></li>
             <li><span class="warn">Đang hoàn thiện</span><span>Pin chưa hàn; nút ngoài đang chập LOW; độ chính xác HR/SpO2 cần validate với máy đo tham chiếu.</span></li>
-            <li><span class="muted">Chưa bật</span><span>Edge AI cần model Edge Impulse; capture IMU và pipeline dữ liệu đã có sẵn.</span></li>
+            <li><span class="ok">AI trên chip</span><span>MLP 42 đặc trưng + CNN 1D int8, huấn luyện trên dữ liệu cổ tay thật (HIFD), kiểm chứng leave-one-subject-out và chạy thử ngay trên ESP32-S3. Báo động bằng AI là công tắc tùy chọn, mặc định tắt cho đến khi thử trên người đeo thật.</span></li>
           </ul>
         </div>
       </section>

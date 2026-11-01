@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 dataset/
 include/secrets.h
+.claude/
+.pytest_cache/

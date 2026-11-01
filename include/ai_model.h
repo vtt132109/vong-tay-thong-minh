@@ -9,16 +9,17 @@
 //   Both 0: no-op.
 void aiPushSample(float ax, float ay, float az, float gx, float gy, float gz);
 
-// AI promotion guard (compile-time).
+// Runs fixture windows through the on-chip models at boot (compares with the numpy reference).
+bool aiSelfTest();
+
+// Hardware-in-the-loop helper: runs one 100x6 window (gravity-removed accel m/s^2, gyro rad/s,
+// row-major [sample][6]) through the on-chip models. pCnn is -1 when the CNN is not compiled in.
+bool aiEvalWindow(const float *win, float *pMlp, float *pCnn);
+
+// AI alarm mode is a RUNTIME switch (aiAlarmEnabled, NVS key "aiarm", POST /ai_mode?val=0|1).
 //
-// The tiny HIFD model is a research/demo backend: it was trained on a public
-// dataset captured with different hardware, placement and subjects, and a
-// synthetic/HIFD demo probability must NOT be able to raise a fall alarm.
-// Keep this at 0 until the model is validated on-device (local subjects,
-// Bio-Band hardware). The rule-based FSM stays the only alarm source while
-// this is 0. The AI fields (aiLabel/aiConfidence/aiFall) are still computed
-// and published to /data and MQTT telemetry; only the FSM promotion in
-// src/fsm.cpp is compiled out.
-#ifndef AI_PROMOTION_ENABLED
-#define AI_PROMOTION_ENABLED 0
-#endif
+// OFF (default): the AI only computes and publishes probabilities; the rule-based FSM is the sole
+//                alarm source. The models were trained on public HIFD data (different sensor,
+//                placement and subjects) and have not been validated on people wearing Bio-Band.
+// ON:            the AI may start a COUNTDOWN (src/fsm.cpp). Switch it on only for supervised tests
+//                or a demo; every alarm can still be cancelled with the button.

@@ -5,3 +5,5 @@
 
 #define WIFI_SSID ""
 #define WIFI_PASS ""
+// Optional setup-AP password (default is derived from the board MAC and printed on Serial):
+// #define AP_PASS "choose-a-password"
