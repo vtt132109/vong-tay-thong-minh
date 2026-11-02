@@ -1,6 +1,7 @@
 #include "fsm.h"
 #include "controls.h"
 #include "storage.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -22,11 +23,13 @@ void setState(SystemState next, const char *reason) {
   SystemState previous = state;
   state = next;
   stateEnteredMs = millis();
-  if (reason != nullptr) {
+  // Idle (e.g. "Huy bo") must not overwrite alarmReason: it would leak into later logs/MQTT.
+  if (reason != nullptr && next != SystemState::Idle) {
     strncpy(alarmReason, reason, sizeof(alarmReason) - 1);
     alarmReason[sizeof(alarmReason) - 1] = '\0';
   }
-  Serial.printf("[FSM] %s -> %s (%s)\n", stateName(previous), stateName(next), alarmReason);
+  Serial.printf("[FSM] %s -> %s (%s)\n", stateName(previous), stateName(next),
+                reason != nullptr ? reason : alarmReason);
 
   if (next == SystemState::Countdown) {
     countdownEndMs = stateEnteredMs + COUNTDOWN_MS;
@@ -70,17 +73,26 @@ void startImpact(uint32_t now) {
 // Rule path (always on): free-fall -> impact -> stillness check.
 // AI mode (aiAlarmEnabled, runtime toggle stored in NVS, default OFF until validated on people):
 //   A) the CNN+MLP ensemble fires (aiFall) -> COUNTDOWN straight away (~0.2 s after the impact);
+//   A') (C6) ONE model alone (max(MLP, CNN) >= AI_SINGLE_P) may fire, but only while the FSM is in
+//      FREE_FALL/IMPACT (mechanical evidence of an impact) and the AI window is fresh (<= 600 ms);
 //   B) the rule path uses a recalibrated stillness check (settle 1.5 s, window 2 s, variance < 0.8)
 //      but must be backed by the AI having seen p >= 0.5 during the last 6 s.
 // Constants come from tools/ai_lab/run_fusion.py (held-out HIFD subjects 16-21, FSM tuned on 1-15):
 // strict legacy rule alone catches 6/104 HIFD falls because people keep moving for >1 s after the
 // impact; recalibrated rule alone gives ~18 false alarms/h (claps); AI-gated gives 31/31, 1 FA.
+// Path A' numbers (PLAN.md "Ket luan F4"): nested leave-one-subject-out on HIFD, 102/104 falls,
+// FA 2 in 1.801 h (C1 without A': FA 1); with one model broken it keeps 96/97 where C1 keeps 0.
 // ---------------------------------------------------------------------------------------------
 static constexpr uint32_t AI_SETTLE_MS = 1500;
 static constexpr uint32_t AI_WINDOW_MS = 2000;
 static constexpr float AI_STILL_VAR = 0.8f;
 static constexpr float AI_MOTION_VAR = 4.0f;
 static constexpr float AI_SUPPORT_P = 0.5f;
+// C6 path A': one model alone may fire, but only with mechanical evidence of an impact.
+// t_hi = 0.95 chosen by nested leave-one-subject-out selection (21/21 folds),
+// dataset/ai_results/final_config.json -> candidates.C6.  Set to 2.0f to fall back to C1.
+static constexpr float AI_SINGLE_P = 0.95f;
+static constexpr uint32_t AI_WINDOW_FRESH_MS = 600;
 static constexpr uint32_t AI_ALERT_COOLDOWN_MS = 30000;
 static uint32_t lastAiAlertMs = 0;
 
@@ -97,13 +109,30 @@ void fsmReset() {
 void updateFallDetection(uint32_t now, float acc) {
   if (!mpuReady) return;
 
-  if (aiAlarmEnabled && aiFall &&
+  // Path A': the window must be fresh so a stale clap window cannot "hang" and fire later; the
+  // offline scorer evaluates A' once per window.  aiProbCnn is -1 when the CNN did not run.
+  const bool aiWindowFresh = (aiWindowMs != 0) &&
+      // signed difference: aiWindowMs is taken from millis() inside the same loop pass, a few ms
+      // after the caller's `now`, so an unsigned subtraction would wrap and drop that very tick.
+      ((int32_t)(now - aiWindowMs) <= (int32_t)AI_WINDOW_FRESH_MS);
+  const bool aiSingleStrong = aiWindowFresh &&
+      ((isfinite(aiProbMlp) && aiProbMlp >= AI_SINGLE_P) ||
+       (isfinite(aiProbCnn) && aiProbCnn >= AI_SINGLE_P));
+  const bool aiSingleGate = aiSingleStrong &&
+      (state == SystemState::FreeFall || state == SystemState::Impact);
+
+  if (aiAlarmEnabled && (aiFall || aiSingleGate) &&
       (state == SystemState::Idle || state == SystemState::FreeFall || state == SystemState::Impact) &&
       (lastAiAlertMs == 0 || now - lastAiAlertMs > AI_ALERT_COOLDOWN_MS)) {
     lastAiAlertMs = now;
     pendingAlertType = AlertType::Fall;
-    Serial.printf("[FSM] AI trigger p=%.3f (mlp %.3f cnn %.3f)\n", (double)aiProbability,
-                  (double)aiProbMlp, (double)aiProbCnn);
+    if (aiFall) {
+      Serial.printf("[FSM] AI trigger p=%.3f (mlp %.3f cnn %.3f)\n", (double)aiProbability,
+                    (double)aiProbMlp, (double)aiProbCnn);
+    } else {
+      Serial.printf("[FSM] AI single-model trigger mlp=%.3f cnn=%.3f thr=%.2f state=%s\n",
+                    (double)aiProbMlp, (double)aiProbCnn, (double)AI_SINGLE_P, stateName(state));
+    }
     setState(SystemState::Countdown, "Te nga (AI)");
     return;
   }
@@ -159,8 +188,9 @@ void updateFallDetection(uint32_t now, float acc) {
         float mean = sum / impactSampleCount;
         float variance = sumSq / impactSampleCount - mean * mean;
         if (variance < 0.0f) variance = 0.0f;
-        Serial.printf("[FSM] impact variance=%.3f samples=%u aiMax6s=%.2f ai=%d\n", variance,
-                      (unsigned)impactSampleCount, (double)aiMax6s, ai ? 1 : 0);
+        Serial.printf("[FSM] impact variance=%.3f samples=%u aiMax6s=%.2f ai=%d mlp=%.2f cnn=%.2f\n",
+                      variance, (unsigned)impactSampleCount, (double)aiMax6s, ai ? 1 : 0,
+                      (double)aiProbMlp, (double)aiProbCnn);
 
         if (variance < stillVar) {
           if (ai && aiMax6s < AI_SUPPORT_P) {

@@ -41,7 +41,7 @@ static constexpr uint32_t TEST_BUZZER_MS = 2000;
 static constexpr uint32_t DISPLAY_PERIOD_MS = 200;       // alert / verifying screens (blink)
 static constexpr uint32_t DISPLAY_IDLE_PERIOD_MS = 500;  // normal screen: fewer I2C stalls, less power
 #ifndef FW_VERSION
-#define FW_VERSION "2.1-ai"
+#define FW_VERSION "2.2-c6"
 #endif
 #ifndef BIO_CPU_MHZ
 #define BIO_CPU_MHZ 160  // override with -DBIO_CPU_MHZ=80|160|240 (see BAO_CAO.md, power/thermal test)

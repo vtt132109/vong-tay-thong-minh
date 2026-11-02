@@ -49,6 +49,7 @@ uint8_t aiSelfTestResult = 0;
 volatile bool replayActive = false;
 bool aiAlarmEnabled = false;
 float aiMax6s = 0.0f;
+uint32_t aiWindowMs = 0;
 bool ppgMotion = false;
 
 SystemState state = SystemState::Idle;

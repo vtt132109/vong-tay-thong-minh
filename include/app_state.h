@@ -57,6 +57,7 @@ extern float aiProbCnn;
 extern uint32_t aiCnnUs;
 extern bool aiAlarmEnabled;  // runtime: may the AI start an alarm countdown? (NVS, default off)
 extern float aiMax6s;         // max ensemble probability over the last 6 s
+extern uint32_t aiWindowMs;   // millis() of the last completed AI window (0 = none yet); freshness latch for path A'
 extern volatile bool replayActive;  // serial replay test mode (virtual MPU, buzzer muted)
 extern uint8_t aiSelfTestResult;  // 0 not run, 1 pass, 2 fail
 extern bool ppgMotion;

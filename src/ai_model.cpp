@@ -282,6 +282,7 @@ static void runTinyAi(uint32_t now) {
   aiConfidence = (p >= 0.5f) ? p : (1.0f - p);  // max(p, 1-p)
   aiProbability = p;
   aiFall = fall;
+  aiWindowMs = now;  // freshness latch for FSM path A' (single-model trigger)
 
   if (now - tinyLastLogMs >= TINY_LOG_MIN_MS && (fire || p > 0.2f || now - tinyLastLogMs >= 5000)) {
     tinyLastLogMs = now;
