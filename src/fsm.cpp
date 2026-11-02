@@ -11,7 +11,6 @@ const char *stateName(SystemState s) {
     case SystemState::Inactivity: return "INACTIVITY";
     case SystemState::Countdown: return "COUNTDOWN";
     case SystemState::Alarm: return "ALARM";
-    case SystemState::Snooze: return "SNOOZE";
     case SystemState::PanicSos: return "PANIC_SOS";
   }
   return "IDLE";
@@ -32,15 +31,9 @@ void setState(SystemState next, const char *reason) {
     countdownEndMs = stateEnteredMs + COUNTDOWN_MS;
     healthAbnormal = false;
     healthAbnormalSinceMs = 0;
-  } else if (next == SystemState::Snooze) {
-    snoozeEndMs = stateEnteredMs + SNOOZE_MS;
+  } else if (next == SystemState::Idle) {
     buzzerActive = false;
     digitalWrite(PIN_BUZZER, LOW);
-    healthAbnormal = false;
-    healthAbnormalSinceMs = 0;
-    impactSampleCount = 0;
-    freeFallLowCount = 0;
-  } else if (next == SystemState::Idle) {
     freeFallLowCount = 0;
     impactSampleCount = 0;
     impactExtended = false;
@@ -195,12 +188,6 @@ void updateFallDetection(uint32_t now, float acc) {
       }
       break;
 
-    case SystemState::Snooze:
-      if (now >= snoozeEndMs) {
-        setState(SystemState::Idle);
-      }
-      break;
-
     default:
       break;
   }
@@ -247,6 +234,6 @@ void updateHealthGuard(uint32_t now) {
 void cancelAlert() {
   if (state == SystemState::Countdown || state == SystemState::Inactivity ||
       state == SystemState::Alarm || state == SystemState::PanicSos) {
-    setState(SystemState::Snooze);
+    setState(SystemState::Idle, "Huy bo");
   }
 }

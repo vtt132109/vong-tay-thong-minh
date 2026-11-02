@@ -64,7 +64,6 @@ extern bool ppgMotion;
 extern SystemState state;
 extern uint32_t stateEnteredMs;
 extern uint32_t countdownEndMs;
-extern uint32_t snoozeEndMs;
 extern AlertType pendingAlertType;
 extern char alarmReason[48];
 extern float fallThreshold;

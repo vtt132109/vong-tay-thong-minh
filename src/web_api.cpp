@@ -78,7 +78,6 @@ void publishTelemetry(uint32_t now) {
   t.ppg_motion = ppgMotion;
   t.total_fall_events = fallCount;
   t.countdown_remaining_ms = (state == SystemState::Countdown && countdownEndMs > now) ? (countdownEndMs - now) : 0;
-  t.snooze_remaining_ms = (state == SystemState::Snooze && snoozeEndMs > now) ? (snoozeEndMs - now) : 0;
   t.loop_fps = loopFps;
   t.steps = stepCount;
   t.distance_km = stepCount * 0.0007f;
@@ -145,7 +144,7 @@ static void handleRoot() {
 static void handleApi() {
   sendCors();
   server.send(200, "text/plain",
-              "Bio-Band API\n/data\n/cancel (POST)\n/test_hw (POST)\n/clear_nvs (POST)\n/set_thresh?val=25 (POST)\n/set_time?epoch=... (POST)\n/capture?seconds=60 (POST/GET)\n/ai_mode?val=0|1 (POST)\n/wifi (GET page; saves via POST /wifi_save)\n(POST needs header X-Bioband: 1)\n");
+              "Bio-Band API\n/data\n/cancel (POST)\n/test_hw (POST)\n/clear_nvs (POST)\n/set_thresh?val=25 (POST)\n/set_time?epoch=... (POST)\n/capture?seconds=60 (POST/GET)\n/ai_mode?val=0|1 (POST)\n/ota_pull?url=https://...&sha256=... (POST)\n/wifi (GET page; saves via POST /wifi_save)\n(POST needs header X-Bioband: 1)\n");
 }
 
 void fillTelemetryJson(JsonDocument &doc, const TelemetrySnapshot &t) {
@@ -168,7 +167,6 @@ void fillTelemetryJson(JsonDocument &doc, const TelemetrySnapshot &t) {
   doc["ram_pct"] = t.ram_pct;
   doc["buzzer"] = t.buzzer_active;
   doc["motor"] = false;
-  doc["snooze_sec"] = t.snooze_remaining_ms / 1000;
   doc["cd_sec"] = t.countdown_remaining_ms / 1000;
   doc["mpu"] = t.mpu_connected;
   doc["finger"] = t.finger_detected;

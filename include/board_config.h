@@ -29,7 +29,6 @@ static constexpr uint32_t IMPACT_WINDOW_MS = 800;
 static constexpr uint32_t INACTIVITY_WINDOW_MS = 3000;
 static constexpr uint32_t IMPACT_SETTLE_MS = 200;
 static constexpr uint32_t COUNTDOWN_MS = 10000;
-static constexpr uint32_t SNOOZE_MS = 20000;
 static constexpr uint32_t HEALTH_CONFIRM_MS = 10000;
 static constexpr uint32_t HEALTH_WARMUP_MS = 20000;
 static constexpr uint32_t BUTTON_LONG_MS = 3000;
@@ -38,7 +37,7 @@ static constexpr uint32_t TEST_BUZZER_MS = 2000;
 static constexpr uint32_t DISPLAY_PERIOD_MS = 200;       // alert / verifying screens (blink)
 static constexpr uint32_t DISPLAY_IDLE_PERIOD_MS = 500;  // normal screen: fewer I2C stalls, less power
 #ifndef FW_VERSION
-#define FW_VERSION "2.0-ai"
+#define FW_VERSION "2.1-ai"
 #endif
 #ifndef BIO_CPU_MHZ
 #define BIO_CPU_MHZ 160  // override with -DBIO_CPU_MHZ=80|160|240 (see BAO_CAO.md, power/thermal test)

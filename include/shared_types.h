@@ -9,7 +9,6 @@ enum class SystemState : uint8_t {
   Inactivity,
   Countdown,
   Alarm,
-  Snooze,
   PanicSos,
 };
 
@@ -48,7 +47,6 @@ struct TelemetrySnapshot {
   bool ppg_motion = false;
   uint32_t total_fall_events = 0;
   uint32_t countdown_remaining_ms = 0;
-  uint32_t snooze_remaining_ms = 0;
   float loop_fps = 0.0f;
   uint32_t steps = 0;
   float distance_km = 0.0f;

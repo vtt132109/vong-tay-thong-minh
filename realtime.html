@@ -1381,7 +1381,7 @@ transition-duration: .001ms !important;
             <small id="alertCodeLabel">CHƯA KẾT NỐI</small>
           </div>
           <div class="alert-action">
-            <button class="btn btn-cancel" id="bannerCancel" type="button" disabled>HỦY / SNOOZE</button>
+            <button class="btn btn-cancel" id="bannerCancel" type="button" disabled>HỦY</button>
           </div>
         </section>
 
@@ -1492,7 +1492,7 @@ transition-duration: .001ms !important;
               </div>
 
               <div class="action-block">
-                <button class="btn btn-cancel btn-block" id="panelCancel" type="button" disabled>HỦY / SNOOZE</button>
+                <button class="btn btn-cancel btn-block" id="panelCancel" type="button" disabled>HỦY</button>
                 <div class="secondary-actions">
                   <button class="btn" id="testBuzzer" type="button" disabled>Test còi 2 giây</button>
                   <button class="btn btn-danger" id="clearData" type="button" disabled>Xóa dữ liệu…</button>
@@ -1761,7 +1761,7 @@ transition-duration: .001ms !important;
           tone: "urgent",
           title: "Chuẩn bị báo động",
           explain: "Nghi ngã và bất động. Hủy ngay nếu người đeo vẫn an toàn.",
-          detail: "Còi sẽ báo động khi hết giờ. Bấm HỦY / SNOOZE để dừng.",
+          detail: "Còi sẽ báo động khi hết giờ. Bấm HỦY để dừng.",
           code: "!",
           codeLabel: "TỰ BÁO ĐỘNG",
           kicker: "CẢNH BÁO",
@@ -1770,7 +1770,7 @@ transition-duration: .001ms !important;
           tone: "urgent",
           title: "Báo động ngã",
           explain: "Thiết bị đang báo động. Kiểm tra người đeo ngay.",
-          detail: "Bấm HỦY / SNOOZE để tạm dừng còi báo động.",
+          detail: "Bấm HỦY để tạm dừng còi báo động.",
           code: "ALM",
           codeLabel: "BÁO ĐỘNG",
           kicker: "CẢNH BÁO",
@@ -1788,7 +1788,7 @@ transition-duration: .001ms !important;
           tone: "urgent",
           title: "SOS khẩn cấp",
           explain: "Nút SOS được giữ 3 giây. Kiểm tra người đeo ngay.",
-          detail: "Bấm HỦY / SNOOZE để tạm dừng còi báo động.",
+          detail: "Bấm HỦY để tạm dừng còi báo động.",
           code: "SOS",
           codeLabel: "KHẨN CẤP",
           kicker: "CẢNH BÁO",
@@ -2170,7 +2170,7 @@ transition-duration: .001ms !important;
 
         if (live && rawState === "COUNTDOWN" && hasData) {
           const seconds = Math.max(0, num(data.cd_sec) ?? 0);
-          detail = "Còn " + Math.round(seconds) + " giây trước khi còi báo động. Bấm HỦY / SNOOZE để dừng.";
+          detail = "Còn " + Math.round(seconds) + " giây trước khi còi báo động. Bấm HỦY để dừng.";
           code = String(Math.round(seconds)).padStart(2, "0");
           codeLabel = "TỰ BÁO ĐỘNG";
         } else if (live && rawState === "SNOOZE" && hasData) {
@@ -2184,7 +2184,7 @@ transition-duration: .001ms !important;
         } else if (live && rawState === "IDLE" && hasData) {
           detail = safeDetail(data);
         } else if (live && rawState === "PANIC_SOS" && hasData) {
-          detail = "Nút SOS được giữ 3 giây. Bấm HỦY / SNOOZE để tạm dừng còi.";
+          detail = "Nút SOS được giữ 3 giây. Bấm HỦY để tạm dừng còi.";
         }
 
         if (offline && hasData) {
@@ -2465,13 +2465,13 @@ transition-duration: .001ms !important;
         if (rawState === "COUNTDOWN") {
           const seconds = Math.max(0, Math.round(num(data.cd_sec) ?? 0));
           bucket = seconds <= 5 ? String(seconds) : "early";
-          message = "Cảnh báo nghi ngã. Tự báo động sau " + seconds + " giây. Nhấn HỦY hoặc SNOOZE để dừng.";
+          message = "Cảnh báo nghi ngã. Tự báo động sau " + seconds + " giây. Nhấn HỦY để dừng.";
         } else if (rawState === "ALARM") {
           bucket = "alarm";
-          message = "Báo động ngã đang hoạt động. Nhấn HỦY hoặc SNOOZE để tạm dừng.";
+          message = "Báo động ngã đang hoạt động. Nhấn HỦY để tạm dừng.";
         } else if (rawState === "PANIC_SOS") {
           bucket = "sos";
-          message = "SOS khẩn cấp. Nhấn HỦY hoặc SNOOZE để tạm dừng.";
+          message = "SOS khẩn cấp. Nhấn HỦY để tạm dừng.";
         }
 
         if (!message) {

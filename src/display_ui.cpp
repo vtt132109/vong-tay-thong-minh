@@ -204,16 +204,6 @@ static void drawAlarm(uint32_t now) {
   display.display();
 }
 
-static void drawSnooze(uint32_t now) {
-  drawTopBar();
-  centerText("SNOOZE", 11, 2);
-  int sec = (int)((snoozeEndMs > now) ? ((snoozeEndMs - now + 999) / 1000) : 0);
-  char buf[8];
-  snprintf(buf, sizeof(buf), "%02ds", sec);
-  centerText(buf, 27, 3);
-  centerText("TAM KHOA", 53, 1);
-  display.display();
-}
 
 static void drawVerifying(uint32_t now) {
   drawTopBar();
@@ -300,10 +290,6 @@ void renderDisplay(uint32_t now) {
   }
   if (state == SystemState::Alarm || state == SystemState::PanicSos) {
     drawAlarm(now);
-    return;
-  }
-  if (state == SystemState::Snooze) {
-    drawSnooze(now);
     return;
   }
   if (state == SystemState::FreeFall || state == SystemState::Impact ||

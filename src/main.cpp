@@ -54,7 +54,6 @@ bool ppgMotion = false;
 SystemState state = SystemState::Idle;
 uint32_t stateEnteredMs = 0;
 uint32_t countdownEndMs = 0;
-uint32_t snoozeEndMs = 0;
 AlertType pendingAlertType = AlertType::Fall;
 char alarmReason[48] = "Te nga";
 float fallThreshold = DEFAULT_FALL_THRESHOLD;
@@ -276,6 +275,12 @@ static void serialCommands() {
         saveSteps();
         Serial.printf("COUNTS falls=%lu steps=%lu\n", f, s);
       }
+    } else if (!replayActive && strncmp(line, "#AIARM,", 7) == 0) {
+      // Maintenance over USB: "#AIARM,0|1" sets and saves the AI alarm mode (same as the dashboard toggle).
+      aiAlarmEnabled = line[7] == '1';
+      saveAiMode();
+      fsmReset();
+      Serial.printf("AIARM %d\n", aiAlarmEnabled ? 1 : 0);
     } else if (strcmp(line, "#HTTPSELF") == 0) {
       httpSelfTest();
     } else if (strcmp(line, "#REPLAY") == 0) {
@@ -531,7 +536,7 @@ void loop() {
   updateHealthGuard(now);
   updateBuzzer(now);
 
-  const bool fastDisplay = state != SystemState::Idle && state != SystemState::Snooze;
+  const bool fastDisplay = state != SystemState::Idle;
   const uint32_t displayPeriod = (fastDisplay || buttonTestUntilMs > now) ? DISPLAY_PERIOD_MS
                                                                           : DISPLAY_IDLE_PERIOD_MS;
   if (now - lastDisplayMs >= displayPeriod) {

@@ -86,7 +86,7 @@ python tools/monitor_serial.py            # tự tìm cổng; --seconds N, --no-
 ## 6. Hành vi firmware
 
 - Vòng lặp 20 ms (50 Hz) trên Core 1; mạng, HTTP và MQTT trên Core 0. Telemetry bảo vệ bằng mutex; lệnh đi qua hàng đợi.
-- **FSM**: `IDLE → FREE_FALL → IMPACT → COUNTDOWN (10 s) → ALARM → SNOOZE (20 s)`. Ngưỡng va đập 25 m/s² (chỉnh được). Hằng số gốc đòi bất động 3 giây ngay sau va đập; trên HIFD chỉ 6/104 ca ngã thỏa vì người ngã còn cử động hơn 1 giây (xem `BAO_CAO.md`).
+- **FSM**: `IDLE → FREE_FALL → IMPACT → COUNTDOWN (10 s) → ALARM`; nhấn nút hủy thì về IDLE ngay (không còn trạng thái SNOOZE). Ngưỡng va đập 25 m/s² (chỉnh được). Hằng số gốc đòi bất động 3 giây ngay sau va đập; trên HIFD chỉ 6/104 ca ngã thỏa vì người ngã còn cử động hơn 1 giây (xem `BAO_CAO.md`).
 - **Chế độ báo động bằng AI** (tắt mặc định): (A) tổ hợp AI ≥ 0,87 → đếm ngược ngay (~0,2 s sau va đập); (B) đường luật hiệu chỉnh lại (ổn định 1,5 s, cửa sổ 2 s, phương sai < 0,8) nhưng phải được AI hỗ trợ (p ≥ 0,5 trong 6 giây gần nhất). Có cooldown 30 giây sau mỗi lần AI báo.
 - **Health guard**: HR < 50 hoặc > 120 hoặc SpO2 < 90 liên tục 10 giây, sau 20 giây làm nóng kể từ lúc đặt ngón tay.
 - **Hiệu chỉnh gyro** khi khởi động nếu cổ tay đang yên (1 giây, lưu trong RAM).
