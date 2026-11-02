@@ -98,3 +98,85 @@ Không có người tham gia nên chưa làm. Công cụ đã sẵn sàng.
 3. (B+C) Thử ngã trên đệm có giám sát khi đã bật báo động bằng AI; ghi `[TINY-AI]` và `/data` để có số liệu thật đầu tiên.
 4. (B+C) Hàn pin, đo dòng, thử PPG ở cổ tay.
 5. (B) Nếu có người: GĐ E.
+
+## Giai đoạn tiếp theo (kế hoạch chi tiết)
+
+> Lập 2026-11-02. Chỉ gồm việc Claude (C) làm được **không cần người đeo và không cần phần cứng mới**. Code/tài liệu giao Sonnet, việc đồng bộ tài liệu cơ học giao Haiku (theo `CLAUDE.md`).
+> **Điều kiện trước:** working tree đang có thay đổi chưa commit của việc khác (OTA pull: `src/main.cpp`, `src/web_api.cpp`, `src/display_ui.cpp`, `include/board_config.h`, `platformio.ini`, …). Hỏi người dùng commit/chốt phần đó **trước** khi bắt đầu N4, N5 để diff mỗi việc sạch. N1–N3 không chạm các file đó nên làm ngay được.
+> Quy tắc chung: không chạy hai `pio run` cùng lúc; COM13 chỉ một công cụ dùng tại một thời điểm; không bật báo động AI, không còi, không replay ngã nếu chưa báo người dùng; không commit nếu chưa được yêu cầu.
+
+### Thứ tự và song song
+
+| Việc | File chạm | Song song? |
+|---|---|---|
+| N1 E2 ghi liên tục + tóm tắt báo nhầm/giờ | `tools/wear_log.py` (mới), `tests/test_wear_log.py` (mới) | Song song với N2, N3 |
+| N2 G4 bộ câu hỏi giám khảo | `docs/HOI_DAP_GIAM_KHAO.md` (mới) | Song song với N1, N3 |
+| N3 G3 kịch bản demo + kiểm tra trước demo | `docs/DEMO.md` (mới), `tools/demo_check.py` (mới), `tests/test_demo_check.py` (mới) | Song song với N1, N2 |
+| N4 OLED cập nhật một phần | `src/display_ui.cpp`, `include/display_ui.h`, `src/main.cpp` | Sau điều kiện trước; viết code song song N5 được, **build/nạp tuần tự** |
+| N5 Chuẩn bị mã `PIN_BATTERY_ADC` | `include/board_config.h`, `src/sensors.cpp`, `platformio.ini` (chỉ chú thích) | Như N4 |
+| N6 Đồng bộ tài liệu | `tools/README.md`, `README.md`, `BAO_CAO.md`, `CLAUDE_HANDOFF.md`, `PLAN.md` | Cuối cùng, tuần tự |
+
+Không có hai việc nào chung file, trừ N6 (gom mọi chỉnh sửa tài liệu chung vào một chỗ để tránh xung đột). N1/N3 dùng file test riêng, không sửa `tests/test_tools.py`.
+
+### N1 — E2: ghi liên tục khi đeo kèm xác suất AI (Sonnet, ~3 giờ)
+
+Mục đích: khi có người đeo (kể cả chính người làm), có ngay số **báo nhầm/giờ thật** — chỉ tiêu còn thiếu quan trọng nhất. Không cần sửa firmware: `/data` đã có `ai_n`, `ai_p`, `ai_mlp`, `ai_cnn`, `ai_thr`, `ai_max6`, `ai_arm`, `state`, `acc`, `steps`, `jit`; log Serial `[TINY-AI]` in mọi cửa sổ có p > 0,2 (`TINY_LOG_MIN_MS` 400 < chu kỳ 500 ms) nên đủ để đếm báo nhầm ở mọi ngưỡng ≥ 0,2. MQTT chỉ 1 Hz (mất một nửa cửa sổ) → không dùng làm nguồn chính.
+
+- [ ] `tools/wear_log.py record --host <IP|bioband.local> --out <csv> [--hours H]`: GET `/data` mỗi 0,2 s, mỗi giá trị `ai_n` mới ghi một dòng (`t_iso, t_rel_s, ai_n, p, mlp, cnn, thr, max6, ai_arm, state, acc, steps, jit`); đếm cửa sổ hụt khi `ai_n` nhảy > 1; tự nối lại khi lỗi HTTP (ghi khoảng hở); `flush` mỗi dòng; Ctrl+C an toàn; dòng đầu ghi chú `fw`, `ai_self`, `cpu_mhz`, ngưỡng. Chỉ dùng GET, không gửi lệnh nào.
+- [ ] Nguồn thay thế `--port COMx`: đọc Serial không reset (`dtr=rts=False`, như `live_ai.py`), phân tích `[TINY-AI]` và dòng chuyển trạng thái FSM; ghi rõ trong tệp là "chỉ cửa sổ p > 0,2".
+- [ ] Đánh dấu hoạt động: người vận hành gõ nhãn + Enter (`ngoi`, `vo tay`, `di bo`, `ngu`…) → tệp `<out>_marks.csv` (thời điểm, nhãn).
+- [ ] `tools/wear_log.py summarize <csv> [--thr 0.87] [--merge 3] [--json out.json]`: số giờ có dữ liệu (bỏ khoảng hở > 5 s), % cửa sổ hụt, số sự kiện báo (gộp < 3 s như `evalx.merge_fires`), báo nhầm/giờ + giới hạn trên Poisson 95 % (giống `evalx.poisson_upper`; import nếu nhẹ, nếu không thì viết lại và test khớp), bảng quét ngưỡng 0,5/0,6/0,7/0,8/0,87/0,9/0,95, số lần FSM vào `COUNTDOWN`, 10 sự kiện p cao nhất kèm nhãn đánh dấu gần nhất (phục vụ phân tích ca lỗi như F4).
+- [ ] `tests/test_wear_log.py`: CSV tổng hợp biết trước đáp án (số sự kiện, gộp 3 s, giờ, hụt cửa sổ), parser dòng `[TINY-AI]`, quét ngưỡng đơn điệu giảm, Poisson khớp `evalx`.
+- **Kiểm tra:** `python -m pytest tests -q` (8 test cũ + test mới đều qua). Thử thật 2 phút, board nằm yên trên bàn, AI tắt: `record --host <IP> --minutes 2` → ~240 dòng, hụt < 2 %, 0 sự kiện ở 0,87; `summarize` chạy ra bảng. Thử `--port COM13` 1 phút khi không có công cụ nào khác giữ cổng.
+- **Hoàn thành khi:** test qua; chạy thử thật đạt các số trên; `--help` có ví dụ tiếng Việt/Anh ngắn.
+- **Rủi ro hồi quy:** gần như không (công cụ mới, chỉ đọc). Chú ý poll 5 Hz không làm `jit` tăng (so `jit` trước/sau trong lúc chạy; nếu tăng thì hạ xuống 2,5 Hz — vẫn ≥ 1 lần mỗi cửa sổ 0,5 s).
+- Ngoài phạm vi: ghi IMU thô trong lúc đeo mà vẫn giữ phát hiện ngã (chế độ `capture` hiện tắt phát hiện) → để GĐ E4 khi có người.
+
+### N2 — G4: bộ câu hỏi giám khảo (Sonnet, ~2 giờ)
+
+- [ ] `docs/HOI_DAP_GIAM_KHAO.md`: 20–25 câu, mỗi câu trả lời 2–4 câu + số liệu + trỏ mục `BAO_CAO.md`. Nhóm: (a) AI/dữ liệu — khác biệt miền HIFD ↔ MPU6050, mẫu nhỏ và khoảng tin cậy, vì sao không chỉ dùng ngưỡng (FSM gốc 6/104), vì sao MLP + CNN, int8 có làm sai không (sai lệch 0,0015, HIL 1942 cửa sổ), vì sao LOSO và đánh giá theo sự kiện, ngưỡng 0,87 chọn thế nào và vì sao hơi lạc quan, vì sao AI mặc định TẮT, nguồn báo nhầm (vỗ tay), ngã chậm/bất tỉnh; (b) hệ thống — bảo mật MQTT (chỉ publish, không lệnh điều khiển), HTTP `X-Bioband`, mật khẩu AP theo MAC, OTA có sha256, quyền riêng tư dữ liệu sức khỏe, pin chưa đo, MAX30100 ở ngón tay; (c) đóng góp, chi phí, hướng phát triển.
+- [ ] Mục "Câu hỏi bẫy và điều không được nói" (không khẳng định độ chính xác y tế; không nói "đã thử trên người cao tuổi").
+- **Kiểm tra:** mọi con số trong tệp phải tìm thấy trong `BAO_CAO.md` hoặc `docs/results_tables.md` (người làm grep từng số, liệt kê ở cuối tệp nguồn của từng số); không mâu thuẫn mục 6 và 11.
+- **Hoàn thành khi:** đủ các chủ đề trong G4 của PLAN, mỗi số có nguồn. **Rủi ro:** chỉ là sai số liệu → chặn bằng bước grep.
+
+### N3 — G3: kịch bản demo trực tiếp + kiểm tra trước demo (Sonnet, ~2,5 giờ)
+
+- [ ] `docs/DEMO.md`: (1) chuẩn bị mang theo (board, cáp, laptop, hotspot 2,4 GHz, đệm dày, người giám sát); (2) checklist T-30 phút; (3) kịch bản 3–5 phút có lời thoại: OLED + HR/SpO2 đặt ngón tay → dashboard LAN (xác suất MLP/CNN, thời gian suy luận) → lắc/vỗ cổ tay khi AI TẮT để thấy p tăng mà không báo → bật AI trên dashboard → ngã trên đệm có giám sát (báo trước khán giả có còi) → đếm ngược 10 s → bấm nút BOOT hủy → dashboard từ xa qua MQTT → **tắt AI lại**; (4) phương án dự phòng: không có WiFi → AP `BioBand-Setup` 192.168.4.1 + `/wifi`; broker MQTT lỗi → chỉ dashboard LAN; ngã không kích hoạt → giải thích ngưỡng + `tools/live_ai.py`, hoặc video dự phòng (G2); (5) sau demo: tắt AI, hỏi người dùng có khôi phục bộ đếm `falls` không.
+- [ ] `tools/demo_check.py --host <IP> [--mqtt]`: **chỉ đọc** (GET `/data` hai lần cách 2 s, tùy chọn `mqtt_peek.peek()`), in PASS/WARN/FAIL: `/data` trả lời và độ trễ, `fw`, `ai_self` đạt, `mpu`/`max30102` có, `ai_n` tăng, `jit` < 40 ms, `chip_c` < 60 °C, `ai_arm` (WARN nếu đang BẬT trước giờ demo), telemetry MQTT mới < 5 s. Mã thoát 0/1. Tách hàm thuần `evaluate(snap1, snap2, mqtt) -> list` để test. Kiểm tra kiểu dữ liệu thật của `ai_self` trong `web_api.cpp` trước khi viết.
+- [ ] `tests/test_demo_check.py`: snapshot giả cho các ca PASS/FAIL/WARN.
+- **Kiểm tra:** pytest qua; chạy `demo_check.py --host <IP>` với board thật → PASS hết (AI đang tắt). Không POST, không bật AI, không còi.
+- **Hoàn thành khi:** người không biết dự án đọc `DEMO.md` làm theo được; `demo_check` chạy thật PASS. **Rủi ro:** không (file mới, chỉ đọc).
+
+### N4 — OLED cập nhật một phần, bỏ độ trễ ~35 ms (Sonnet, ~3 giờ, cần nạp COM13)
+
+Nguyên nhân: `display.display()` gửi cả 1024 byte qua I2C (Adafruit nâng 400 kHz trong lúc gửi) → chặn vòng 50 Hz ~35 ms mỗi lần làm mới (`jit` = 35 ms trong BAO_CAO mục 9). Cách sửa: vẽ vào bộ đệm như cũ (chỉ tốn CPU), nhưng gửi **theo trang (8 trang × 128 byte), chỉ trang thay đổi, tối đa 2 trang mỗi vòng 20 ms**.
+
+- [ ] `display_ui.cpp`: bỏ `display.display()` trong các hàm `draw*` (trừ `renderBootScreen` và màn hình setup chạy trước `loop`); thêm bản sao bộ đệm đã gửi (1 KB) và hàm `displayFlushStep()`: so trang với bản đã gửi, gửi trang khác bằng lệnh địa chỉ cột/trang (0x21, 0x22) + dữ liệu chia khúc ≤ 32 byte qua `Wire`, `Wire.setClock(400000)` trong lúc gửi rồi trả về 100 kHz (MAX30100 cần 100 kHz). Chỉ cho `renderDisplay` vẽ khung mới khi khung trước đã gửi xong (tránh xé hình).
+- [ ] `display_ui.h`: khai báo `displayFlushStep()`. `main.cpp`: gọi `displayFlushStep()` mỗi vòng sau `renderDisplay`; không đổi chu kỳ 200/500 ms.
+- [ ] Cờ build `-DOLED_PARTIAL=0` để quay về `display.display()` cũ nếu có sự cố (mặc định 1).
+- **Kiểm tra:** `pio run` (một mình) → nạp COM13 → `python tools/monitor_serial.py --seconds 60`: `[SELFTEST] PASS`, dòng `[DATA] … jit=` ≤ 26 ms (trước: 35), `fps` ≈ 50; so `jit` với `-DOLED_PARTIAL=0` cùng phiên. (B) nhìn OLED 1 phút: đồng hồ chạy giây, không xé/không sót chữ; màn hình LEAD-OFF ↔ chính khi đặt/nhấc ngón tay. Màn hình COUNTDOWN/ALARM (đảo màu toàn bộ, 8 trang/khung → 4 vòng = 80 ms < 200 ms) chỉ kiểm bằng `#REPLAY` có tắt còi **sau khi hỏi người dùng**, nếu không thì kiểm bằng đọc code.
+- **Hoàn thành khi:** `jit` ≤ 26 ms ổn định 60 s, không lỗi hiển thị, CI build qua; cập nhật số đo vào N6.
+- **Rủi ro hồi quy:** màn hình cảnh báo nhấp nháy chậm/xé hình (đã giảm bằng giới hạn "vẽ khi gửi xong" + cờ quay lui); tranh chấp I2C với MPU/MAX: không có vì cùng một task `loop`, nhưng phải trả clock về 100 kHz sau mỗi trang (nếu quên, MAX30100 đọc lỗi → kiểm `HR`/`SpO2` vẫn ra khi đặt ngón tay).
+
+### N5 — Chuẩn bị mã cho `PIN_BATTERY_ADC` (Sonnet, ~1 giờ, chỉ build)
+
+Hiện trạng: `readBatteryVoltage()` đã có (8 mẫu, ×2), `lipoPercent()` có bảng LUT, OLED hiện `--` khi chưa có pin. Còn thiếu: chọn chân không cần sửa code, hiệu chuẩn, lọc nhiễu, phát hiện "chưa hàn pin".
+
+- [ ] `board_config.h`: `#ifndef BIO_BATTERY_PIN #define BIO_BATTERY_PIN -1`, `PIN_BATTERY_ADC = BIO_BATTERY_PIN`; `BIO_BATTERY_DIVIDER` (mặc định 2,0), `BIO_BATTERY_CAL` (mặc định 1,0); `static_assert` chân là -1 hoặc ADC1 GPIO 1–10 và không trùng 0/2/3/8/9.
+- [ ] `sensors.cpp`: đặt suy hao 11 dB một lần (`analogSetPinAttenuation`), lấy 16 mẫu bỏ min/max, nhân hệ số chia và `CAL`, lọc EMA (α ≈ 0,2 ở 1 Hz) để % không nhảy; điện áp < 2,5 V → trả 0 (coi như chưa có pin, OLED vẫn `--`).
+- [ ] `platformio.ini`: chỉ thêm dòng chú thích hướng dẫn `-DBIO_BATTERY_PIN=1 -DBIO_BATTERY_CAL=…` và cách tính `CAL = V_đồng_hồ / V_báo` (không đổi cờ build đang dùng).
+- **Kiểm tra:** `pio run` mặc định (hành vi không đổi: `batt=0.00V` trên `[DATA]`), rồi `pio run` với `PLATFORMIO_BUILD_FLAGS="-DBIO_BATTERY_PIN=1"` — **chỉ build, không nạp**; build sai chân (vd. 8) phải báo lỗi `static_assert`. Có thể nạp bản mặc định cùng lúc nạp N4 (một lần nạp).
+- **Hoàn thành khi:** hai bản build qua, bản mặc định chạy y như cũ; hướng dẫn hiệu chuẩn có trong chú thích. **Rủi ro:** thấp (mặc định -1 giữ nguyên đường code cũ). Việc (B) còn lại không đổi: hàn pin, cầu chia, kiểm backfeed TP4057.
+
+### N6 — Đồng bộ tài liệu (Haiku, ~30 phút, sau N1–N5)
+
+- [ ] `tools/README.md`: mục `wear_log.py` và `demo_check.py`. `README.md`: link `docs/DEMO.md`, `docs/HOI_DAP_GIAM_KHAO.md`. `CLAUDE_HANDOFF.md` mục 5: lệnh mới.
+- [ ] `BAO_CAO.md` mục 9/11/12: thay câu "OLED chặn ~35 ms" bằng số `jit` đo được sau N4; mục 12 bỏ ý "OLED cập nhật một phần" nếu N4 xong; nêu công cụ đo báo nhầm/giờ sẵn sàng (E2). Tạo lại `BAO_CAO.docx` bằng `tools/md_to_docx.py` chỉ khi người dùng muốn.
+- [ ] `PLAN.md`: tích E2, G4, phần (C) của G3 và dòng OLED; ghi QAT/C5 là "đã cân nhắc, không làm" (lý do bên dưới).
+- **Kiểm tra:** link trong Markdown trỏ đúng file; số liệu khớp kết quả đo.
+
+### Loại hoặc hoãn
+
+- **QAT cho CNN — loại.** Lượng tử hóa sau huấn luyện đã gần như không mất gì (sai lệch xác suất trung bình float↔int8 0,0015; HIL khớp numpy). QAT phải huấn luyện lại, sinh lại header, chạy lại self-test + HIL 1942 cửa sổ: tốn công, có rủi ro, không có độ chính xác để lấy lại. Tối ưu SIMD cho CNN cũng không cần (4,2 ms/500 ms < 1 % CPU).
+- **C5 cửa sổ 1,5/3 s — hoãn.** Đổi hợp đồng cửa sổ kéo theo bộ đệm firmware, đặc trưng, header tự sinh, self-test, HIL; chưa có bằng chứng cửa sổ 2 s là điểm yếu. Chỉ xem lại sau GĐ E nếu dữ liệu thật cho thấy bỏ sót/trễ do độ dài cửa sổ (khi đó làm trước dạng nghiên cứu ngoại tuyến LOSO, không đụng firmware).
+- **Hoãn tới khi có pin/người:** cảnh báo pin yếu trên dashboard (cần pin thật để chọn ngưỡng); ghi IMU thô khi đeo (E4).
