@@ -1,0 +1,1848 @@
+{
+ "generated_by": "scratchpad/shift_check.py (read-only: loads final_models.pkl, loso_*.npz, cached fw windows, device logs; nothing trained, no serial port, no firmware touched)",
+ "date": "2026-11-02",
+ "question": "Is there a concrete firmware-vs-training pipeline mismatch that could explain MLP/CNN disagreement on the real wrist?",
+ "verdict": "no_mismatch_found_domain_shift_likely",
+ "verdict_explanation": "No axis-order, sign, unit, gravity-recursion, normalisation-constant or window-layout mismatch between firmware and training was found. Channel order/layout/features are parity-verified (HIL 0 flips), units are m/s^2 and rad/s on both sides (library source + HIFD gyro/quaternion rate ratio ~1.00), headers equal the pickled models, and the device at rest gives p~0.001 for both models while a strong fall gave 1.00/1.00. The remaining unverifiable assumptions (HIFD sensor frame vs Bio-Band mounting, quaternion convention) do not reproduce the observed pattern on their own: re-running the real firmware chain on HIFD falls with 90/180 deg rotations, permutations and mirrors keeps the ensemble at 11-15/15 and rarely makes one model confident while the other is blind (per-fall peak disagreement rate, mean 0.0571 and worst single transform 0.2), whereas the device shows 3/6 episodes with such disagreement (Fisher p~4e-4 vs HIFD 1/104; binomial P(>=3/6) = 0.0033 at the mean rotation rate and 0.0989 at the worst), so a wrist-mounting-angle difference is a possible contributor but not a sufficient explanation by itself. Amplitude/bandwidth shifts typical of a soft mattress fall and a different wearer make the MLP and CNN disagree in both directions, which matches the wrist logs. Evidence is indirect: no raw wrist IMU samples were saved, so the true Bio-Band input distribution is not compared directly; the sample is 6 events from one wearer.",
+ "verdict_explanation_vi": "Khong tim thay lech thu tu kenh, dau, don vi, tuc thoi trong luc, hang so chuan hoa hay cua so giua firmware va pipeline huan luyen. Hai mo hinh bat dong nhieu kha nang do lech mien (nguoi deo, nem mem lam giam bien do/bang thong, huong gan), khong phai loi anh xa. Bang chung la gian tiep vi chua luu mau IMU tho tu co tay that.",
+ "findings": [
+  {
+   "item": "Channel order and window layout",
+   "firmware": "tinyWindow[sample*6 + axis], axis order [ax,ay,az,gx,gy,gz], 100 samples oldest-first, stride 25 (src/ai_model.cpp); CNN reads win[t*6+c] and appends |a| = |lin| as 7th channel (src/ai_cnn.cpp)",
+   "training": "Windows.X (n,100,6) [lin(3), gyro(3)], stride 25 (data.py/evalx.py); cnn_input appends |lin| as 7th channel (lab.py)",
+   "risk": "none",
+   "evidence": "Same contract. HIL on subjects 19-21 (hil_final_full.json): 1942 windows, 0 decision flips, max |dp| MLP 1.2e-6, CNN 1.6e-4; my rebuild of the 'fw' windows with the real pipeline functions equals the cached training windows exactly (max abs diff 0.0)."
+  },
+  {
+   "item": "Units: accel and gyro",
+   "firmware": "Adafruit_MPU6050 library: acceleration = g * SENSORS_GRAVITY_STANDARD (m/s^2), gyro = dps * SENSORS_DPS_TO_RADS (rad/s), .pio/libdeps/esp32-s3-super-mini/Adafruit MPU6050/Adafruit_MPU6050.cpp lines 738-750; ranges +-16 g and +-2000 dps (main.cpp:411-413)",
+   "training": "HIFD ax/ay/az in g x 9.80665; droll/dpitch/dyaw treated as deg/s x pi/180 (data.py)",
+   "risk": "none",
+   "evidence": "|gyro| after the deg/s->rad/s conversion divided by the angular rate derived from consecutive quaternions: median ratio 0.9995 on 199 recordings (p10-p90 [0.9886, 1.0179]), so the training unit is right. Note: the ONLY perturbation that reproduces the device pattern 'MLP ~0 / CNN ~1' is a gyro deg/s-as-rad/s error (10/15 falls strongly disagree, MLP detects 1/15, CNN 14/15) - but the firmware provably emits rad/s, and rest windows are normal (see 'Rest behaviour'), so this is excluded."
+  },
+  {
+   "item": "Accel/gyro sign convention and gyro<->sensor axis mapping",
+   "firmware": "raw MPU6050 x,y,z chip frame, no remapping (right-handed); gyro sign as the chip reports",
+   "training": "HIFD droll/dpitch/dyaw assumed = sensor x/y/z rates with the same handedness as accel (not verifiable from the dataset docs)",
+   "risk": "low",
+   "evidence": "Deployed-model sensitivity on subjects 19-21 (15 falls): gx<->gy swapped: ens 14/15; all gyro signs flipped: 13/15; gyro zeroed: 11/15 (MLP 9, CNN 15; identity: 14/15). The models are not very sensitive to the gyro mapping; the MLP depends on the gyro more than the CNN."
+  },
+  {
+   "item": "Gravity handling (which axis is gravity when worn)",
+   "firmware": "raw accel incl. gravity -> first-order low-pass gravity estimate alpha 0.98 initialised with the first sample -> lin = a - g_est (g_est updated BEFORE subtraction, so it includes the current sample) (ai_model.cpp:294-311)",
+   "training": "HIFD lin + gravity rebuilt from the quaternion (ASSUMED gravity = R^T [0,0,g], i.e. body->world quaternion), then 21 Hz low-pass, +-16 g clip, identical alpha 0.98 recursion with grav[0]=a[0] (preproc.py)",
+   "risk": "low",
+   "evidence": "Recursion and initialisation are identical. Static gravity direction is removed by the high-pass, so only dynamic orientation changes matter. Training-side assumptions tested: opposite quaternion convention -> ens 13/15 (identity 14), 'lin is world-frame' -> 14/15, no meaningful disagreement increase. Under the assumed convention the HIFD wrist gravity direction in the sensor frame is spread widely (mean [0.0954, -0.3306, 0.3625], std [0.5164, 0.4246, 0.5507], dominant axis x/y/z fractions [0.2896, 0.2527, 0.4577]): there is no single 'gravity axis' that the models can rely on. The Bio-Band resting gravity direction could not be checked (no raw rest samples saved)."
+  },
+  {
+   "item": "Mounting orientation of the band vs HIFD wrist sensor",
+   "firmware": "MPU6050 fixed on the board, axes = board axes; the strap does not fix the angle on the wrist (BAO_CAO sec. 12 item 4: case/strap to fix the MPU6050 orientation is future work)",
+   "training": "HIFD: left wrist, unknown axis mapping; augmentation only random rotations up to +-30 deg (fw_aug0-2, rot='small', bias 0.15); the deployed models were NOT trained with SO(3) rotations; 36/42 MLP features are axis-dependent (BAO_CAO sec. 11)",
+   "risk": "medium",
+   "evidence": "Applying 90/180 deg rotations, axis permutations and a mirror to subjects 19-21 and re-running the real firmware chain: ensemble detects 11-15/15 (identity 14/15); per-fall MLP/CNN peak disagreement rate mean 0.0571, worst 0.2; window-level |mlp-cnn|>0.5 on fall windows rises from 0.016 to 0.1499 (mean) / 0.3279 (max). Binomial P(>=3 of 6 episodes disagree) = 0.0033 at the mean rotation rate, 0.0989 at the worst. Orientation raises disagreement a lot at window level but rarely enough to make one model sure and the other blind on a fall; it cannot be excluded as a contributor, but it is unlikely to be the only cause. CNN is the more orientation-sensitive model on ADL windows (rot z -90: 3.4% of ADL windows >= 0.9 vs 0% for the MLP)."
+  },
+  {
+   "item": "Normalisation constants and input scaling",
+   "firmware": "TINY_AI_MEAN/SCALE (tiny_fall_model.h); CNN_IN_MEAN / CNN_IN_INV, int8 input saturates at +-127 (cnn_fall_model.h, ai_cnn.cpp)",
+   "training": "mu/sd fitted on the training windows ('fw' + fw_aug0-2, subjects 1-18) in lab.fit_mlp / fit_cnn",
+   "risk": "none",
+   "evidence": "Headers equal final_models.pkl: MLP mean max abs diff 4.6e-09, scale max rel diff 4.9e-08; CNN mean 3.6e-09, inv 3.9e-09; AI_ENSEMBLE_THRESHOLD 0.870000005 = fusion.json 0.87. CNN training input sd: acc ~3.4-3.9 m/s^2, gyro 1.0-1.4 rad/s; int8 saturation at {'ax': 26.981, 'ay': 29.271, 'az': 25.859, 'gx': 10.931, 'gy': 7.449, 'gz': 10.632, '|a|': 38.269} (acc axes ~26-29 m/s^2, gyro 7.4-10.9 rad/s): only extreme motion saturates."
+  },
+  {
+   "item": "Window length, stride, sample timing",
+   "firmware": "100 samples / 25 stride counted in loop iterations; loop = vTaskDelayUntil(20 ms); OLED refresh blocks ~35 ms every 0.5 s (BAO_CAO sec. 9/11), so one sample is late rather than dropped; loop jitter is not in the saved logs",
+   "training": "100 samples / 25 stride at exactly 50 Hz (HIFD time stamps ~20 ms)",
+   "risk": "low",
+   "evidence": "Time-stretch proxy x1.25 slower: ens 14/15, strong disagreement 0; x0.8 faster: 14/15, 0. A systematically lower real sample rate (loop overrun) was not measurable from the logs."
+  },
+  {
+   "item": "Anti-alias / low-pass chain",
+   "firmware": "MPU6050 hardware DLPF 'BAND_21_HZ' (1 kHz internal rate, accel 21 Hz / gyro 20 Hz) then polled at 50 Hz; no software filter",
+   "training": "HIFD (already 50 Hz recordings) -> software 2nd-order Butterworth 21 Hz (causal) -> clip -> alpha 0.98 high-pass",
+   "risk": "low",
+   "evidence": "Different filter shapes (the hardware DLPF acts on the 1 kHz stream so sharp impacts are band-limited before decimation; training filters data that is already sampled at 50 Hz). A stronger extra 8 Hz low-pass (cushion proxy) gives ens 11/15."
+  },
+  {
+   "item": "Clipping and sensor ranges",
+   "firmware": "+-16 g and +-2000 dps set in hardware (saturates BEFORE the DLPF)",
+   "training": "np.clip at 16 g / 2000 dps AFTER the 21 Hz filter (preproc.ACC_CLIP/GYRO_CLIP)",
+   "risk": "none",
+   "evidence": "Same limits; the ordering only matters for saturating impacts, which a mattress fall does not produce."
+  },
+  {
+   "item": "Gyro zero-rate offset (bias) handling",
+   "firmware": "calibrateGyro(): average 50 samples at boot, only if every sample has |gyro|<0.35 rad/s, otherwise skipped and bias stays 0 (main.cpp:114-134); subtracted before aiPushSample. Boot lines are not in the saved logs, so success is unknown",
+   "training": "random uniform +-0.15 rad/s per axis added to the gyro in the aug views; the plain 'fw' view has no added bias (HIFD native offsets)",
+   "risk": "low",
+   "evidence": "Constant +0.1/+0.2/+0.35 rad/s on all axes: ens 14/15 in every case, strong disagreement 0, ADL false-window rates unchanged (<0.1%). Not a plausible cause."
+  },
+  {
+   "item": "Feature definitions (MLP) and |a| channel (CNN)",
+   "firmware": "tinyExtractFeatures: 6 per-axis stats (population std, rms, mean|x|) + 6 magnitude stats from lin only, variance of the last 25",
+   "training": "features.feat42 (identical definition)",
+   "risk": "none",
+   "evidence": "On-chip self-test and HIL parity (see channel order); mean|x|, population variance and tail-25 variance match."
+  },
+  {
+   "item": "Impact dynamics: mattress and this wearer vs HIFD falls (genuine domain shift)",
+   "firmware": "Real wrist, one person, falls onto a soft mattress, 3-5 s lying still",
+   "training": "HIFD: 21 young subjects, scripted falls; 61 event windows / 15 falls in the test subjects",
+   "risk": "high",
+   "evidence": "Proxies: accel x0.5 -> ens 9/15, strong disagreement 1; accel x0.3 -> 6/15, strong disagreement 3, peak disagreement 4/15, mean MLP 0.572 vs CNN 0.3918; gyro x0.5 -> mean MLP 0.8091 vs CNN 0.95 (opposite direction). Amplitude/bandwidth shifts make the two models disagree in BOTH directions, as seen on the wrist (MLP 0.00/CNN 1.00 and MLP 0.98/CNN 0.15). This is a domain shift, not a pipeline mismatch."
+  },
+  {
+   "item": "Rest behaviour on the device (sanity of the whole chain)",
+   "firmware": "Bio-Band at rest/ADL on the wrist, 3 logs, 139 logged windows",
+   "training": "-",
+   "risk": "none",
+   "evidence": "118 rest windows: mean MLP 0.0027, mean CNN 0.0005 (max 0.32/0.04); live5 fall #1 gave MLP 1.00 / CNN 1.00 and fired the AI path. A broken axis/unit/gravity chain would show large rest probabilities or no agreement on strong impacts."
+  },
+  {
+   "item": "Observed disagreement: device vs HIFD",
+   "firmware": "6 logged events (live1 with AI alarms off): peak MLP/CNN pairs [[0.0, 1.0], [0.32, 0.01], [0.98, 0.15], [1.0, 1.0], [0.2, 1.0], [0.86, 0.83]]; 3/6 episodes with |peak mlp - peak cnn|>0.5; windows with p>0.2: 14/21 disagree by >0.5",
+   "training": "HIFD LOSO (2 seeds averaged): 1/104 falls with peak disagreement>0.5, corr of peaks 0.6374; deployed models on 19-21: 0/15; windows with mean p>0.2: 39/483",
+   "risk": "high",
+   "evidence": "Fisher exact (episode level) p = 3.6e-04; window level p = 2.5e-10 (autocorrelated, descriptive). Device behaviour is far outside the HIFD range of model agreement, so the wrist input distribution differs from HIFD; the checks above show it is not a units/channel/sign/gravity-recursion error."
+  }
+ ],
+ "not_verified": [
+  "Raw Bio-Band IMU samples at rest or during falls (none saved): the real gravity axis when worn, real impact amplitude/bandwidth, real sample timing and jitter were not compared with HIFD directly.",
+  "HIFD sensor frame, droll/dpitch/dyaw -> x/y/z mapping and the quaternion convention (only indirectly supported: gyro/quaternion-rate ratio 1.00; the gravity-convention cross-check in preproc.py favours the assumed one).",
+  "Whether calibrateGyro() succeeded in the live sessions (boot lines not in the logs); the sensitivity test says it would not matter.",
+  "Loop timing/jitter during the live sessions (the [DATA] lines with jit= were not saved).",
+  "That the flashed firmware equals the pickled models is supported by header-vs-pickle equality (1e-8) and HIL 0 flips, but the board was not touched in this check.",
+  "The sensitivity test uses the 15 falls of subjects 19-21 (used for early stopping of the deployed models) and rotations of an existing wrist dataset: it shows model response, not what the real wearer's signals look like.",
+  "Device statistics rest on 6 events from one wearer on a mattress with 2-decimal log precision; live5 fall #3 is MLP 0.86/CNN 0.28 in its first window but MLP 0.35/CNN 0.83 in a later window (window-to-window flips), so 'per-episode' pairs depend on the definition."
+ ],
+ "numbers": {
+  "hifd_deployed_models_subjects_19_21": {
+   "all_kept_windows": {
+    "n": 1853,
+    "corr": 0.9789,
+    "mean_abs_diff": 0.0043,
+    "frac_absdiff_gt_0.5": 0.0016,
+    "n_mean_gt_0.2": 67,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0448,
+    "n_mean_gt_0.5": 60,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0167
+   },
+   "fall_event_windows": {
+    "n": 61,
+    "corr": 0.6917,
+    "mean_abs_diff": 0.0533,
+    "frac_absdiff_gt_0.5": 0.0164,
+    "n_mean_gt_0.2": 60,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0167,
+    "n_mean_gt_0.5": 59,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0169
+   },
+   "adl_windows": {
+    "n": 1792,
+    "corr": 0.7366,
+    "mean_abs_diff": 0.0026,
+    "frac_absdiff_gt_0.5": 0.0011,
+    "n_mean_gt_0.2": 7,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.2857,
+    "n_mean_gt_0.5": 1,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0
+   },
+   "per_fall_recording": {
+    "n_fall_recordings": 15,
+    "peaks_absdiff_gt_0.5": 0,
+    "peaks_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_at_best_ens_window_absdiff_gt_0.5": 0,
+    "colocated_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_one_ge_0.8_other_lt_0.4": 0,
+    "detected_ens_ge_0.87": 14,
+    "detected_mlp_ge_0.9": 14,
+    "detected_cnn_ge_0.9": 15,
+    "mean_peak_mlp": 0.9734,
+    "mean_peak_cnn": 0.9984,
+    "corr_peaks": 0.9984
+   }
+  },
+  "hifd_deployed_models_all_21_subjects_(1-18 are TRAINING data, in-sample)": {
+   "all_kept_windows": {
+    "n": 13409,
+    "corr": 0.9826,
+    "mean_abs_diff": 0.0033,
+    "frac_absdiff_gt_0.5": 0.0013,
+    "n_mean_gt_0.2": 443,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0384,
+    "n_mean_gt_0.5": 422,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0118
+   },
+   "fall_event_windows": {
+    "n": 421,
+    "corr": 0.5576,
+    "mean_abs_diff": 0.0162,
+    "frac_absdiff_gt_0.5": 0.0071,
+    "n_mean_gt_0.2": 420,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0071,
+    "n_mean_gt_0.5": 418,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0048
+   },
+   "adl_windows": {
+    "n": 12988,
+    "corr": 0.2797,
+    "mean_abs_diff": 0.0029,
+    "frac_absdiff_gt_0.5": 0.0011,
+    "n_mean_gt_0.2": 23,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.6087,
+    "n_mean_gt_0.5": 4,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.75
+   },
+   "per_fall_recording": {
+    "n_fall_recordings": 104,
+    "peaks_absdiff_gt_0.5": 0,
+    "peaks_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_at_best_ens_window_absdiff_gt_0.5": 0,
+    "colocated_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_one_ge_0.8_other_lt_0.4": 0,
+    "detected_ens_ge_0.87": 103,
+    "detected_mlp_ge_0.9": 103,
+    "detected_cnn_ge_0.9": 104,
+    "mean_peak_mlp": 0.9957,
+    "mean_peak_cnn": 0.9995,
+    "corr_peaks": 0.9143
+   }
+  },
+  "hifd_loso_scores_all_21_subjects": {
+   "seeds_mlp": 3,
+   "seeds_cnn": 3,
+   "all_kept_windows": {
+    "n": 13409,
+    "corr": 0.9536,
+    "mean_abs_diff": 0.0071,
+    "frac_absdiff_gt_0.5": 0.0029,
+    "n_mean_gt_0.2": 483,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0807,
+    "n_mean_gt_0.5": 413,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0315
+   },
+   "fall_event_windows": {
+    "n": 421,
+    "corr": 0.6749,
+    "mean_abs_diff": 0.0603,
+    "frac_absdiff_gt_0.5": 0.0214,
+    "n_mean_gt_0.2": 413,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0218,
+    "n_mean_gt_0.5": 403,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0174
+   },
+   "adl_windows": {
+    "n": 12988,
+    "corr": 0.2726,
+    "mean_abs_diff": 0.0054,
+    "frac_absdiff_gt_0.5": 0.0023,
+    "n_mean_gt_0.2": 70,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.4286,
+    "n_mean_gt_0.5": 10,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.6
+   },
+   "per_fall_recording": {
+    "n_fall_recordings": 104,
+    "peaks_absdiff_gt_0.5": 1,
+    "peaks_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_at_best_ens_window_absdiff_gt_0.5": 1,
+    "colocated_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_one_ge_0.8_other_lt_0.4": 1,
+    "detected_ens_ge_0.87": 99,
+    "detected_mlp_ge_0.9": 98,
+    "detected_cnn_ge_0.9": 97,
+    "mean_peak_mlp": 0.9726,
+    "mean_peak_cnn": 0.9702,
+    "corr_peaks": 0.6374
+   }
+  },
+  "hifd_loso_scores_subjects_19_21": {
+   "all_kept_windows": {
+    "n": 1853,
+    "corr": 0.9739,
+    "mean_abs_diff": 0.0043,
+    "frac_absdiff_gt_0.5": 0.0011,
+    "n_mean_gt_0.2": 68,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0294,
+    "n_mean_gt_0.5": 59,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0169
+   },
+   "fall_event_windows": {
+    "n": 61,
+    "corr": 0.8514,
+    "mean_abs_diff": 0.0464,
+    "frac_absdiff_gt_0.5": 0.0,
+    "n_mean_gt_0.2": 61,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0,
+    "n_mean_gt_0.5": 58,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0
+   },
+   "adl_windows": {
+    "n": 1792,
+    "corr": 0.3105,
+    "mean_abs_diff": 0.0029,
+    "frac_absdiff_gt_0.5": 0.0011,
+    "n_mean_gt_0.2": 7,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.2857,
+    "n_mean_gt_0.5": 1,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 1.0
+   },
+   "per_fall_recording": {
+    "n_fall_recordings": 15,
+    "peaks_absdiff_gt_0.5": 0,
+    "peaks_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_at_best_ens_window_absdiff_gt_0.5": 0,
+    "colocated_one_ge_0.9_other_lt_0.5": 0,
+    "colocated_one_ge_0.8_other_lt_0.4": 0,
+    "detected_ens_ge_0.87": 14,
+    "detected_mlp_ge_0.9": 14,
+    "detected_cnn_ge_0.9": 14,
+    "mean_peak_mlp": 0.9567,
+    "mean_peak_cnn": 0.9836,
+    "corr_peaks": 0.9962
+   }
+  },
+  "hifd_loso_scores_single_seed_all_21": {
+   "all_kept_windows": {
+    "n": 13409,
+    "corr": 0.9334,
+    "mean_abs_diff": 0.0077,
+    "frac_absdiff_gt_0.5": 0.0057,
+    "n_mean_gt_0.2": 486,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.1584,
+    "n_mean_gt_0.5": 423,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0686
+   },
+   "fall_event_windows": {
+    "n": 421,
+    "corr": 0.5782,
+    "mean_abs_diff": 0.0591,
+    "frac_absdiff_gt_0.5": 0.0475,
+    "n_mean_gt_0.2": 410,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.0488,
+    "n_mean_gt_0.5": 403,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.0372
+   },
+   "adl_windows": {
+    "n": 12988,
+    "corr": 0.2698,
+    "mean_abs_diff": 0.006,
+    "frac_absdiff_gt_0.5": 0.0044,
+    "n_mean_gt_0.2": 76,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.2": 0.75,
+    "n_mean_gt_0.5": 20,
+    "frac_absdiff_gt_0.5_given_mean_gt_0.5": 0.7
+   },
+   "per_fall_recording": {
+    "n_fall_recordings": 104,
+    "peaks_absdiff_gt_0.5": 1,
+    "peaks_one_ge_0.9_other_lt_0.5": 1,
+    "colocated_at_best_ens_window_absdiff_gt_0.5": 2,
+    "colocated_one_ge_0.9_other_lt_0.5": 2,
+    "colocated_one_ge_0.8_other_lt_0.4": 2,
+    "detected_ens_ge_0.87": 98,
+    "detected_mlp_ge_0.9": 99,
+    "detected_cnn_ge_0.9": 101,
+    "mean_peak_mlp": 0.9766,
+    "mean_peak_cnn": 0.978,
+    "corr_peaks": 0.6618
+   }
+  },
+  "device_logs_2026-11-02": {
+   "files": {
+    "live1.log": {
+     "n_lines": 51,
+     "n_rest_lines_p_le_0.2": 45,
+     "max_mlp_cnn_rest": [
+      0.32,
+      0.01
+     ],
+     "episodes": [
+      {
+       "t_start_s": 116.0,
+       "n_lines": 6,
+       "peak_mlp": 0.0,
+       "peak_cnn": 1.0,
+       "mlp_at_peak_mean": 0.0,
+       "cnn_at_peak_mean": 1.0,
+       "peak_mean_p": 0.5,
+       "lines": [
+        [
+         116.0,
+         0.0,
+         0.53
+        ],
+        [
+         116.5,
+         0.0,
+         0.94
+        ],
+        [
+         117.0,
+         0.0,
+         1.0
+        ],
+        [
+         118.0,
+         0.0,
+         0.99
+        ],
+        [
+         118.0,
+         0.0,
+         0.98
+        ],
+        [
+         118.5,
+         0.0,
+         0.89
+        ]
+       ]
+      },
+      {
+       "t_start_s": 123.5,
+       "n_lines": 1,
+       "peak_mlp": 0.32,
+       "peak_cnn": 0.01,
+       "mlp_at_peak_mean": 0.32,
+       "cnn_at_peak_mean": 0.01,
+       "peak_mean_p": 0.161,
+       "lines": [
+        [
+         123.5,
+         0.32,
+         0.01
+        ]
+       ]
+      }
+     ]
+    },
+    "live3.log": {
+     "n_lines": 33,
+     "n_rest_lines_p_le_0.2": 29,
+     "max_mlp_cnn_rest": [
+      0.0,
+      0.0
+     ],
+     "episodes": [
+      {
+       "t_start_s": 139.9,
+       "n_lines": 4,
+       "peak_mlp": 0.98,
+       "peak_cnn": 0.15,
+       "mlp_at_peak_mean": 0.97,
+       "cnn_at_peak_mean": 0.15,
+       "peak_mean_p": 0.564,
+       "lines": [
+        [
+         139.9,
+         0.97,
+         0.15
+        ],
+        [
+         140.4,
+         0.98,
+         0.06
+        ],
+        [
+         140.9,
+         0.98,
+         0.08
+        ],
+        [
+         141.4,
+         0.98,
+         0.01
+        ]
+       ]
+      }
+     ]
+    },
+    "live5.log": {
+     "n_lines": 55,
+     "n_rest_lines_p_le_0.2": 44,
+     "max_mlp_cnn_rest": [
+      0.0,
+      0.04
+     ],
+     "episodes": [
+      {
+       "t_start_s": 25.0,
+       "n_lines": 4,
+       "peak_mlp": 1.0,
+       "peak_cnn": 1.0,
+       "mlp_at_peak_mean": 1.0,
+       "cnn_at_peak_mean": 1.0,
+       "peak_mean_p": 1.0,
+       "lines": [
+        [
+         25.0,
+         1.0,
+         1.0
+        ],
+        [
+         25.5,
+         1.0,
+         1.0
+        ],
+        [
+         26.0,
+         1.0,
+         1.0
+        ],
+        [
+         26.5,
+         1.0,
+         1.0
+        ]
+       ]
+      },
+      {
+       "t_start_s": 37.5,
+       "n_lines": 3,
+       "peak_mlp": 0.2,
+       "peak_cnn": 1.0,
+       "mlp_at_peak_mean": 0.2,
+       "cnn_at_peak_mean": 1.0,
+       "peak_mean_p": 0.602,
+       "lines": [
+        [
+         37.5,
+         0.17,
+         1.0
+        ],
+        [
+         38.0,
+         0.16,
+         1.0
+        ],
+        [
+         38.5,
+         0.2,
+         1.0
+        ]
+       ]
+      },
+      {
+       "t_start_s": 46.5,
+       "n_lines": 4,
+       "peak_mlp": 0.86,
+       "peak_cnn": 0.83,
+       "mlp_at_peak_mean": 0.35,
+       "cnn_at_peak_mean": 0.83,
+       "peak_mean_p": 0.588,
+       "lines": [
+        [
+         46.5,
+         0.86,
+         0.28
+        ],
+        [
+         47.0,
+         0.41,
+         0.13
+        ],
+        [
+         47.5,
+         0.35,
+         0.83
+        ],
+        [
+         48.0,
+         0.32,
+         0.4
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   "pooled_logged_windows": {
+    "n_total": 139,
+    "n_rest_windows_p_le_0.2": 118,
+    "rest_mean_mlp": 0.0027,
+    "rest_mean_cnn": 0.0005,
+    "rest_max_mlp": 0.32,
+    "rest_max_cnn": 0.04,
+    "n_active_windows_p_gt_0.2": 21,
+    "active_frac_absdiff_gt_0.5": 0.6667,
+    "active_mean_abs_diff": 0.611,
+    "active_corr": -0.4303,
+    "active_mlp_ge_0.9": 8,
+    "active_cnn_ge_0.9": 11,
+    "note": "values printed with 2 decimals; only windows with p>0.2 (or every 5 s) are logged"
+   },
+   "episodes_summary": {
+    "n_episodes": 6,
+    "peaks_absdiff_gt_0.5": 3,
+    "colocated_absdiff_gt_0.5": 3,
+    "n_strong_either_definition": 3,
+    "peak_pairs_mlp_cnn": [
+     [
+      0.0,
+      1.0
+     ],
+     [
+      0.32,
+      0.01
+     ],
+     [
+      0.98,
+      0.15
+     ],
+     [
+      1.0,
+      1.0
+     ],
+     [
+      0.2,
+      1.0
+     ],
+     [
+      0.86,
+      0.83
+     ]
+    ]
+   }
+  },
+  "hifd_same_selection_as_device_log_(mean_p>0.2)": {
+   "deployed_19_21": {
+    "n": 67,
+    "frac_absdiff_gt_0.5": 0.0448,
+    "mean_abs_diff": 0.0794,
+    "corr": 0.741,
+    "frac_fall_event_windows_among_them": 0.8955
+   },
+   "loso_all_21": {
+    "n": 483,
+    "frac_absdiff_gt_0.5": 0.0807,
+    "mean_abs_diff": 0.1196,
+    "corr": 0.5985,
+    "frac_fall_event_windows_among_them": 0.8551
+   }
+  },
+  "constants_and_headers": {
+   "mlp_mean_maxabs_diff": 4.645996032337507e-09,
+   "mlp_scale_maxrel_diff": 4.947960086099101e-08,
+   "cnn_in_mean_maxabs_diff": 3.609619270150688e-09,
+   "cnn_in_inv_maxrel_diff": 3.910562984543731e-09,
+   "cnn_input_channel_sd": {
+    "ax": 3.55754,
+    "ay": 3.85955,
+    "az": 3.40965,
+    "gx": 1.4413,
+    "gy": 0.98215,
+    "gz": 1.40184,
+    "|a|": 5.04594
+   },
+   "cnn_input_channel_mean": {
+    "ax": 0.01252,
+    "ay": -0.07591,
+    "az": 0.00546,
+    "gx": 0.0137,
+    "gy": 0.00606,
+    "gz": 0.01616,
+    "|a|": 3.7125
+   },
+   "cnn_s_in": 0.05972,
+   "cnn_input_clip_range_in_units": {
+    "ax": 26.981,
+    "ay": 29.271,
+    "az": 25.859,
+    "gx": 10.931,
+    "gy": 7.449,
+    "gz": 10.632,
+    "|a|": 38.269
+   },
+   "ensemble_threshold_header_vs_fusion_json": [
+    0.870000005,
+    0.87
+   ],
+   "mlp_scale_of_mean_features": {
+    "ax_mean": 1.1835,
+    "ay_mean": 0.9181,
+    "az_mean": 0.9634,
+    "gx_mean": 0.4172,
+    "gy_mean": 0.2764,
+    "gz_mean": 0.3341
+   }
+  },
+  "hifd_axis_facts": {
+   "n_still_samples": 120640,
+   "mean_gravity_dir_sensor_frame_(x,y,z)/g": [
+    0.0954,
+    -0.3306,
+    0.3625
+   ],
+   "std_per_axis": [
+    0.5164,
+    0.4246,
+    0.5507
+   ],
+   "dominant_gravity_axis_fraction_xyz": [
+    0.2896,
+    0.2527,
+    0.4577
+   ],
+   "share_of_impact_energy_per_axis_xyz_(+-0.2s_around_peak_of_fall_recordings)": [
+    0.3031,
+    0.4238,
+    0.2731
+   ],
+   "caveat": "uses the ASSUMED quaternion convention (body->world, gravity = R^T [0,0,g]); not verifiable without raw rest data from the band"
+  },
+  "hifd_gyro_unit_check": {
+   "n_recordings": 199,
+   "median_ratio_gyro_over_quat_rate": 0.9995,
+   "p10_p90": [
+    0.9886,
+    1.0179
+   ],
+   "interpretation": "ratio ~1 supports the deg/s -> rad/s conversion of HIFD droll/dpitch/dyaw; 0.017 or 57 would mean the unit is wrong"
+  },
+  "device_vs_hifd_fisher_exact": {
+   "episodes_peaks_absdiff_gt_0.5_device_vs_hifd_loso2seeds": {
+    "device": [
+     3,
+     6
+    ],
+    "hifd": [
+     1,
+     104
+    ],
+    "p_two_sided": 0.0003628846122201177
+   },
+   "episodes_peaks_absdiff_gt_0.5_device_vs_hifd_loso_single_seed": {
+    "device": [
+     3,
+     6
+    ],
+    "hifd": [
+     1,
+     104
+    ],
+    "p_two_sided": 0.0003628846122201177
+   },
+   "windows_mean_p_gt_0.2_absdiff_gt_0.5": {
+    "device": [
+     14,
+     21
+    ],
+    "hifd": [
+     39,
+     483
+    ],
+    "caveat": "device windows are 6 autocorrelated episodes; treat as descriptive, the episode-level test is the honest one",
+    "p_two_sided": 2.4896955519446365e-10
+   }
+  },
+  "sensitivity_identity_check": {
+   "max_abs_diff_vs_cached_fw_view": 0.0,
+   "n_windows": 1942
+  },
+  "sensitivity_deployed_models_subjects_19_21": {
+   "identity (sanity)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9435,
+     "mean_cnn": 0.9376,
+     "mean_absdiff": 0.0533,
+     "frac_absdiff_gt_0.5": 0.0164,
+     "frac_mlp_ge_0.5": 0.9672,
+     "frac_cnn_ge_0.5": 0.9508
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.00256,
+     "mean_cnn": 0.00239,
+     "frac_absdiff_gt_0.5": 0.00112
+    }
+   },
+   "rot x +30deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9595,
+     "mean_cnn": 0.9339,
+     "mean_absdiff": 0.0951,
+     "frac_absdiff_gt_0.5": 0.0328,
+     "frac_mlp_ge_0.5": 1.0,
+     "frac_cnn_ge_0.5": 0.9508
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.00168,
+     "mean_cnn": 0.00224,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "rot x +60deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9362,
+     "mean_cnn": 0.9312,
+     "mean_absdiff": 0.0922,
+     "frac_absdiff_gt_0.5": 0.0492,
+     "frac_mlp_ge_0.5": 0.9836,
+     "frac_cnn_ge_0.5": 0.9344
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00056,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.0033,
+     "mean_cnn": 0.00291,
+     "frac_absdiff_gt_0.5": 0.00335
+    }
+   },
+   "rot x +90deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9305,
+     "mean_cnn": 0.8504,
+     "mean_absdiff": 0.1274,
+     "frac_absdiff_gt_0.5": 0.1148,
+     "frac_mlp_ge_0.5": 1.0,
+     "frac_cnn_ge_0.5": 0.8689
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00112,
+     "frac_cnn_ge_0.9": 0.00391,
+     "frac_ens_ge_0.87": 0.00112,
+     "mean_mlp": 0.00576,
+     "mean_cnn": 0.01061,
+     "frac_absdiff_gt_0.5": 0.01004
+    }
+   },
+   "rot x -90deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9282,
+     "mean_cnn": 0.9316,
+     "mean_absdiff": 0.1201,
+     "frac_absdiff_gt_0.5": 0.0656,
+     "frac_mlp_ge_0.5": 1.0,
+     "frac_cnn_ge_0.5": 0.918
+    },
+    "falls_detected_of": [
+     15,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 13,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00446,
+     "frac_cnn_ge_0.9": 0.00502,
+     "frac_ens_ge_0.87": 0.00391,
+     "mean_mlp": 0.00697,
+     "mean_cnn": 0.01023,
+     "frac_absdiff_gt_0.5": 0.0067
+    }
+   },
+   "rot x +180deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8541,
+     "mean_cnn": 0.8513,
+     "mean_absdiff": 0.1414,
+     "frac_absdiff_gt_0.5": 0.0984,
+     "frac_mlp_ge_0.5": 0.8525,
+     "frac_cnn_ge_0.5": 0.8689
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 12,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00056,
+     "frac_cnn_ge_0.9": 0.01004,
+     "frac_ens_ge_0.87": 0.00112,
+     "mean_mlp": 0.00544,
+     "mean_cnn": 0.02246,
+     "frac_absdiff_gt_0.5": 0.01618
+    }
+   },
+   "rot y +30deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9177,
+     "mean_cnn": 0.9756,
+     "mean_absdiff": 0.072,
+     "frac_absdiff_gt_0.5": 0.0656,
+     "frac_mlp_ge_0.5": 0.918,
+     "frac_cnn_ge_0.5": 0.9836
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00174,
+     "mean_cnn": 0.00258,
+     "frac_absdiff_gt_0.5": 0.00167
+    }
+   },
+   "rot y +60deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9072,
+     "mean_cnn": 0.9405,
+     "mean_absdiff": 0.1164,
+     "frac_absdiff_gt_0.5": 0.082,
+     "frac_mlp_ge_0.5": 0.918,
+     "frac_cnn_ge_0.5": 0.9836
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00056,
+     "frac_cnn_ge_0.9": 0.00446,
+     "frac_ens_ge_0.87": 0.00167,
+     "mean_mlp": 0.00357,
+     "mean_cnn": 0.0127,
+     "frac_absdiff_gt_0.5": 0.00725
+    }
+   },
+   "rot y +90deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9497,
+     "mean_cnn": 0.8631,
+     "mean_absdiff": 0.1455,
+     "frac_absdiff_gt_0.5": 0.1311,
+     "frac_mlp_ge_0.5": 0.9672,
+     "frac_cnn_ge_0.5": 0.8689
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00391,
+     "frac_cnn_ge_0.9": 0.00502,
+     "frac_ens_ge_0.87": 0.00391,
+     "mean_mlp": 0.00666,
+     "mean_cnn": 0.01748,
+     "frac_absdiff_gt_0.5": 0.00614
+    }
+   },
+   "rot y -90deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9013,
+     "mean_cnn": 0.8562,
+     "mean_absdiff": 0.1919,
+     "frac_absdiff_gt_0.5": 0.1967,
+     "frac_mlp_ge_0.5": 0.9016,
+     "frac_cnn_ge_0.5": 0.8689
+    },
+    "falls_detected_of": [
+     12,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00056,
+     "frac_cnn_ge_0.9": 0.01507,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.00447,
+     "mean_cnn": 0.02254,
+     "frac_absdiff_gt_0.5": 0.01618
+    }
+   },
+   "rot y +180deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9403,
+     "mean_cnn": 0.8636,
+     "mean_absdiff": 0.098,
+     "frac_absdiff_gt_0.5": 0.0656,
+     "frac_mlp_ge_0.5": 0.9508,
+     "frac_cnn_ge_0.5": 0.8689
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00056,
+     "frac_cnn_ge_0.9": 0.00837,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.00414,
+     "mean_cnn": 0.01494,
+     "frac_absdiff_gt_0.5": 0.01116
+    }
+   },
+   "rot z +30deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.955,
+     "mean_cnn": 0.8939,
+     "mean_absdiff": 0.1145,
+     "frac_absdiff_gt_0.5": 0.082,
+     "frac_mlp_ge_0.5": 0.9836,
+     "frac_cnn_ge_0.5": 0.918
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00167,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00248,
+     "mean_cnn": 0.0032,
+     "frac_absdiff_gt_0.5": 0.00112
+    }
+   },
+   "rot z +60deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9122,
+     "mean_cnn": 0.8314,
+     "mean_absdiff": 0.194,
+     "frac_absdiff_gt_0.5": 0.2131,
+     "frac_mlp_ge_0.5": 0.918,
+     "frac_cnn_ge_0.5": 0.8197
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 15,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00223,
+     "frac_cnn_ge_0.9": 0.0067,
+     "frac_ens_ge_0.87": 0.00167,
+     "mean_mlp": 0.00601,
+     "mean_cnn": 0.01052,
+     "frac_absdiff_gt_0.5": 0.00502
+    }
+   },
+   "rot z +90deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9055,
+     "mean_cnn": 0.8067,
+     "mean_absdiff": 0.2114,
+     "frac_absdiff_gt_0.5": 0.1803,
+     "frac_mlp_ge_0.5": 0.9016,
+     "frac_cnn_ge_0.5": 0.8197
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00335,
+     "frac_cnn_ge_0.9": 0.02009,
+     "frac_ens_ge_0.87": 0.0067,
+     "mean_mlp": 0.00869,
+     "mean_cnn": 0.02783,
+     "frac_absdiff_gt_0.5": 0.01507
+    }
+   },
+   "rot z -90deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8612,
+     "mean_cnn": 0.759,
+     "mean_absdiff": 0.2935,
+     "frac_absdiff_gt_0.5": 0.3279,
+     "frac_mlp_ge_0.5": 0.8689,
+     "frac_cnn_ge_0.5": 0.7541
+    },
+    "falls_detected_of": [
+     11,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 2,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.03404,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.006,
+     "mean_cnn": 0.05597,
+     "frac_absdiff_gt_0.5": 0.05859
+    }
+   },
+   "rot z +180deg": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9128,
+     "mean_cnn": 0.8409,
+     "mean_absdiff": 0.1105,
+     "frac_absdiff_gt_0.5": 0.082,
+     "frac_mlp_ge_0.5": 0.918,
+     "frac_cnn_ge_0.5": 0.8525
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00391,
+     "frac_cnn_ge_0.9": 0.024,
+     "frac_ens_ge_0.87": 0.00446,
+     "mean_mlp": 0.00752,
+     "mean_cnn": 0.04084,
+     "frac_absdiff_gt_0.5": 0.03571
+    }
+   },
+   "cyclic xyz->yzx (proper)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8639,
+     "mean_cnn": 0.776,
+     "mean_absdiff": 0.2461,
+     "frac_absdiff_gt_0.5": 0.2295,
+     "frac_mlp_ge_0.5": 0.8852,
+     "frac_cnn_ge_0.5": 0.7869
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00614,
+     "frac_cnn_ge_0.9": 0.00614,
+     "frac_ens_ge_0.87": 0.00446,
+     "mean_mlp": 0.00938,
+     "mean_cnn": 0.0105,
+     "frac_absdiff_gt_0.5": 0.00335
+    }
+   },
+   "cyclic xyz->zxy (proper)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.916,
+     "mean_cnn": 0.8038,
+     "mean_absdiff": 0.133,
+     "frac_absdiff_gt_0.5": 0.1148,
+     "frac_mlp_ge_0.5": 0.9508,
+     "frac_cnn_ge_0.5": 0.8361
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00781,
+     "frac_cnn_ge_0.9": 0.01004,
+     "frac_ens_ge_0.87": 0.00223,
+     "mean_mlp": 0.01061,
+     "mean_cnn": 0.02312,
+     "frac_absdiff_gt_0.5": 0.02288
+    }
+   },
+   "mirror y, gyro as pseudovector (right-wrist-like)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9322,
+     "mean_cnn": 0.7446,
+     "mean_absdiff": 0.2042,
+     "frac_absdiff_gt_0.5": 0.1803,
+     "frac_mlp_ge_0.5": 0.9508,
+     "frac_cnn_ge_0.5": 0.7541
+    },
+    "falls_detected_of": [
+     12,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 12,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 3,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.00162,
+     "mean_cnn": 0.00213,
+     "frac_absdiff_gt_0.5": 0.00056
+    }
+   },
+   "swap x<->y (improper), gyro naive": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8831,
+     "mean_cnn": 0.7993,
+     "mean_absdiff": 0.2203,
+     "frac_absdiff_gt_0.5": 0.1639,
+     "frac_mlp_ge_0.5": 0.9508,
+     "frac_cnn_ge_0.5": 0.8033
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 15,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00502,
+     "frac_cnn_ge_0.9": 0.01283,
+     "frac_ens_ge_0.87": 0.00558,
+     "mean_mlp": 0.0087,
+     "mean_cnn": 0.02253,
+     "frac_absdiff_gt_0.5": 0.01004
+    }
+   },
+   "naive sign flip y on acc+gyro (axis-convention bug)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8899,
+     "mean_cnn": 0.8634,
+     "mean_absdiff": 0.1919,
+     "frac_absdiff_gt_0.5": 0.1475,
+     "frac_mlp_ge_0.5": 0.918,
+     "frac_cnn_ge_0.5": 0.8689
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00279,
+     "frac_cnn_ge_0.9": 0.00893,
+     "frac_ens_ge_0.87": 0.00335,
+     "mean_mlp": 0.00495,
+     "mean_cnn": 0.01661,
+     "frac_absdiff_gt_0.5": 0.01172
+    }
+   },
+   "gyro only: swap gx<->gy": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8469,
+     "mean_cnn": 0.9129,
+     "mean_absdiff": 0.1745,
+     "frac_absdiff_gt_0.5": 0.1148,
+     "frac_mlp_ge_0.5": 0.9016,
+     "frac_cnn_ge_0.5": 0.9344
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 13,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00223,
+     "frac_cnn_ge_0.9": 0.00725,
+     "frac_ens_ge_0.87": 0.00335,
+     "mean_mlp": 0.00444,
+     "mean_cnn": 0.01281,
+     "frac_absdiff_gt_0.5": 0.0067
+    }
+   },
+   "gyro only: all signs flipped": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8419,
+     "mean_cnn": 0.8152,
+     "mean_absdiff": 0.202,
+     "frac_absdiff_gt_0.5": 0.1803,
+     "frac_mlp_ge_0.5": 0.8361,
+     "frac_cnn_ge_0.5": 0.8361
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 13,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00223,
+     "frac_cnn_ge_0.9": 0.00837,
+     "frac_ens_ge_0.87": 0.00279,
+     "mean_mlp": 0.0046,
+     "mean_cnn": 0.0204,
+     "frac_absdiff_gt_0.5": 0.01228
+    }
+   },
+   "gyro only: zero (gyro dead)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.7515,
+     "mean_cnn": 0.9327,
+     "mean_absdiff": 0.1982,
+     "frac_absdiff_gt_0.5": 0.1475,
+     "frac_mlp_ge_0.5": 0.8197,
+     "frac_cnn_ge_0.5": 0.9508
+    },
+    "falls_detected_of": [
+     11,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 9,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00335,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00332,
+     "mean_cnn": 0.00624,
+     "frac_absdiff_gt_0.5": 0.00279
+    }
+   },
+   "UNITS: gyro in deg/s fed as rad/s (x57.3)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.1515,
+     "mean_cnn": 0.8949,
+     "mean_absdiff": 0.744,
+     "frac_absdiff_gt_0.5": 0.8033,
+     "frac_mlp_ge_0.5": 0.0984,
+     "frac_cnn_ge_0.5": 0.9016
+    },
+    "falls_detected_of": [
+     3,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 1,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 10,
+    "falls_peaks_absdiff_gt_0.5": 12,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00335,
+     "frac_cnn_ge_0.9": 0.10993,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.02298,
+     "mean_cnn": 0.15316,
+     "frac_absdiff_gt_0.5": 0.16071
+    }
+   },
+   "UNITS: accel in g fed as m/s^2 (/9.80665)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.043,
+     "mean_cnn": 0.0099,
+     "mean_absdiff": 0.0441,
+     "frac_absdiff_gt_0.5": 0.0,
+     "frac_mlp_ge_0.5": 0.0,
+     "frac_cnn_ge_0.5": 0.0
+    },
+    "falls_detected_of": [
+     0,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 0,
+    "falls_detected_cnn_only_ge_0.9": 0,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.0,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 5e-05,
+     "mean_cnn": 0.00064,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "gyro offset +0.1 rad/s on all axes (training aug is +-0.15)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9407,
+     "mean_cnn": 0.9365,
+     "mean_absdiff": 0.0525,
+     "frac_absdiff_gt_0.5": 0.0164,
+     "frac_mlp_ge_0.5": 0.9672,
+     "frac_cnn_ge_0.5": 0.9508
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.00192,
+     "mean_cnn": 0.00253,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "gyro offset +0.2 rad/s on all axes (training aug is +-0.15)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9361,
+     "mean_cnn": 0.9344,
+     "mean_absdiff": 0.0547,
+     "frac_absdiff_gt_0.5": 0.0164,
+     "frac_mlp_ge_0.5": 0.9672,
+     "frac_cnn_ge_0.5": 0.9344
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00139,
+     "mean_cnn": 0.00278,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "gyro offset +0.35 rad/s on all axes (training aug is +-0.15)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9258,
+     "mean_cnn": 0.9343,
+     "mean_absdiff": 0.0601,
+     "frac_absdiff_gt_0.5": 0.0164,
+     "frac_mlp_ge_0.5": 0.9672,
+     "frac_cnn_ge_0.5": 0.9508
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00091,
+     "mean_cnn": 0.00348,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "SOFT impact proxy: accel x0.5": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.7508,
+     "mean_cnn": 0.6345,
+     "mean_absdiff": 0.2069,
+     "frac_absdiff_gt_0.5": 0.1639,
+     "frac_mlp_ge_0.5": 0.7869,
+     "frac_cnn_ge_0.5": 0.623
+    },
+    "falls_detected_of": [
+     9,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 10,
+    "falls_detected_cnn_only_ge_0.9": 10,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 2,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.0,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00046,
+     "mean_cnn": 0.00115,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "SOFT impact proxy: accel x0.3": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.572,
+     "mean_cnn": 0.3918,
+     "mean_absdiff": 0.33,
+     "frac_absdiff_gt_0.5": 0.3279,
+     "frac_mlp_ge_0.5": 0.623,
+     "frac_cnn_ge_0.5": 0.4098
+    },
+    "falls_detected_of": [
+     6,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 8,
+    "falls_detected_cnn_only_ge_0.9": 6,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 3,
+    "falls_peaks_absdiff_gt_0.5": 4,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.0,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00014,
+     "mean_cnn": 0.0007,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "SOFT impact proxy: gyro x0.5": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8091,
+     "mean_cnn": 0.95,
+     "mean_absdiff": 0.1632,
+     "frac_absdiff_gt_0.5": 0.1311,
+     "frac_mlp_ge_0.5": 0.8361,
+     "frac_cnn_ge_0.5": 0.9672
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 13,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 2,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00188,
+     "mean_cnn": 0.00316,
+     "frac_absdiff_gt_0.5": 0.00112
+    }
+   },
+   "SOFT impact proxy: accel+gyro x0.5": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.5886,
+     "mean_cnn": 0.6008,
+     "mean_absdiff": 0.1267,
+     "frac_absdiff_gt_0.5": 0.0328,
+     "frac_mlp_ge_0.5": 0.6066,
+     "frac_cnn_ge_0.5": 0.623
+    },
+    "falls_detected_of": [
+     8,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 7,
+    "falls_detected_cnn_only_ge_0.9": 9,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.0,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00023,
+     "mean_cnn": 0.00119,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "SOFT impact proxy: extra 8 Hz low-pass on accel+gyro (cushion)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.7064,
+     "mean_cnn": 0.784,
+     "mean_absdiff": 0.2367,
+     "frac_absdiff_gt_0.5": 0.1967,
+     "frac_mlp_ge_0.5": 0.7049,
+     "frac_cnn_ge_0.5": 0.8033
+    },
+    "falls_detected_of": [
+     11,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 10,
+    "falls_detected_cnn_only_ge_0.9": 11,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00033,
+     "mean_cnn": 0.0015,
+     "frac_absdiff_gt_0.5": 0.00056
+    }
+   },
+   "TIMING: movement 1.25x slower (time-stretched)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8973,
+     "mean_cnn": 0.963,
+     "mean_absdiff": 0.0794,
+     "frac_absdiff_gt_0.5": 0.0328,
+     "frac_mlp_ge_0.5": 0.918,
+     "frac_cnn_ge_0.5": 0.9836
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 15,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 2323,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00043,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00181,
+     "mean_cnn": 0.00227,
+     "frac_absdiff_gt_0.5": 0.00172
+    }
+   },
+   "TIMING: movement 0.8x faster (time-compressed)": {
+    "fall_windows": {
+     "n": 60,
+     "mean_mlp": 0.9329,
+     "mean_cnn": 0.9129,
+     "mean_absdiff": 0.095,
+     "frac_absdiff_gt_0.5": 0.05,
+     "frac_mlp_ge_0.5": 0.95,
+     "frac_cnn_ge_0.5": 0.9333
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 14,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1374,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.0,
+     "frac_ens_ge_0.87": 0.0,
+     "mean_mlp": 0.00063,
+     "mean_cnn": 0.00096,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "TRAINING ASSUMPTION: opposite quaternion convention (g = R g0)": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.8878,
+     "mean_cnn": 0.8394,
+     "mean_absdiff": 0.0663,
+     "frac_absdiff_gt_0.5": 0.0164,
+     "frac_mlp_ge_0.5": 0.9016,
+     "frac_cnn_ge_0.5": 0.8525
+    },
+    "falls_detected_of": [
+     13,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 13,
+    "falls_detected_cnn_only_ge_0.9": 13,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 0,
+    "falls_peaks_absdiff_gt_0.5": 0,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.0,
+     "frac_cnn_ge_0.9": 0.00056,
+     "frac_ens_ge_0.87": 0.00056,
+     "mean_mlp": 0.00169,
+     "mean_cnn": 0.00252,
+     "frac_absdiff_gt_0.5": 0.0
+    }
+   },
+   "TRAINING ASSUMPTION: HIFD lin acc is world-frame": {
+    "fall_windows": {
+     "n": 61,
+     "mean_mlp": 0.9746,
+     "mean_cnn": 0.8959,
+     "mean_absdiff": 0.0952,
+     "frac_absdiff_gt_0.5": 0.0984,
+     "frac_mlp_ge_0.5": 1.0,
+     "frac_cnn_ge_0.5": 0.9016
+    },
+    "falls_detected_of": [
+     14,
+     15
+    ],
+    "falls_detected_mlp_only_ge_0.9": 15,
+    "falls_detected_cnn_only_ge_0.9": 14,
+    "falls_strong_disagree_colocated_0.9_vs_0.5": 1,
+    "falls_peaks_absdiff_gt_0.5": 1,
+    "adl_windows": {
+     "n": 1792,
+     "frac_mlp_ge_0.9": 0.00223,
+     "frac_cnn_ge_0.9": 0.00279,
+     "frac_ens_ge_0.87": 0.00167,
+     "mean_mlp": 0.00422,
+     "mean_cnn": 0.00668,
+     "frac_absdiff_gt_0.5": 0.00279
+    }
+   }
+  },
+  "orientation_summary": {
+   "transforms_included": [
+    "rot x +90deg",
+    "rot x -90deg",
+    "rot x +180deg",
+    "rot y +90deg",
+    "rot y -90deg",
+    "rot y +180deg",
+    "rot z +90deg",
+    "rot z -90deg",
+    "rot z +180deg",
+    "cyclic xyz->yzx (proper)",
+    "cyclic xyz->zxy (proper)",
+    "mirror y, gyro as pseudovector (right-wrist-like)",
+    "swap x<->y (improper), gyro naive",
+    "naive sign flip y on acc+gyro (axis-convention bug)"
+   ],
+   "n_fall_recordings": 15,
+   "ens_detected_min_mean_max": [
+    11,
+    13.29,
+    15
+   ],
+   "per_fall_peak_disagreement_rate_mean_max": [
+    0.0571,
+    0.2
+   ],
+   "per_fall_colocated_strong_disagreement_rate_mean_max": [
+    0.0429,
+    0.1333
+   ],
+   "fall_window_absdiff_gt_0.5_rate_mean_max_(identity=0.016)": [
+    0.1499,
+    0.3279
+   ],
+   "binomial_P(>=3 of 6 episodes disagree | per-fall rate = mean over transforms)": 0.0033,
+   "binomial_P(>=3 of 6 | per-fall rate = worst transform)": 0.0989,
+   "binomial_P(>=3 of 6 | HIFD LOSO rate 1/104)": 1.74e-05
+  }
+ }
+}

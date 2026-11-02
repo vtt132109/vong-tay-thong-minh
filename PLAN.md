@@ -266,3 +266,135 @@ C6 và C7 nhắm thẳng vào hiện tượng bất đồng mà vẫn đòi **ha
 - **C3/C4 (đổi bộ kết hợp):** dòng `p = 0.5f * (pMlp + pCnn)` trong `src/ai_model.cpp` + ngưỡng; dashboard vẫn hiện p, MLP, CNN như cũ.
 - **Xác minh:** `pio run` (một mình) → nạp COM13 → `[SELFTEST] PASS` → `replay_eval.py --ai both` trên đúng 9 bản ghi cũ: ngã ≥ 5/5, sinh hoạt không thêm báo nhầm so với `replay.json` → (người dùng làm, có giám sát) 3 lần ngã trên đệm + 10 phút sinh hoạt bằng `tools/live_ai.py`. Không cần chạy lại HIL vì xác suất từng mô hình không đổi.
 - **Câu cho slide** (bản cho C6/C7; nếu giữ C1 thì thay câu thứ ba bằng "đường luật bất động + AI hỗ trợ cứu các ca hai mô hình bất đồng"): "Hai mô hình AI bổ sung nhau. Trên dữ liệu 21 người chúng gần như luôn đồng ý, nên lấy trung bình với ngưỡng 0,87 cho 95 % phát hiện mà không báo nhầm. Trên cổ tay thật chúng hay bất đồng, nên chúng tôi thêm luật hai bằng chứng: chỉ cần **một** mô hình chắc chắn **và** có va đập/bất động là báo. Ngưỡng chọn bằng kiểm định chéo lồng nhau theo người, không chạm dữ liệu kiểm tra."
+### Kết luận F4
+
+*(Opus, 2026-11-02, sau F1–F3. Chỉ dùng `final_config.json`, `device_trials.json`, `shift_check.json`, `replay.json` + đọc firmware. Mọi số dưới đây đã kiểm lại.)*
+
+#### 0. Sửa lại các câu trong mục này đã sai
+
+1. **"C1 = 99/104, 0 báo nhầm" chỉ là đường A.** Đó là `event_report` trên 1,9455 h, không có FSM. **Hệ thống C1 đầy đủ (A ∪ B) = 102/104 (Wilson 0,933–0,995), 1 báo nhầm trong 1,801 h** (0,56/h, cận trên Poisson 95 % 3,09/h) — đường B cứu thêm 3 ca ngã và tốn đúng 1 báo nhầm (vỗ tay). Hệ quả quan trọng: **C1 đã dùng hết ngân sách FA = 1**, nên quy tắc "FA ≤ 1" tuyệt đối loại mọi ứng viên thêm dù chỉ 1 FA.
+2. **"~20 phút sinh hoạt" trên thiết bị là sai:** log thực chỉ có **517,9 s = 8,6 phút** yên tĩnh (6 khoảng, 105 cửa sổ log, max p = 0,003). 0 báo nhầm trên 0,144 h chỉ cho cận trên một phía 95 % ≈ **20,8/h** → **bằng chứng FA từ thiết bị bằng không**, không ràng buộc được ứng viên nào.
+3. **Seed:** F1 trung bình **3 seed mỗi mô hình** (`meta.seeds_averaged = {mlp: 3, cnn: 3}`), không phải 2 như mục "Hiện trạng" viết.
+4. **Giả định của bước 4 ("cửa sổ không log có max ≤ 0,4") đã vỡ một lần:** live5 #2 có cửa sổ không được log với mean 0,69 (`aiMax6s` firmware ghi 0,69 trong khi ring dựng lại từ log chỉ ra 0,602). Chấm lại là đầy đủ *trừ* lỗ hổng này.
+5. **Dự đoán "C1 ≈ 0" ở stress-test đúng, nhưng con số thô 45/104 là lỗi số học:** CNN int8 trả **đúng 1,0** trên ~1 % cửa sổ, nên khi MLP = 0 thì mean = 0,5 vẫn "≥ 0,5" của đường B. Chặn ở 0,999 → **C1/C2/C4/C5 = 0/0**. Chỉ được báo cáo số đã chặn.
+6. **"C7 dự kiến nhiều khả năng nhất" là sai** (xem §2).
+
+#### 1. Diễn giải quy tắc chấp nhận: dùng bản **tương đối** (FA ≤ FA(C1) + 1 = 2)
+
+Hai câu trong mục "Tiêu chí quyết định" đã mâu thuẫn ngay khi biết C1 có 1 FA chứ không phải 0: *"X = tối đa 1 báo nhầm trong 1,95 h"* (tuyệt đối ⇒ ngưỡng 1) và *"tức chỉ được thêm tối đa 1 so với C1"* (tương đối ⇒ ngưỡng 2). Con số tuyệt đối "1" được viết **dựa trên tiền đề sai rằng C1 = 0 FA**; tiền đề đó đã đổ, nên mệnh đề còn hiệu lực là mệnh đề tương đối, cũng là mệnh đề diễn đạt đúng ý định ("≈ 0,5/h đo được, đời thực thấp hơn nhiều").
+
+**Áp dụng:** quy tắc **nới** `FA_train ≤ FA(C1, cùng người) + 1`. Ghi rõ căng thẳng: **nếu đọc theo nghĩa tuyệt đối "FA ≤ 1" thì không ứng viên nào vượt C1 ở (1)–(2), và kết luận là giữ C1** — vì vậy thay đổi ở §5 được thiết kế để **lùi lại bằng một hằng số duy nhất**.
+
+#### 2. Bằng chứng từng ứng viên vào vòng cuối
+
+| | HIFD lồng nhau (104 ca, 1,801 h) | nhóm sạch 16–21 | bootstrap vs C1 (1000 lần, theo người) | stress 1 mô hình hỏng (đã chặn 0,999) | cổ tay thật (n = 5) | hằng số đổi |
+|---|---|---|---|---|---|---|
+| **C1** (giữ) | 102/104 • FA 1 • 0,56/h | 31/31 • FA 1 | – | **0 / 0** | 3/5 (4 ca AI bật: 3/4) | 0 |
+| **C6** t_hi = 0,95 | **102/104 • FA 2 • 1,11/h** | **31/31 • FA 1** | Δrecall **0,000** (CI 0,000–0,000; 0/1000 tốt hơn, **0/1000 xấu hơn**) • ΔFA +1,06 (CI 0–+3) • ΔFA/h +0,59 (CI 0–+1,70) | **96 / 97** | **4/5** có cooldown, **5/5** nếu tính rời; 4 ca AI bật: 3/4 | **1** |
+| C7 / C7v τ_B = 0,9 | 100/104 • FA 2 | 30/31 • FA 1 | Δrecall −0,019 (CI −0,049–0,000), **89,5 % lần lấy lại xấu hơn** | 97 / 98 | **2/5** (kém cả C1) | 1–2 |
+| C3 t = 0,99 / τ = 0,9 | 100/104 • FA 4 (in-sample 3) | 30/31 • FA 1 | Δrecall −0,019 (CI −0,049–0,000) • ΔFA +3,06 (CI 0–+7) | 97 / 98 | 4/5 (5/5 rời) | 2 + đổi bộ kết hợp |
+| C8b (chỉ CNN) | 103/104 • FA 5 | 31/31 • FA 1 | Δrecall +0,009 (CI 0,000–+0,029) • ΔFA +4,06 (CI +1–+8) | 103 / **0** | 3/5 | bỏ hẳn MLP |
+
+**Đọc bảng:**
+
+- **C6 là ứng viên duy nhất không mất gì về recall.** Δrecall = 0,000 trong **cả 1000** lần lấy lại — vì trên HIFD hai mô hình gần như luôn đồng ý nên đường A′ không bắt thêm ca nào; toàn bộ giá trị của C6 nằm ở (a) chống hỏng mô hình, (b) các ca bất đồng trên cổ tay thật. Giá phải trả là **đúng 1 báo nhầm**, và **1 FA đó nằm hoàn toàn ở người 1–15** (nhóm sạch 16–21 vẫn FA 1, y như C1 — tức ở nhóm duy nhất mà tham số FSM không được chỉnh, C6 **không tốn thêm gì**).
+- **C6 không nhạy ngưỡng:** FA = 2 cho mọi t_hi ∈ {0,95; 0,97; 0,98; 0,99} (t_hi = 0,93 → FA 3; 0,90 → FA 4); stress tốt nhất ở 0,95–0,97 (96/97) và tụt ở 0,98–0,99 (92/96–97). Chọn lồng nhau ra **t_hi = 0,95 ở 21/21 fold**, không fold nào phải dùng phương án dự phòng dưới quy tắc nới.
+- **C7/C7v bị loại thẳng, và lý do đáng ghi lại:** thay "mean6s ≥ 0,5" bằng "max6s ≥ 0,9" **không phải nới lỏng mà là thắt lại** khi hai mô hình đều trung bình. Chính live5 #3 (max 0,865 < 0,9 nhưng mean 0,588 ≥ 0,5) bị mất → C7 chỉ bắt **2/5** trên cổ tay, kém C1. Trên HIFD C7 cũng **kém C1 ở 89,5 %** lần lấy lại. Muốn C7 bắt được thì phải τ_B = 0,5 → FA nhảy lên **7–8** (và var_still 2,5 → FA 8). Ứng viên "nhiều khả năng nhất" của kế hoạch là ứng viên **tệ nhất** trong nhóm cuối.
+- **C3 bị loại** vì đổi bộ kết hợp toàn cục: mất 2 ca ngã HIFD và FA 4 lồng nhau (ΔFA/h +1,70, CI 0–+3,80) — vượt mọi cách đọc ngân sách, để đổi lấy đúng cái robustness mà C6 có với 1 FA.
+- **C8b bị loại** vì bỏ MLP: 0 ca khi CNN hỏng, FA 5, và F3 cho thấy **CNN là mô hình nhạy hướng gắn hơn** (xem §6).
+- **C2/C5 không thắng gì:** Δrecall 0,000 nhưng stress vẫn 0/0 (như C1) và vẫn tốn +1 FA — trả giá mà không mua được gì. Loại theo tiêu chí (4).
+
+#### 3. Quyết định
+
+> **Nạp C6 với `AI_SINGLE_P = 0,95`.** Đường A giữ nguyên `mean ≥ 0,87`, đường B giữ nguyên `mean6s ≥ 0,5`, FSM giữ nguyên (settle 1,5 s / cửa sổ 2 s / var_still 0,8 / var_motion 4,0). Thêm **đường A′**: `max(MLP, CNN) ≥ 0,95` **và** FSM đang ở `FREE_FALL`/`IMPACT` → COUNTDOWN, dùng chung cooldown 30 s.
+
+Chiếu từng tiêu chí: **(1)** FA lồng nhau 2 = FA(C1) + 1 ✔ theo cách đọc tương đối (✘ theo cách đọc tuyệt đối — đã nêu); cửa chặn replay vẫn phải chạy ở F5. **(2)** recall 102/104 = C1, không kém ca nào ✔. **(3)** C6 **thắng dứt khoát**: stress 96/97 so với 0/0 của C1, và là ứng viên duy nhất kích hoạt được trên **cả hai** ca C1 bỏ sót trên cổ tay thật (live1 #1: ngã rồi tiếp tục cử động mạnh var 111 — đường B bất động không bao giờ cứu được; live5 #2: MLP 0,17 / CNN 1,00). **(4)** chỉ thêm **1 hằng số**, không chạm ngưỡng cũ, lùi lại được bằng một giá trị.
+
+**Trung thực về chỗ yếu của chứng cứ cổ tay:** 4/5 (hay 5/5 nếu tính rời) so với 3/5 của C1 là **không có ý nghĩa thống kê** — Wilson 3/5 = 0,23–0,88, 5/5 = 0,57–1,00, trùm lên nhau. Hơn nữa trong 4 ca **thực sự chạy với AI bật**, C6 = C1 = **3/4**: ca C6 bắt thêm mà C1 không (live1 #1) là ca chạy với **AI tắt**, chỉ chấm lại trên giấy; còn live5 #2 bị **cooldown 30 s** của live5 #1 (cách 12,5 s) chặn. Vậy **5 lần ngã thật không phải căn cứ chọn C6** — nó chỉ xác nhận rằng hai ca C1 bỏ sót đúng là dạng bất đồng mà C6 nhắm vào, và F3 chứng minh dạng bất đồng này là thật và sẽ còn (3/6 sự kiện lệch > 0,5 so với 1/104 trên HIFD, Fisher **p = 3,6·10⁻⁴**). **Căn cứ chính của quyết định là tiêu chí (3) trên 104 ca ngã: stress 96/97 vs 0/0, với Δrecall = 0 chắc chắn và ΔFA = 1.**
+
+#### 4. Thêm bao nhiêu báo nhầm mỗi giờ, có chấp nhận được không?
+
+- **Đo được:** C1 0,56/h → C6 1,11/h, tức **+0,56 báo nhầm/h** trên 1,801 h sinh hoạt HIFD (cận trên Poisson 95 %: 3,09 → **4,01/h**). Bootstrap: +1,06 FA (CI 0 đến +3), +0,59/h (CI 0 đến +1,70). Trên nhóm sạch 16–21: **+0,00**.
+- **Nhưng 1,801 h đó gần như toàn hoạt động "khó"** (vỗ tay, ngồi phịch, giũ áo liên tiếp), không phải một ngày bình thường. Quy ra mỗi ngày **phải giả định** tỉ lệ thời gian có hoạt động khó, và **chúng ta chưa đo nó**: nếu hoạt động như vậy chiếm 5–10 % trong 14 h thức (0,7–1,4 h) thì phần thêm là **≈ +0,4 đến +0,8 báo nhầm/ngày**; nếu 2 % thì ≈ +0,16/ngày. Đây là ngoại suy, không phải số đo.
+- **Thiết bị không ràng buộc được gì:** 8,6 phút, 0 FA cho **mọi** ứng viên (cận trên ≈ 20,8/h).
+- **Kết luận về khả năng chấp nhận:** mục tiêu đặt ra là ≤ 1/ngày. Điểm ước lượng tốt nhất cho phần **thêm** nằm dưới 1/ngày nhưng **sát mép** và **chưa kiểm chứng cho chế độ đeo 14 h/ngày**. Với còi + **10 s hủy** + cooldown 30 s, một báo nhầm mà người đeo hủy kịp chỉ tốn một tiếng bíp và một lần bấm nút — không tới người chăm sóc. Vì vậy: **chấp nhận được cho bản mẫu và cho thử nghiệm có giám sát**, kèm điều kiện lùi ở §5(e) nếu nhật ký đeo thật cho > 1 báo nhầm/ngày. Người cao tuổi phản xạ chậm là lý do **không** hạ `AI_ENSEMBLE_THRESHOLD` và **không** chọn C3/C8b.
+
+#### 5. F5 phải sửa gì, xác minh thế nào, khi nào lùi
+
+**(a) `src/fsm.cpp` — thay đổi chính:**
+
+- Thêm cạnh `AI_SUPPORT_P` (dòng 83):
+  ```cpp
+  // C6 path A': one model alone may fire, but only with mechanical evidence of an impact.
+  // t_hi = 0.95 chosen by nested leave-one-subject-out selection (21/21 folds),
+  // dataset/ai_results/final_config.json -> candidates.C6.  Set to 2.0f to fall back to C1.
+  static constexpr float AI_SINGLE_P = 0.95f;
+  ```
+- Trong `updateFallDetection`, **trước** khối đường A (dòng 100), tính:
+  ```cpp
+  const bool aiWindowFresh = (aiWindowMs != 0) && (now - aiWindowMs <= 600);
+  const bool aiSingleStrong = aiWindowFresh &&
+      ((isfinite(aiProbMlp) && aiProbMlp >= AI_SINGLE_P) ||
+       (isfinite(aiProbCnn) && aiProbCnn >= AI_SINGLE_P));
+  const bool aiSingleGate = aiSingleStrong &&
+      (state == SystemState::FreeFall || state == SystemState::Impact);
+  ```
+  `isfinite` là cần: `aiProbCnn` bằng −1,0 khi CNN không chạy. **`aiWindowFresh` là bắt buộc để khớp với F1:** bộ chấm offline xét cờ A′ **một lần mỗi cửa sổ** (trạng thái FSM tại mẫu cuối cửa sổ), còn `updateFallDetection` chạy mỗi 20 ms — không có chốt tươi, một cửa sổ vỗ tay có CNN cao sẽ còn "treo" 0,5 s và kịp bắn nếu FSM vào `IMPACT` sau đó, tức firmware sẽ **lỏng hơn** số FA đã đo.
+- Đổi điều kiện dòng 100 thành `aiAlarmEnabled && (aiFall || aiSingleGate) && (state == Idle || FreeFall || Impact) && (lastAiAlertMs == 0 || now - lastAiAlertMs > AI_ALERT_COOLDOWN_MS)`. **Giữ nguyên** `lastAiAlertMs`, `AI_ALERT_COOLDOWN_MS` (30 s) và `setState(SystemState::Countdown, "Te nga (AI)")` để OLED/dashboard không đổi chữ.
+- **Log mới:** khi bắn *chỉ* qua A′ (`!aiFall && aiSingleGate`) in
+  `[FSM] AI single-model trigger mlp=%.3f cnn=%.3f thr=%.2f state=%s` (giữ dòng `[FSM] AI trigger ...` cũ cho đường A, để đếm riêng được hai đường khi soát log).
+- **Thêm vào dòng `[FSM] impact variance=…`** (dòng 162) hai trường `mlp=%.2f cnn=%.2f` (từ `aiProbMlp`/`aiProbCnn`) — chỉ để chẩn đoán về sau, không thêm biến.
+- Cập nhật khối chú thích dòng 68–78 để mô tả A′ và nguồn số.
+
+**(b) `aiWindowMs` — biến mới duy nhất:** `extern uint32_t aiWindowMs;` trong `include/app_state.h` (cạnh `aiMax6s`), định nghĩa `uint32_t aiWindowMs = 0;` trong `src/main.cpp`, gán `aiWindowMs = now;` ở **cuối** `runTinyAi()` trong `src/ai_model.cpp` (sau khi `aiProbability`/`aiFall` đã được đặt, trước khối log).
+
+**(c) KHÔNG được chạm:** `include/cnn_fall_model.h` (`AI_ENSEMBLE_THRESHOLD` giữ `0.870000005f`), `AI_SUPPORT_P` giữ `0.5f`, dòng `p = 0.5f * (pMlp + pCnn)` trong `src/ai_model.cpp`, `AI_STILL_VAR`/`AI_MOTION_VAR`, `fusion.json`, `final_models.pkl`, mọi header mô hình. Không huấn luyện lại, không chạy `export_final.py`. ⇒ `aiSelfTest()` chỉ so xác suất từng mô hình nên **không bị ảnh hưởng**; không cần chạy lại HIL 1942 cửa sổ.
+Lưu ý: `src/fsm.cpp`, `src/main.cpp`, `include/board_config.h` đang có thay đổi chưa commit (nút/còi chung net GPIO1-2-3) — sửa **trên nền** các thay đổi đó, commit riêng.
+
+**(d) Xác minh, theo thứ tự:**
+
+1. `pio run` (chạy một mình, không song song pio khác) — không có cảnh báo mới.
+2. Nạp COM13 (cần người dùng cho phép) → `[SELFTEST] PASS`. Nếu FAIL thì bản sửa đã làm hỏng thứ không liên quan → dừng.
+3. `tools/ai_lab/replay_eval.py --ai both` trên **đúng 9 bản ghi** của `replay.json`. **Kỳ vọng:**
+   - 5 ca ngã vẫn 5/5 có COUNTDOWN: `s19/fall/fall1`, `s19/fall/fall4`, `s20/fall/fall2`, `s20/fall/fall5` (lý do `Te nga (AI…`), `s21/fall/fall3` (hiện là `Te nga + bat dong`). `s21/fall3` **được phép** đổi sang bắn qua A′ và countdown ngắn lại (hiện 3,43 s) — ghi lại con số mới.
+   - Sinh hoạt: **đúng 1** báo nhầm, `s20/non-fall/clap` (như `replay.json`: countdown 17,0 s → ALARM). `s19/non-fall/clap` (peak mean p 0,3895), `s19/non-fall/bed` (0,0017), `s19/non-fall/walk` (0,0119) **phải không có COUNTDOWN**.
+   - **Đây là cửa chặn cứng của tiêu chí (1).** Dấu hiệu tốt: trên điểm LOSO, FA tăng của C6 nằm ở người 1–15, nhóm 16–21 (gồm s19–s21) vẫn FA 1 — nhưng replay dùng **mô hình đã nạp** (người 1–18 là dữ liệu huấn luyện, nên s19/s20 cho xác suất cao hơn LOSO), vì vậy phải chạy thật, không được suy luận.
+4. Người dùng làm, có giám sát: 3 lần ngã trên đệm + **≥ 10 phút** sinh hoạt thường bằng `tools/live_ai.py`, **có cố ý vỗ tay và ngồi phịch**. Đếm riêng số lần `[FSM] AI single-model trigger` xuất hiện và trong đó bao nhiêu là báo nhầm. Lưu log vào `dataset/device_logs/`.
+
+**(e) Điều kiện lùi (chỉ cần một điều kiện đúng → đặt `AI_SINGLE_P = 2.0f`, khôi phục C1 chính xác, không sửa gì khác):**
+
+- replay sinh **bất kỳ** báo nhầm sinh hoạt nào ngoài `s20/non-fall/clap`; **hoặc**
+- thử nghiệm có giám sát cho ≥ 1 báo nhầm do dòng `[FSM] AI single-model trigger` trong ≤ 10 phút sinh hoạt thường (≈ ≥ 6/h, hơn 10 lần mức tăng đo trên HIFD); **hoặc**
+- nhật ký đeo dài hơn về sau cho > 1 báo nhầm/ngày; **hoặc**
+- `[SELFTEST] FAIL`.
+
+#### 6. Rủi ro tồn đọng quan trọng nhất (một rủi ro, đã lượng hóa)
+
+**Lệch hướng gắn làm đường A′ của CNN bắn trên sinh hoạt.** F3 đo trên mô hình đã nạp, người 19–21, 1792 cửa sổ sinh hoạt: ở hướng gốc chỉ **0,056 %** cửa sổ có CNN ≥ 0,9 (MLP: 0 %); nhưng khi xoay **z −90°** thì **3,40 %** cửa sổ sinh hoạt có CNN ≥ 0,9 — trong khi `mean ≥ 0,87` vẫn **0,00 %**. Nói cách khác: **C1 miễn nhiễm với kịch bản này, C6 thì không**, và CNN đúng là mô hình nhạy hướng hơn. Dây đeo hiện **không khóa được góc của MPU6050** trên cổ tay (BAO_CAO mục 12, việc tương lai). Cổng `FREE_FALL`/`IMPACT` + cooldown 30 s cắt phần lớn số đó (bằng chứng: ở hướng gốc cổng này giữ giá phải trả ở đúng +1 FA trong 1,8 h), nhưng **mức giảm khi bị xoay thì chưa đo được**. Giảm thiểu: vỏ/dây cố định hướng (đã có trong việc tương lai), bước xác minh (d)(4), và điều kiện lùi (e).
+
+#### 7. Ba câu cho giám khảo (trung thực, gồm cả giới hạn)
+
+> "Hai mô hình AI bổ sung nhau: trên 21 người của bộ dữ liệu công khai chúng gần như luôn đồng ý, nên lấy trung bình hai xác suất với ngưỡng 0,87 đạt 102/104 ca ngã và 1 báo nhầm trong 1,8 giờ sinh hoạt khó. Trên cổ tay thật của chúng tôi hai mô hình lại hay bất đồng — 3/6 sự kiện lệch hơn 0,5, so với 1/104 trên bộ dữ liệu (Fisher p = 3,6·10⁻⁴) — nên chúng tôi thêm luật hai bằng chứng: chỉ cần **một** mô hình chắc chắn (≥ 0,95) **và** FSM đang thấy rơi/va đập là báo; luật này giữ nguyên 102/104, chỉ thêm 1 báo nhầm, và nếu một mô hình hỏng hẳn vẫn bắt 96–97/104 thay vì 0. Giới hạn: ngưỡng chọn bằng kiểm định chéo lồng nhau theo từng người nhưng chỉ có 21 người; bằng chứng trên người thật là 5 lần ngã xuống **đệm** của **một** người (khoảng tin cậy 0,23–0,88) và 8,6 phút sinh hoạt — chưa đủ để công bố tỉ lệ báo nhầm mỗi ngày, nên còi vẫn có 10 giây để hủy."
+
+#### 8. Người dùng cần quyết
+
+1. **Chốt C6 (`AI_SINGLE_P = 0,95`) hay ra lệnh "giữ C1"?** Chọn C1 nếu muốn đọc quy tắc theo nghĩa tuyệt đối "FA ≤ 1" — khi đó F5 không sửa code, chỉ cập nhật tài liệu với số lồng nhau + stress-test.
+2. **Cho phép dùng COM13** ở F5 (build + nạp + `replay_eval.py`), và nhận làm **thử nghiệm đeo có giám sát** (3 lần ngã trên đệm + ≥ 10 phút sinh hoạt có vỗ tay/ngồi phịch) — không có bước này thì không đóng được điều kiện lùi.
+3. **AI alarm mode để mặc định ON hay vẫn OFF trong NVS** (`#AIARM`)? C6 chỉ có tác dụng khi AI bật; live1 chạy với AI tắt nên 1 trong 5 ca ngã hôm nay không nói được gì.
+4. **Hủy đếm ngược có nên xóa cooldown 30 s không?** live5 #2 bị chặn bởi cooldown của live5 #1 *đã bị hủy*. Đây là thay đổi riêng, ngoài phạm vi F4 — quyết định có đưa vào F5 hay hoãn.
+5. **Tùy chọn:** nâng chuỗi phiên bản FW (2.1-ai → 2.2-ai), và có bỏ ~5 phút chạy lại `run_final_config.py` để biết bản ghi sinh hoạt nào ở người 1–15 gây ra FA thứ 2 của C6 (hiện `final_config.json` không ghi nhãn kịch bản ở mức hệ thống).
+
+#### 9. Tóm tắt
+
+1. **Nạp C6, `AI_SINGLE_P = 0,95` trong `src/fsm.cpp`.** Giữ nguyên `mean ≥ 0,87`, `mean6s ≥ 0,5`, mọi tham số FSM và mọi mô hình.
+2. Quy tắc chấp nhận dùng bản **tương đối** (FA ≤ FA(C1) + 1 = 2), vì con số tuyệt đối "1" được viết khi còn tưởng C1 = 0 FA; theo nghĩa tuyệt đối thì giữ C1 — nên thay đổi được làm sao cho lùi lại bằng một hằng số.
+3. C6 **không mất ca ngã nào**: 102/104 y như C1, Δrecall = 0,000 trong cả 1000 lần bootstrap. Giá: **+1 báo nhầm** (0,56 → 1,11/h; nhóm sạch 16–21 **+0**).
+4. Lý do chọn là tiêu chí (3): khi **một mô hình hỏng**, C6 giữ **96/97 trên 104**, C1 giữ **0** (số 45 là lỗi số học của CNN int8 = 1,0).
+5. C7/C7v **loại**: `max6s ≥ 0,9` thắt hơn `mean6s ≥ 0,5`, nên kém C1 cả trên HIFD (100/104; xấu hơn ở 89,5 % lần bootstrap) lẫn trên cổ tay (2/5).
+6. C3 loại (FA 4, mất 2 ca), C8b loại (FA 5, hỏng CNN → 0 ca), C2/C5 loại (trả +1 FA mà stress vẫn 0).
+7. 5 lần ngã thật **không phải** căn cứ chọn: 4/5 vs 3/5 không có ý nghĩa (CI 0,23–0,88 trùm nhau), và trong 4 ca AI bật thì C6 = C1 = 3/4. Nó chỉ xác nhận dạng bất đồng là thật (F3: Fisher p = 3,6·10⁻⁴).
+8. Rủi ro tồn đọng số một: **lệch hướng gắn** đẩy CNN ≥ 0,9 từ 0,06 % lên **3,4 %** cửa sổ sinh hoạt, trong khi `mean ≥ 0,87` vẫn 0 % — C1 miễn nhiễm, C6 không.
+9. **F5 sửa:** `src/fsm.cpp` (hằng `AI_SINGLE_P`, cờ `aiSingleGate` có chốt tươi 600 ms, nối vào điều kiện đường A, log `[FSM] AI single-model trigger`, thêm `mlp=`/`cnn=` vào dòng `impact variance=`, cập nhật chú thích); `aiWindowMs` mới ở `include/app_state.h` + `src/main.cpp` + cuối `runTinyAi()` trong `src/ai_model.cpp`. Không chạm header mô hình, ngưỡng 0,87, `AI_SUPPORT_P`, `fusion.json`.
+10. **Xác minh:** `pio run` → `[SELFTEST] PASS` → `replay_eval.py --ai both` trên 9 bản ghi: ngã 5/5, sinh hoạt **đúng 1** báo nhầm (`s20/clap`) — cửa chặn cứng → thử nghiệm đeo có giám sát.
+11. **Lùi** (đặt `AI_SINGLE_P = 2.0f`) nếu: replay thêm báo nhầm, hoặc ≥ 1 báo nhầm từ A′ trong 10 phút sinh hoạt, hoặc > 1/ngày khi đeo thật, hoặc self-test FAIL.
+12. Không cần chạy lại HIL; `aiSelfTest()` không phụ thuộc luật kết hợp.
