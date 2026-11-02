@@ -180,3 +180,89 @@ Hiện trạng: `readBatteryVoltage()` đã có (8 mẫu, ×2), `lipoPercent()` 
 - **QAT cho CNN — loại.** Lượng tử hóa sau huấn luyện đã gần như không mất gì (sai lệch xác suất trung bình float↔int8 0,0015; HIL khớp numpy). QAT phải huấn luyện lại, sinh lại header, chạy lại self-test + HIL 1942 cửa sổ: tốn công, có rủi ro, không có độ chính xác để lấy lại. Tối ưu SIMD cho CNN cũng không cần (4,2 ms/500 ms < 1 % CPU).
 - **C5 cửa sổ 1,5/3 s — hoãn.** Đổi hợp đồng cửa sổ kéo theo bộ đệm firmware, đặc trưng, header tự sinh, self-test, HIL; chưa có bằng chứng cửa sổ 2 s là điểm yếu. Chỉ xem lại sau GĐ E nếu dữ liệu thật cho thấy bỏ sót/trễ do độ dài cửa sổ (khi đó làm trước dạng nghiên cứu ngoại tuyến LOSO, không đụng firmware).
 - **Hoãn tới khi có pin/người:** cảnh báo pin yếu trên dashboard (cần pin thật để chọn ngưỡng); ghi IMU thô khi đeo (E4).
+
+## Quyết định cấu hình phát hiện ngã cuối cùng
+
+**Ràng buộc:** huấn luyện đã xong — **không thu thêm dữ liệu, không huấn luyện lại** (kể cả `export_final.py`, vì script này huấn luyện lại mô hình). Chỉ được đổi **cách kết hợp** hai xác suất đã có (MLP float, CNN int8) với đường luật FSM, và các hằng số ngưỡng. Bằng chứng: điểm LOSO đã lưu, công cụ mô phỏng FSM, replay trên chip, 5 lần ngã thật hôm nay.
+
+### Hiện trạng đã kiểm tra lại (2026-11-02)
+
+- Firmware: `p = (MLP + CNN)/2`, `AI_ENSEMBLE_THRESHOLD 0.87` (`include/cnn_fall_model.h`, file sinh tự động), debounce 1-of-1. `src/fsm.cpp`: **đường A** `aiFall` (p ≥ 0,87) ở trạng thái IDLE/FREE_FALL/IMPACT → COUNTDOWN ngay; **đường B** FSM hiệu chỉnh lại (settle 1,5 s, cửa sổ 2 s, var < 0,8, var > 4,0 = cử động) + `aiMax6s` (max của **trung bình** trong 6 s) ≥ `AI_SUPPORT_P 0,5`; AI bật mà `aiMax6s` < 0,5 → IDLE. `aiSelfTest()` chỉ so xác suất từng mô hình, **không phụ thuộc ngưỡng**, nên đổi luật kết hợp không làm hỏng self-test.
+- LOSO gộp 21 người (2 bộ seed mỗi mô hình, 104 ca ngã, 1,95 h sinh hoạt; số liệu tính lại bằng `evalx.event_report`, chỉ đường A, không FSM):
+
+| Luật (chỉ đường A) | ngưỡng | phát hiện | báo nhầm / 1,95 h | ghi chú |
+|---|---|---|---|---|
+| mean (đang nạp) | 0,87 | 99/104 | 0 (cận trên 1,9/h) | `fusion.json` khớp |
+| mean | 0,70 | 100/104 | 1 (vỗ tay) | |
+| max(MLP, CNN) | 0,95 / 0,98 | 100/104 | 3 / 2 | vỗ tay, giũ áo |
+| min (AND) | 0,80 | 98/104 | 0 | |
+| MLP đơn / CNN đơn | 0,90 | 98 / 97 | 3 / 3 | |
+| luật gốc FSM | – | 6/104 | 14 (7,8/h) | `b1_baselines.json` |
+
+- Replay trên chip (`replay.json`): AI bật 5/5 ca ngã, 1/4 sinh hoạt báo nhầm (vỗ tay, qua đường B); AI tắt 0/5. HIL người 19–21 (`hil_final_full.json`): 1942 cửa sổ, 0 quyết định lệch so với numpy, 14/15 ngã, 1 báo nhầm (vỗ tay).
+- **Phát hiện quan trọng:** trên HIFD hai mô hình gần như luôn đồng ý (tương quan điểm 0,94; **0/104** ca ngã có một mô hình ≥ 0,9 mà mô hình kia < 0,5). Trên cổ tay thật hôm nay: **4/5** lần ngã bất đồng mạnh (MLP 0,00/CNN 1,00; 0,98/0,05; 0,17/1,00; 0,86/0,28), chỉ 1/5 đồng ý (1,00/1,00). Đây là dấu hiệu **lệch miền** (người đeo, hướng gắn, đệm), và HIFD **không thể** đo được lợi ích của luật xử lý bất đồng — HIFD chỉ đo được **cái giá** (báo nhầm thêm) của luật đó.
+
+### Cấu hình ứng viên (đều làm được không cần huấn luyện lại)
+
+| ID | Đường A (ngay khi va đập) | Đường B (FSM bất động + AI hỗ trợ 6 s) |
+|---|---|---|
+| C0 | – (AI tắt) | luật gốc |
+| C1 | mean ≥ 0,87 (**hiện tại**) | mean ≥ 0,5 |
+| C2 | mean ≥ t, t ∈ {0,6 … 0,95} | mean ≥ τ, τ ∈ {0,3 … 0,7} |
+| C3 | max ≥ t, t ∈ {0,9 … 0,99} | max ≥ τ |
+| C4 | w·MLP + (1−w)·CNN ≥ t, w ∈ {0,3; 0,4; 0,6; 0,7} | như A |
+| C5 | min ≥ t (AND) | mean ≥ τ |
+| C6 | mean ≥ 0,87 **hoặc** (max ≥ t_hi **và** đang FREE_FALL/IMPACT) | mean ≥ 0,5 |
+| C7 | mean ≥ 0,87 (giữ nguyên) | **max** ≥ τ_B, τ_B ∈ {0,5; 0,7; 0,9}; tùy chọn var_still ∈ {0,8; 1,5; 2,5} |
+| C8 | MLP đơn ≥ t / CNN đơn ≥ t (tham chiếu) | đơn ≥ τ |
+
+C6 và C7 nhắm thẳng vào hiện tượng bất đồng mà vẫn đòi **hai bằng chứng** (AI mạnh + va đập, hoặc AI hỗ trợ + bất động). Hiệu chuẩn sau huấn luyện (Platt/isotonic) **loại**: là khớp tham số trên dữ liệu, trái tinh thần "không huấn luyện lại", và không sửa được lệch miền.
+
+### Tiêu chí quyết định
+
+- **Ngân sách báo nhầm X.** Người cao tuổi, còi kêu và có 10 s để hủy; báo nhầm không hủy kịp → người chăm sóc nhận tin sai → mệt mỏi cảnh báo. Mục tiêu đời thực ≤ 1 lần/ngày (≈ 0,07/h khi thức 14 h). Dữ liệu chỉ phân giải được ~0,5/h (1 lần/1,95 h), và 1,95 h HIFD toàn hoạt động "khó" (vỗ tay, ngồi phịch, giũ áo), nên tần suất đời thực thấp hơn nhiều. Vì vậy **X = tối đa 1 báo nhầm trong 1,95 h LOSO** (≈ 0,51/h, cận trên Poisson 95 % ≤ 2,9/h), tức chỉ được thêm tối đa 1 so với C1.
+- **Quy tắc chấp nhận** (theo thứ tự): (1) FA LOSO lồng nhau ≤ 1 và replay chip không thêm báo nhầm so với `replay.json`; (2) recall HIFD **không kém** C1 quá 1 ca (≥ 98/104); (3) **tối đa hóa** recall khi stress-test "một mô hình hỏng" (bên dưới) và số lần ngã thật bắt được khi chấm lại offline (5 lần); (4) hòa → chọn cấu hình ít hằng số thay đổi, dễ giải thích hơn. Nếu không ứng viên nào hơn C1 ở (3) mà vẫn đạt (1)–(2) → **giữ C1**.
+- Độ trễ/tính toán: mọi ứng viên dùng cùng hai lần suy luận (MLP 0,42 ms, CNN 4,2 ms mỗi 0,5 s) — không phải tiêu chí phân biệt, chỉ cần kiểm tra không tăng.
+
+### Thí nghiệm (chỉ trên dữ liệu/điểm đã có)
+
+1. **Lưới ứng viên trên LOSO** (`run_final_config.py`, mới): dùng điểm `loso_{mlp,cnn}_fw_aug{,_s12}.npz` như `run_fusion.py`; đường B mô phỏng bằng `evalx.simulate_fsm` + `fsm_input` với tham số FSM cố định. Báo cáo recall (Wilson CI), FA/h (Poisson), độ trễ trung vị cho cả **người 16–21** (FSM chỉnh trên 1–15, sạch) và **21 người** (ghi rõ hơi lạc quan cho 1–15).
+2. **Chọn ngưỡng lồng nhau:** với mỗi người giữ lại, chọn (t, τ) trên 20 người còn lại theo đúng quy tắc chấp nhận, áp lên người giữ lại, gộp kết quả. Đây là con số được phép báo cáo; điểm "chọn trên toàn bộ" chỉ dùng để nạp. Thêm bootstrap theo người (1000 lần, cặp đôi) cho hiệu recall/FA giữa ứng viên và C1.
+3. **Stress-test "một mô hình hỏng"** (mô phỏng chế độ bất đồng thấy trên cổ tay): trên các bản ghi ngã thay điểm MLP bằng 0 (rồi lần lượt CNN bằng 0), giữ nguyên bản ghi sinh hoạt; đo recall còn lại. Dự kiến C1 ≈ 0 (mean không thể ≥ 0,87, cũng khó ≥ 0,5), C3/C6/C7 giữ được phần lớn — con số này cho phép so sánh định lượng mà không cần dữ liệu mới.
+4. **Chấm lại offline 5 lần ngã thật + ~20 phút sinh hoạt** (`device_log_rescore.py`, mới): phân tích `[TINY-AI]`/`live_ai` (mlp, cnn mỗi 0,5 s) và dòng `[FSM] impact variance=…` rồi áp từng luật. Lưu ý: firmware chỉ log khi p > 0,2 hoặc mỗi 5 s, nên cửa sổ không được log có max ≤ 0,4 → chấm lại **đầy đủ** cho mọi ngưỡng ≥ 0,4. C1 hiện bắt 3/5 (live5 #1 đường A; live3 và live5 #3 đường B); live1 chạy với AI tắt (`ai=0`) và cử động mạnh sau va đập (var 111).
+5. **Kiểm tra lệch miền (chỉ đọc):** so hướng trục/đơn vị/dấu trọng lực của chuỗi firmware (`src/ai_model.cpp`, `src/sensors.cpp`) với `tools/ai_lab/preproc.py`; tính mức bất đồng MLP/CNN của **mô hình đã nạp** (`final_models.pkl`) trên người 19–21. Nếu phát hiện lệch trục thật thì **dừng và hỏi người dùng** (sửa ánh xạ trục là thay đổi riêng, phải kiểm lại trên cổ tay).
+
+### Cách dùng 5 lần ngã thật hôm nay một cách trung thực
+
+- **Cho thấy được:** chuỗi cảm biến → AI → FSM → đếm ngược → hủy chạy trên người thật; hai mô hình **bất đồng** trên người đeo này (điều HIFD không lộ ra); đường B cứu được ca nằm yên; ~20 phút sinh hoạt p ≈ 0,001, không báo nhầm.
+- **Không cho thấy được:** recall hay FA/h (n = 5, cùng một người, CI Wilson của 3/5 là 0,23–0,88; 20 phút không báo nhầm chỉ cho cận trên ≈ 9/h); ngã xuống đệm có va đập yếu và nảy, khác ngã trên sàn cứng.
+- **Vai trò:** kiểm tra hợp lý + phân xử hòa. Không chọn ngưỡng theo 5 lần này; không chỉnh var_still chỉ để cứu live5 #2 trừ khi lưới LOSO (bước 1) cho thấy FA không tăng.
+
+### Rủi ro
+
+- **Quá khớp ngưỡng trên chính điểm LOSO** → bước 2 (lồng nhau) + chỉ báo cáo con số lồng nhau; ưu tiên ngưỡng tròn và ít tham số tự do (C7 chỉ thêm 1 hằng số).
+- **Đệm ≠ sàn thật:** nói rõ trong báo cáo; giữ cooldown 30 s và cửa sổ hủy 10 s.
+- **Lệch thang đo float MLP vs int8 CNN:** HIL cho sai lệch tối đa 1,6·10⁻⁴ so với numpy → lượng tử hóa không phải nguyên nhân; bất đồng là do lệch miền. Luật dựa trên max có thể bị một mô hình "quá tự tin" kéo lên → đó là lý do C6/C7 luôn kèm điều kiện va đập/bất động.
+- **Code đang sửa dở:** `src/fsm.cpp`, `src/main.cpp`, `include/board_config.h` có thay đổi chưa commit (nút/còi chung net GPIO1-2-3). Bước sửa firmware phải dựa trên các thay đổi đó, commit riêng.
+
+### Bảng bước
+
+| ID | Việc | Model | Thời gian | File chạm | Song song? |
+|---|---|---|---|---|---|
+| F0 | Chép `live1/3/5.log` từ scratchpad tạm vào `dataset/device_logs/2026-11-02/` + README 5 dòng (người, đệm, AI bật/tắt) | Haiku | 10 ph | `dataset/device_logs/` | đầu tiên |
+| F1 | Bước 1–3: lưới ứng viên, chọn ngưỡng lồng nhau, bootstrap, stress-test → `dataset/ai_results/final_config.json` | Sonnet | ~2 h | `tools/ai_lab/run_final_config.py` (mới), `final_config.json` | ∥ F2, F3 |
+| F2 | Bước 4: chấm lại log thiết bị → `dataset/ai_results/device_trials.json` | Sonnet | ~45 ph | `tools/ai_lab/device_log_rescore.py` (mới) | ∥ F1, F3 (sau F0) |
+| F3 | Bước 5: kiểm tra lệch miền chỉ đọc → `dataset/ai_results/shift_check.json` | Sonnet | ~45 ph | script mới trong scratchpad, `shift_check.json` | ∥ F1, F2 |
+| F4 | Áp quy tắc chấp nhận, chọn cấu hình, ghi kết luận vào mục này | Opus | ~30 ph | `PLAN.md` | sau F1–F3 |
+| F5 | Sửa firmware theo kết quả, build, nạp, xác minh (cần người dùng cho phép dùng COM13) | Sonnet | ~1,5 h | xem dưới | sau F4, một mình |
+| F6 | Đồng bộ tài liệu + câu cho slide | Haiku | ~30 ph | `BAO_CAO.md`, `docs/results_tables.md`, `README.md`, `PLAN.md` | sau F5 |
+
+### Thay đổi firmware theo từng kết quả (F5)
+
+- **Giữ C1:** không đổi code. Chỉ ghi vào báo cáo con số lồng nhau + stress-test + giới hạn đã biết (bất đồng trên cổ tay thật).
+- **C2 (chỉ đổi ngưỡng):** sửa tay `AI_ENSEMBLE_THRESHOLD` trong `include/cnn_fall_model.h` (ghi chú "chỉnh tay theo final_config.json") và `thr_fused` trong `fusion.json` cho nhất quán; `AI_SUPPORT_P` trong `src/fsm.cpp`.
+- **C7 (dự kiến nhiều khả năng nhất):** `src/ai_model.cpp` thêm hai vòng 12 phần tử cho MLP và CNN → `aiMaxMlp6s`, `aiMaxCnn6s` (khai báo `include/app_state.h`, định nghĩa ở `src/main.cpp`); `src/fsm.cpp` đổi điều kiện đường B thành `max(aiMaxMlp6s, aiMaxCnn6s) < AI_SUPPORT_P` với giá trị τ_B mới; thêm cả hai giá trị vào dòng log `[FSM] impact variance=…`.
+- **C6:** thêm `AI_SINGLE_P` (t_hi) trong `src/fsm.cpp`; đường A' chỉ xét khi `state` là FREE_FALL/IMPACT, dùng chung cooldown 30 s; log `[FSM] AI single-model trigger`.
+- **C3/C4 (đổi bộ kết hợp):** dòng `p = 0.5f * (pMlp + pCnn)` trong `src/ai_model.cpp` + ngưỡng; dashboard vẫn hiện p, MLP, CNN như cũ.
+- **Xác minh:** `pio run` (một mình) → nạp COM13 → `[SELFTEST] PASS` → `replay_eval.py --ai both` trên đúng 9 bản ghi cũ: ngã ≥ 5/5, sinh hoạt không thêm báo nhầm so với `replay.json` → (người dùng làm, có giám sát) 3 lần ngã trên đệm + 10 phút sinh hoạt bằng `tools/live_ai.py`. Không cần chạy lại HIL vì xác suất từng mô hình không đổi.
+- **Câu cho slide** (bản cho C6/C7; nếu giữ C1 thì thay câu thứ ba bằng "đường luật bất động + AI hỗ trợ cứu các ca hai mô hình bất đồng"): "Hai mô hình AI bổ sung nhau. Trên dữ liệu 21 người chúng gần như luôn đồng ý, nên lấy trung bình với ngưỡng 0,87 cho 95 % phát hiện mà không báo nhầm. Trên cổ tay thật chúng hay bất đồng, nên chúng tôi thêm luật hai bằng chứng: chỉ cần **một** mô hình chắc chắn **và** có va đập/bất động là báo. Ngưỡng chọn bằng kiểm định chéo lồng nhau theo người, không chạm dữ liệu kiểm tra."
