@@ -281,6 +281,27 @@ static void serialCommands() {
       saveAiMode();
       fsmReset();
       Serial.printf("AIARM %d\n", aiAlarmEnabled ? 1 : 0);
+    } else if (!replayActive && strcmp(line, "#NETTEST") == 0) {
+      // Diagnostic for the shared GPIO1/2/3 net: millivolts on GPIO2 under different pin configurations.
+      buzzerNetSet(false);
+      pinMode(PIN_BUTTON, INPUT_PULLUP);
+      delay(20);
+      const uint32_t mvUp = analogReadMilliVolts(PIN_BUTTON);
+      pinMode(PIN_BUTTON, INPUT);
+      delay(50);
+      const uint32_t mvFloat = analogReadMilliVolts(PIN_BUTTON);
+      pinMode(PIN_BUTTON, INPUT_PULLDOWN);
+      delay(50);
+      const uint32_t mvDown = analogReadMilliVolts(PIN_BUTTON);
+      pinMode(PIN_BUTTON, INPUT);
+      pinMode(PIN_BUZZER, OUTPUT);
+      digitalWrite(PIN_BUZZER, HIGH);
+      delay(2);
+      const uint32_t mvDriven = analogReadMilliVolts(PIN_BUTTON);
+      digitalWrite(PIN_BUZZER, LOW);
+      pinMode(PIN_BUZZER, INPUT);
+      Serial.printf("NETTEST pullup=%lumV none=%lumV pulldown=%lumV gpio3high=%lumV\n",
+                    (unsigned long)mvUp, (unsigned long)mvFloat, (unsigned long)mvDown, (unsigned long)mvDriven);
     } else if (strcmp(line, "#HTTPSELF") == 0) {
       httpSelfTest();
     } else if (strcmp(line, "#REPLAY") == 0) {
@@ -346,9 +367,10 @@ void setup() {
                 (unsigned)(getApbFrequency() / 1000000));
   i2cBusRecover();
 
-  pinMode(PIN_BUZZER, OUTPUT);
-  digitalWrite(PIN_BUZZER, LOW);
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
+  pinMode(PIN_NET_AUX, INPUT);
+  buzzerNetSet(false);
+  pinMode(PIN_BUTTON, INPUT);  // read with the ADC (see controls.cpp)
+  analogSetPinAttenuation(PIN_BUTTON, ADC_2_5db);
   pinMode(PIN_BUTTON_ALT, INPUT_PULLUP);
   Serial.printf("[BTN] GPIO2=%d BOOT=%d\n",
                 digitalRead(PIN_BUTTON), digitalRead(PIN_BUTTON_ALT));

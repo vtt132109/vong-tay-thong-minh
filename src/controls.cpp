@@ -11,14 +11,42 @@ static int lastBoot = -1;
 static bool rawDown = false;
 static bool stableDown = false;
 static uint32_t rawChangedMs = 0;
+// Shared net (buzzer GPIO3 + button GPIO2 + GPIO1): the button is readable only while the net is released.
+static bool netDriven = true;  // forces the first release to configure the pin
+static uint32_t netReleasedMs = 0;
+static int lastValidG2 = HIGH;
+
+void buzzerNetSet(bool on) {
+  if (on == netDriven) return;
+  netDriven = on;
+  if (on) {
+    pinMode(PIN_BUZZER, OUTPUT);
+    digitalWrite(PIN_BUZZER, HIGH);
+  } else {
+    pinMode(PIN_BUZZER, INPUT);
+    netReleasedMs = millis();
+  }
+}
 
 void updateButton(uint32_t now) {
-  int g2 = digitalRead(PIN_BUTTON);
+  const bool netReadable = !netDriven && (now - netReleasedMs) >= 10;
+  // Released, the shared net idles at ~0.55 V (below the digital LOW threshold); pressed it is ~0 V. Only the ADC
+  // tells the two apart (measured with #NETTEST), so a press is < BUTTON_ADC_PRESSED_MV.
+  if (netReadable) lastValidG2 = (analogReadMilliVolts(PIN_BUTTON) < BUTTON_ADC_PRESSED_MV) ? LOW : HIGH;
+  int g2 = lastValidG2;
   int g0 = digitalRead(PIN_BUTTON_ALT);
 
   bool externalDown = (g2 == LOW);
   bool bootDown = (g0 == LOW);
-  if (!externalArmed && !externalDown) externalArmed = true;
+  // The external line is trusted only after it has idled HIGH for EXT_ARM_MS; a loose wire that only blips
+  // HIGH for a moment must not arm it (it would read as a permanent press and fire a false SOS).
+  static uint32_t externalHighSinceMs = 0;
+  if (externalDown) {
+    externalHighSinceMs = 0;
+  } else if (externalHighSinceMs == 0) {
+    externalHighSinceMs = now;
+  }
+  if (!externalArmed && externalHighSinceMs != 0 && now - externalHighSinceMs >= 2000) externalArmed = true;
   if (!bootArmed && !bootDown) bootArmed = true;
   if (!externalArmed && !warnedExternal && now > 3000) {
     warnedExternal = true;
@@ -69,7 +97,7 @@ void updateBuzzer(uint32_t now) {
   if (replayActive) {  // serial replay test: never sound the buzzer
     if (buzzerActive) {
       buzzerActive = false;
-      digitalWrite(PIN_BUZZER, LOW);
+      buzzerNetSet(false);
     }
     return;
   }
@@ -78,11 +106,12 @@ void updateBuzzer(uint32_t now) {
   } else if (state == SystemState::Countdown) {
     on = ((now - stateEnteredMs) % 1000) < 100;
   } else if (state == SystemState::Alarm || state == SystemState::PanicSos) {
-    on = true;
+    // 180 ms on / 60 ms released: the gap lets the shared net be read so the button can still cancel.
+    on = ((now - stateEnteredMs) % 240) < 180;
   }
   if (on != buzzerActive) {
     buzzerActive = on;
-    digitalWrite(PIN_BUZZER, on ? HIGH : LOW);
+    buzzerNetSet(on);
   }
 }
 

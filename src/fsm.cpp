@@ -1,4 +1,5 @@
 #include "fsm.h"
+#include "controls.h"
 #include "storage.h"
 #include <stdio.h>
 #include <string.h>
@@ -33,7 +34,7 @@ void setState(SystemState next, const char *reason) {
     healthAbnormalSinceMs = 0;
   } else if (next == SystemState::Idle) {
     buzzerActive = false;
-    digitalWrite(PIN_BUZZER, LOW);
+    buzzerNetSet(false);
     freeFallLowCount = 0;
     impactSampleCount = 0;
     impactExtended = false;
