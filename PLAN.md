@@ -398,3 +398,115 @@ Lưu ý: `src/fsm.cpp`, `src/main.cpp`, `include/board_config.h` đang có thay 
 10. **Xác minh:** `pio run` → `[SELFTEST] PASS` → `replay_eval.py --ai both` trên 9 bản ghi: ngã 5/5, sinh hoạt **đúng 1** báo nhầm (`s20/clap`) — cửa chặn cứng → thử nghiệm đeo có giám sát.
 11. **Lùi** (đặt `AI_SINGLE_P = 2.0f`) nếu: replay thêm báo nhầm, hoặc ≥ 1 báo nhầm từ A′ trong 10 phút sinh hoạt, hoặc > 1/ngày khi đeo thật, hoặc self-test FAIL.
 12. Không cần chạy lại HIL; `aiSelfTest()` không phụ thuộc luật kết hợp.
+
+## Bài báo PDF (6-8 trang)
+
+*(Viết 2026-11-03. Nội dung ở `docs/paper/paper.html` — HTML thuần, không script, không tài nguyên ngoài;
+`docs/paper/paper.css` do người/agent dàn trang viết. Mọi số trong bài đã đối chiếu lại với file nguồn,
+danh sách ở dưới.)*
+
+### Dàn ý và ngân sách trang (ước lượng cho 2 cột A4, 10 pt)
+
+| Mục | Nội dung | Ước lượng |
+|---|---|---|
+| Tiêu đề + tác giả + Tóm tắt + Từ khóa | tóm tắt ~330 từ tiếng Việt | 0,5 trang |
+| 1. Giới thiệu | vấn đề, hai thái cực (ngưỡng 98,3 FA/h ↔ FSM 6/104), 6 đóng góp đánh số | 0,7 |
+| 2. Bối cảnh | ba nhóm phương pháp, vì sao không so với số liệu công bố nơi khác, vì sao chọn bộ dữ liệu cổ tay | 0,3 |
+| 3. Thiết kế hệ thống | 3.1 phần cứng · 3.2 firmware/2 lõi · 3.3 FSM + Bảng 1 · 3.4 bảo mật. Hình 1 (wide) | 1,2 (gồm hình/bảng) |
+| 4. Phương pháp AI | 4.1 HIFD · 4.2 mô phỏng chuỗi firmware · 4.3 nhãn theo sự kiện · 4.4 MLP + CNN int8 · 4.5 giao thức LOSO · 4.6 nghiên cứu quyết định | 1,3 |
+| 5. Kết quả | 5.1 LOSO (Bảng 2, Hình 2, Hình 3) · 5.2 luật + ablation (Bảng 3, Hình 4) · 5.3 C1 vs C6 (Bảng 4) · 5.4 trên chip (Bảng 5) + nhiệt · 5.5 cổ tay thật · 5.6 HR/SpO2 | 2,6 |
+| 6. Thảo luận và hạn chế | lệch miền, mẫu nhỏ, hướng gắn (0,056 % → 3,40 %), ngưỡng lạc quan, chưa lâm sàng/chưa đủ phần cứng | 0,6 |
+| 7. Kết luận và hướng phát triển | tóm tắt + 4 việc tiếp theo | 0,3 |
+| Tài liệu tham khảo | 3 mục | 0,15 |
+
+Tổng ước lượng **≈ 7 trang**. Thân bài ~26 000 ký tự (~5 750 từ tiếng Việt). Nếu bản dàn trang ra quá 8 trang,
+cắt theo thứ tự: 5.6 (HR/SpO2) → đoạn "ứng viên bị loại" ở 5.3 → mục 2 → đoạn nhiệt/xung ở 5.4.
+Nếu thiếu trang thì ngược lại: thêm `fig_feature_importance.png` vào 4.4.
+
+### Hình và bảng đã chọn (4 hình + 5 bảng)
+
+| Số | File / nội dung | Vì sao chọn |
+|---|---|---|
+| Hình 1 | `docs/figures/fig_system.png` (wide) | hình duy nhất cho thấy cả hai nhánh (IMU→AI→FSM và PPG) và ranh giới "mọi thứ chạy trên chip" |
+| Hình 2 | `fig_operating_curves.png` (col) | hình "đắt" nhất: 8 mô hình + 2 mốc luật trên một trục FA/h, cho thấy ngay tổ hợp thắng ở ngân sách thấp |
+| Hình 3 | `fig_probability_timelines.png` (col) | cho giám khảo thấy *hình dạng* tín hiệu AI, giải thích vì sao vỗ tay là nguồn báo nhầm |
+| Hình 4 | `fig_ablation.png` (col) | trực quan hóa cú sụp 97→18 khi bỏ nhãn theo sự kiện; dùng hình thay bảng để đỡ một bảng |
+| Bảng 1 | 4 đường vào COUNTDOWN (luật gốc, A, A′, B) | thay cho `fig_states.png` (xem cảnh báo dưới) |
+| Bảng 2 | so sánh 12 mô hình LOSO (wide) | lấy nguyên từ `docs/results_tables.md` |
+| Bảng 3 | 3 mốc so sánh bằng luật | số liệu then chốt của mục 1 |
+| Bảng 4 | C1 vs C6, gồm bootstrap và stress-test (wide) | trình bày quyết định cấu hình cuối |
+| Bảng 5 | 6 phép kiểm chứng trên chip | gom self-test / HIL / replay / HTTP / vòng lặp / pytest |
+
+**Không dùng:**
+
+- `fig_states.png` — **đã lỗi thời**: vẫn vẽ trạng thái `SNOOZE` (đã bỏ khỏi `include/shared_types.h`;
+  nhấn nút giờ về IDLE ngay) và chưa có đường A′. Dùng Bảng 1 thay thế. Nếu muốn có hình trạng thái,
+  phải vẽ lại: bỏ SNOOZE, thêm cạnh A′ (`max(MLP,CNN) ≥ 0,95` từ FREE_FALL/IMPACT), rồi chèn làm Hình 2
+  và đánh số lại các hình sau.
+- `fig_feature_importance.png` — các giá trị permutation đều < 0,007 (AUC đã 0,9998) nên hình không nói
+  được nhiều; để dành nếu thiếu trang.
+- `poster_system.png`, `poster_curves.png` — bản cho poster.
+- `docs/screenshots/dashboard-*.png` — **không phải thiết bị thật**: chân trang ghi
+  `API http://127.0.0.1:8123` (tức `tools/mock_server.py`), hiển thị pin 88 % / 3,94 V trong khi pin chưa hàn,
+  và còn trạng thái SNOOZE. Dùng sẽ là trình bày sai sự thật. Xem mục "Người dùng cần làm".
+
+### Mọi con số trong bài và nguồn
+
+| Con số | Nguồn |
+|---|---|
+| 21 người, 349 bản ghi, 381 394 mẫu, 104 ngã / 245 sinh hoạt, cổ tay trái, 50 Hz | `BAO_CAO.md` §6.1; `final_config.json` → `meta.n_recordings/n_fall` |
+| Ngưỡng 25 m/s²: 104/104, 177 FA / 1,801 h, 98,3/h, trễ 0,08 s | `b1_baselines.json` → `threshold only` |
+| FSM gốc: 6/104, 14 FA, 7,77/h, trễ 6,38 s | `b1_baselines.json` → `FSM (still after impact)`; `final_config.json` → `verification.C0_vs_b1_baselines` |
+| FSM hiệu chỉnh: 31/31, 9 FA / 0,50 h, 18,1/h, 3,4 s | `docs/results_tables.md` §"Rule-based baselines" |
+| Bảng 2 (12 dòng mô hình, cột @≤1/≤2/≤5 và ngưỡng theo fold) | `docs/results_tables.md` §"Leave-one-subject-out"; `summary.json` → `operating` |
+| Ablation 97 / 18 / 94 / 93 / 94 / 92 trên 104 | `summary.json` → `ablation` |
+| Khoảng cách miền 92 → 97 → 98 / 104 | `docs/results_tables.md` (3 dòng MLP-42); `BAO_CAO.md` §6.2 |
+| Đường A đơn thuần: 99/104, 0 FA / 1,9455 h, cận trên 1,896/h | `fusion.json`; `final_config.json` → `verification.C1_pathA_event_report` |
+| **C1 đầy đủ (A∪B): 102/104 (0,933–0,995), 1 FA / 1,8011 h = 0,56/h (cận trên 3,09), trễ 0,26 s** | `final_config.json` → `candidates.C1.deploy_all21_selection.groups.all_21_optimistic_for_1_15` |
+| **C6 lồng nhau: 102/104, 2 FA, 1,11/h (cận trên 4,01), trễ 0,20 s; nhóm 16–21: 31/31, 1 FA** | `final_config.json` → `candidates.C6.nested` và `.relaxed_fa_c1_plus_1` |
+| C6 stress: 96 (MLP = 0) / 97 (CNN = 0); C1 stress 0 / 0 | `final_config.json` → `candidates.C6.relaxed_fa_c1_plus_1.nested_stress_*`; `candidates.C1.stress_test.*_capped_0.999_on_falls` |
+| Bootstrap C6 vs C1: Δrecall 0,000 (0/1000 xấu hơn), ΔFA +1,06 (CI 0…+3) | `final_config.json` → `bootstrap_vs_C1_nested_relaxed_fa_c1_plus_1.C6` |
+| t_hi = 0,95 chọn ở 21/21 fold; FA = 2 cho t_hi 0,95–0,99 | `final_config.json` → `candidates.C6.nested.selected_params_frequency`; mục "Kết luận F4" §2 |
+| C7 kém C1 ở 89,5 % lần bootstrap; C3 100/104 + 4 FA; C8b 5 FA, stress 0 | PLAN "Kết luận F4" §2 (từ `final_config.json`) |
+| HIL: 1 942 cửa sổ, MLP 1,2·10⁻⁶, CNN 1,6·10⁻⁴, 0 lệch; 14/15 ngã, 1 FA / 0,27 h, trễ 0,16 s | `hil_final_full.json` |
+| Replay: AI bật 5/5 ngã + 1/4 sinh hoạt (vỗ tay); AI tắt 0/5 ngã + 2/2 vỗ tay | `replay.json` (18 dòng = 9 bản ghi × 2 chế độ) |
+| 0,42 ms / 4,2 ms @160 MHz; 80 MHz 0,76/8,4 ms 40,7 °C; 240 MHz 0,32/2,8 ms 57,7 °C; jit 35 ms, 50 fps | `thermal.json` |
+| 705 / 1 761 / 2 466 tham số, 49 200 MAC | `docs/results_tables.md`; `final.json` → `macs`; kiểm lại bằng tay từ kiến trúc |
+| Ngưỡng 0,87 (`AI_ENSEMBLE_THRESHOLD`), `AI_SINGLE_P` 0,95, `AI_SUPPORT_P` 0,5, settle 1,5 s, var 0,8/4,0, cooldown 30 s, cửa sổ tươi 600 ms | `include/cnn_fall_model.h`, `src/fsm.cpp` |
+| Luật gốc: 25 m/s², rơi tự do 5 m/s², bất động 3 s var < 0,08, đếm ngược 10 s, SOS giữ 3 s | `include/board_config.h` |
+| FW 2.2-c6; 983 KB flash (75 %), RAM 16,6 % | `include/board_config.h`; `README.md` §2 |
+| HTTP self-test 11/11; 8 test pytest + CI | `BAO_CAO.md` §9; `tests/test_tools.py` |
+| Cổ tay thật: 5 ngã / 1 người / nệm, 4 ca chạy với AI bật, C1 bắt 3/5 (Wilson 0,231–0,882) | `device_trials.json` → `trials`, `candidates[id=C1]` |
+| Bất đồng 1,00 / 0,97 / 0,84 / 0,58 ở 4/5 ca | `device_trials.json` → `trials[*].max_mlp_cnn_disagreement` |
+| 8,6 phút (517,9 s) đeo yên tĩnh, max p 0,003, 0 FA, cận trên 20,8/h | `device_trials.json` → `idle`; PLAN "Kết luận F4" §0.2 |
+| Bất đồng thiết bị 3/6 vs HIFD 1/104, Fisher p = 3,6·10⁻⁴ | `shift_check.json` → `numbers.device_vs_hifd_fisher_exact` |
+| Không tìm thấy lệch trục/dấu/đơn vị giữa firmware và pipeline | `shift_check.json` → `verdict`, `verdict_explanation` |
+| Hướng gắn: CNN ≥ 0,9 trên 0,056 % cửa sổ ADL (gốc) → 3,40 % (xoay z −90°), mean ≥ 0,87 vẫn 0,00 %; n = 1 792 | `shift_check.json` → `numbers.sensitivity_deployed_models_subjects_19_21` |
+| Biên độ gia tốc ×0,5 → 9/15 ca ngã (xấp xỉ nệm mềm) | `shift_check.json` → cùng mục, dòng `SOFT impact proxy: accel x0.5` |
+| Phương sai sau va đập trung vị 3,7; 1 % ngã < 0,08; 12 % đoạn sinh hoạt < 0,08 | `BAO_CAO.md` §6.7 |
+| int8 vs float: sai lệch xác suất trung bình 0,0015 | `BAO_CAO.md` §6.4 (chỉ có trong báo cáo, không có file JSON riêng) |
+| HR/SpO2: mô phỏng 200 seed 4,72 → 1,65 bpm, 13,7 % → 2,1 %; đo thật HR 55–76, SpO2 96–97, PI 1,5–3,5 % | `BAO_CAO.md` §7 |
+| Quaternion: cosin trung vị −0,50 (world→body) vs 0,03 | `BAO_CAO.md` §6.2 |
+
+### Người dùng cần điền hoặc xác nhận
+
+1. **Tác giả.** `<p class="authors">` đang là một dòng placeholder duy nhất: `[Điền: tên nhóm, họ tên thành viên, đơn vị, giáo viên hướng dẫn]`.
+2. **Tài liệu tham khảo [1] (HIFD).** Kho mã chỉ ghi "Heart Rate & IMU sensor data for fall detection, IEEE Access 2020"
+   + link GitHub; **không có tên tác giả, tiêu đề đầy đủ, số tập/trang**. Phải tra và điền theo mẫu của cuộc thi.
+3. **Tài liệu tham khảo [2]** (Nghị định 13/2023/NĐ-CP): bổ sung ngày ban hành/cơ quan nếu mẫu trích dẫn yêu cầu.
+   WEDA-FALL và SisFall được nhắc trong mục 2 **không có trích dẫn** (kho mã không có chi tiết); nếu muốn trích dẫn
+   thì phải tự tra, hoặc bỏ tên chúng khỏi câu đó.
+4. **Ảnh sản phẩm thật còn thiếu.** Không có ảnh chụp vòng tay trong kho. Một ảnh board đã lắp (và/hoặc ảnh màn hình
+   dashboard **chụp từ IP thật của board**, không phải `127.0.0.1:8123`) sẽ là hình giá trị nhất còn thiếu —
+   chèn làm Hình 5 ở mục 3.1.
+5. **Vẽ lại `fig_states.png`** nếu muốn có hình máy trạng thái (bỏ SNOOZE, thêm A′).
+6. **Nhãn trục của Hình 2–4 đang bằng tiếng Anh.** Chạy lại `tools/ai_lab/make_figures.py` với nhãn tiếng Việt thì
+   bài sẽ nhất quán hơn; nếu không kịp thì giữ nguyên, chú thích hình đã bằng tiếng Việt.
+7. **Xác nhận một phát biểu trong mục 6:** bài nói rõ rằng số liệu replay ở Bảng 5 đo trên cấu hình **C1**
+   (`replay.json` ghi lúc 01:54 ngày 2026-11-02, trước khi `src/fsm.cpp` đổi sang C6 lúc 23:26) và rằng việc chạy lại
+   `replay_eval.py --ai both` trên 9 bản ghi với FW 2.2-c6 vẫn là cửa chặn bắt buộc (F5 bước d.3). **Nếu đã chạy lại
+   rồi mà chưa lưu kết quả, hãy lưu và sửa lại câu đó + Bảng 5.**
+8. **Tiêu đề bài** hiện khá dài; rút gọn nếu mẫu của cuộc thi giới hạn.
+9. `CLAUDE_HANDOFF.md` §0 và `README.md` §1 vẫn ghi "99/104, 0 báo nhầm" (chỉ đúng cho đường A).
+   Bài báo đã dùng số đúng (102/104, 1 FA cho C1; 102/104, 2 FA cho C6) — nên đồng bộ hai file kia để không mâu thuẫn
+   khi giám khảo đọc repo.

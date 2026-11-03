@@ -1,0 +1,195 @@
+/* Bio-Band paper - A4, two columns, Vietnamese. Printed by tools/build_paper.py */
+
+@page {
+  size: A4;
+  margin: 15mm 16mm 17mm 16mm;
+  @bottom-center {
+    content: counter(page);
+    font: 8.5pt "Times New Roman", "Liberation Serif", Georgia, serif;
+    color: #444;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html {
+  font-family: "Times New Roman", "Liberation Serif", "Noto Serif", Georgia, serif;
+  font-size: 9.8pt;
+  line-height: 1.24;
+  color: #000;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+body { margin: 0; background: #fff; }
+
+p, li, td, th, figcaption { hyphens: none; -webkit-hyphens: none; }
+
+p { margin: 0 0 3.2pt; text-align: justify; orphans: 2; widows: 2; }
+
+em { font-style: italic; }
+sub, sup { line-height: 0; font-size: 70%; }
+
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 8.2pt;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- header (single column) ---------- */
+header { margin: 0 0 5pt; }
+
+header h1 {
+  font-size: 15pt;
+  line-height: 1.15;
+  font-weight: bold;
+  text-align: center;
+  margin: 0 0 5pt;
+}
+
+p.authors {
+  text-align: center;
+  font-style: italic;
+  font-size: 9.6pt;
+  margin: 0 0 6pt;
+}
+
+.abstract {
+  border-top: 0.6pt solid #000;
+  border-bottom: 0.6pt solid #000;
+  padding: 3pt 8mm 3pt;
+  font-size: 9pt;
+  line-height: 1.2;
+}
+.abstract h2 {
+  font-size: 9.6pt;
+  text-align: center;
+  margin: 0 0 2pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.abstract p { font-style: normal; margin-bottom: 2pt; }
+.abstract p.keywords { margin-top: 3pt; margin-bottom: 0; }
+
+/* ---------- body: two columns ---------- */
+main {
+  columns: 2;
+  column-gap: 8mm;
+  column-rule: 0.4pt solid #888;
+  column-fill: balance;
+  margin-top: 6pt;
+}
+
+section { margin: 0; }
+
+main h2 {
+  font-size: 10.2pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 7pt 0 3pt;
+  break-after: auto;
+}
+main h3 {
+  font-size: 9.6pt;
+  font-weight: bold;
+  font-style: italic;
+  margin: 5pt 0 2pt;
+  break-after: auto;
+}
+
+ol, ul { margin: 0 0 3.2pt; padding-left: 14pt; }
+li { margin-bottom: 1.5pt; text-align: justify; }
+
+.eq {
+  font-style: italic;
+  font-family: "Times New Roman", "Cambria Math", serif;
+}
+p.eq {
+  font-style: normal;
+  text-align: left;
+  margin: 2pt 0 4pt 8pt;
+  font-size: 9pt;
+}
+span.eq { font-style: normal; white-space: nowrap; }
+/* long arrow chains / architectures may wrap */
+span.eq { white-space: normal; }
+
+/* ---------- figures ---------- */
+figure { margin: 4pt 0 5pt; padding: 0; }
+figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+figure img.w65 { width: 65%; }
+figure img.w85 { width: 85%; }
+figure img.w70 { width: 70%; }
+figure img.w100 { width: 100%; }
+figure img.w80 { width: 80%; }
+figure img.w90 { width: 90%; }
+
+figure.col { break-inside: avoid; }
+figure.wide {
+  position: relative;
+  z-index: 1;
+  background: #fff;   /* hides the column rule where Chromium paints it through a spanner */
+  column-span: all;
+  break-inside: avoid;
+  margin: 5pt 0 6pt;
+}
+
+/* wide block holding two column-width items side by side (keeps the column rule) */
+.pair {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  column-span: all;
+  break-inside: avoid;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8mm;
+  margin: 5pt 0 6pt;
+}
+.pair > * { min-width: 0; }
+.pair .side { position: relative; }
+.pair .side::before {
+  content: "";
+  position: absolute;
+  left: -4mm;
+  top: 0;
+  bottom: 0;
+  width: 0.4pt;
+  background: #888;
+}
+.pair figure { margin-top: 0; }
+.pair h3 { margin-top: 0; }
+figure.wide > h3 { margin: 0 0 3pt; }
+
+figcaption {
+  font-size: 8.5pt;
+  line-height: 1.17;
+  text-align: justify;
+  margin-top: 2pt;
+}
+figcaption.tcap { margin: 0 0 2.5pt; font-weight: normal; }
+
+/* ---------- tables (booktabs) ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8pt;
+  line-height: 1.14;
+  border-top: 0.9pt solid #000;
+  border-bottom: 0.9pt solid #000;
+}
+thead tr { border-bottom: 0.5pt solid #000; }
+th, td { padding: 1.3pt 3pt; text-align: left; vertical-align: top; }
+th { font-weight: bold; }
+td strong { font-weight: bold; }
+td code { font-size: 7.6pt; }
+table.t1 th:nth-child(1), table.t1 td:nth-child(1) { width: 17%; }
+table.t1 th:nth-child(3), table.t1 td:nth-child(3) { width: 22%; }
+table.t5 th:nth-child(1), table.t5 td:nth-child(1) { width: 36%; }
+
+/* ---------- references ---------- */
+section.refs { font-size: 8.5pt; line-height: 1.15; }
+section.refs h2 { margin-top: 6pt; }
+section.refs ol { padding-left: 15pt; margin: 0; }
+section.refs li { margin-bottom: 1.5pt; text-align: left; overflow-wrap: anywhere; }
+section.refs code { font-size: 7.1pt; }
