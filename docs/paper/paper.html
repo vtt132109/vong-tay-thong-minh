@@ -186,14 +186,14 @@ vùng đệm 1,0–1,5 s: loại bỏ</p>
 </figure>
 
 <figure class="wide">
-<img class="w100" src="../figures/fig_operating_curves.png" alt="Đường cong vận hành: tỉ lệ phát hiện theo số báo nhầm mỗi giờ">
+<img class="w100" src="../figures/fig_operating_curves_vi.png" alt="Đường cong vận hành: tỉ lệ phát hiện ca ngã theo số báo nhầm mỗi giờ, tám mô hình và hai mốc so sánh bằng luật">
 <figcaption>Hình 2. Đường cong vận hành theo sự kiện của tất cả các mô hình và hai mốc so sánh bằng luật (21 người giữ lại, 1,95 giờ sinh hoạt). Trục hoành là số báo nhầm mỗi giờ (thang log). Tổ hợp MLP + CNN (đường xanh lá đậm) nằm trên tất cả ở vùng ngân sách báo nhầm thấp, là vùng duy nhất có ý nghĩa thực tế.</figcaption>
 </figure>
 
 <div class="pair">
 <figure class="col">
-<img src="../figures/fig_probability_timelines.png" alt="Xác suất AI theo thời gian quanh va đập cho hai ca ngã và ba hoạt động sinh hoạt">
-<figcaption>Hình 3. Xác suất tổ hợp theo thời gian (đường nét đứt là ngưỡng 0,87). Hai bản ghi ngã cho một đỉnh nhọn, cao và bám sát va đập; vỗ tay, nằm giường và đi bộ không chạm ngưỡng. Vỗ tay là nguồn báo nhầm chính còn lại của các mô hình đơn.</figcaption>
+<img class="w100" src="../figures/fig_probability_timelines_vi.png" alt="Xác suất p(ngã) của tổ hợp theo thời gian (s) quanh va đập cho hai ca ngã và ba hoạt động sinh hoạt (vỗ tay, nằm giường, đi bộ)">
+<figcaption>Hình 3. Xác suất tổ hợp theo thời gian, tính từ cửa sổ 2 s kết thúc tại thời điểm tương ứng (đường nét đứt là ngưỡng 0,87). Hai bản ghi ngã cho một đỉnh nhọn, cao và bám sát va đập; vỗ tay, nằm giường và đi bộ không chạm ngưỡng. Vỗ tay là nguồn báo nhầm chính còn lại của các mô hình đơn.</figcaption>
 </figure>
 
 <div class="side">
@@ -219,7 +219,7 @@ vùng đệm 1,0–1,5 s: loại bỏ</p>
 </div>
 
 <figure class="wide">
-<img class="w70" src="../figures/fig_ablation.png" alt="Ablation: tỉ lệ phát hiện và số báo nhầm của sáu biến thể công thức">
+<img class="w100" src="../figures/fig_ablation_vi.png" alt="Ablation: tỉ lệ phát hiện ca ngã và số báo nhầm của sáu biến thể công thức">
 <figcaption>Hình 4. Ablation trên MLP-42, một hạt giống, ngưỡng theo từng fold. Bỏ nhãn theo sự kiện làm tỉ lệ phát hiện sụp từ 97/104 (0,93) xuống 18/104 (0,17); ba biến thể còn lại (94/104, 93/104, 94/104) nằm trong nhiễu của một hạt giống. Huấn luyện trên HIFD nguyên bản cho 92/104.</figcaption>
 </figure>
 
@@ -318,8 +318,8 @@ vùng đệm 1,0–1,5 s: loại bỏ</p>
 <section class="refs">
 <h2>Tài liệu tham khảo</h2>
 <ol>
-<li>HIFD — <em>Heart Rate &amp; IMU sensor data for fall detection</em>. Bộ dữ liệu công khai, công bố trên IEEE Access, 2020. Mã nguồn và dữ liệu: <code>https://github.com/nhoyh/HR_IMU_falldetection_dataset</code>. [Điền: tên tác giả, tiêu đề đầy đủ bài báo, số tập/trang — kho mã của dự án chỉ ghi đến mức này.]</li>
-<li>Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân. [Điền: ngày ban hành và cơ quan ban hành nếu cần theo mẫu trích dẫn của cuộc thi.]</li>
+<li>Y.-H. Nho, J. G. Lim, D.-S. Kwon, “Cluster-analysis-based user-adaptive fall detection using fusion of heart rate sensor and accelerometer in a wearable device,” <em>IEEE Access</em>, vol. 8, pp. 40389–40401, 2020, doi: 10.1109/ACCESS.2020.2969453. Bộ dữ liệu HIFD (<em>Heart Rate &amp; IMU sensor data for fall detection</em>): <code>https://github.com/nhoyh/HR_IMU_falldetection_dataset</code>.</li>
+<li>Chính phủ nước Cộng hòa xã hội chủ nghĩa Việt Nam, Nghị định số 13/2023/NĐ-CP ngày 17/4/2023 về bảo vệ dữ liệu cá nhân, có hiệu lực từ 01/7/2023.</li>
 <li>Mã nguồn, dữ liệu kết quả và công cụ tái lập của Bio-Band: <code>https://github.com/vtt132109/vong-tay-thong-minh</code>.</li>
 </ol>
 </section>
